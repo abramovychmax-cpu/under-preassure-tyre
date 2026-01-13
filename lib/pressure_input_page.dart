@@ -1,14 +1,5 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
-class PressureRun {
-  final int id;
-  final double front;
-  final double rear;
-  final String unit;
-
-  PressureRun(this.id, this.front, this.rear, this.unit);
-}
+import 'recording_page.dart'; // <--- IF THIS IS MISSING, YOU GET THE UNDEFINED_METHOD ERROR
 
 class PressureInputPage extends StatefulWidget {
   const PressureInputPage({super.key});
@@ -18,199 +9,142 @@ class PressureInputPage extends StatefulWidget {
 }
 
 class _PressureInputPageState extends State<PressureInputPage> {
-  final TextEditingController _frontController = TextEditingController();
-  final TextEditingController _rearController = TextEditingController();
-  final List<PressureRun> _completedRuns = [];
-  int _selectedUnitIndex = 0;
+  // Controllers for PSI input
+  final TextEditingController _frontController = TextEditingController(text: "60.0");
+  final TextEditingController _rearController = TextEditingController(text: "60.0");
 
-  // Pastel Color Palette
-  static const Color pastelBlue = Color(0xFFAEC6CF);
-  static const Color pastelGreen = Color(0xFF77DD77);
-  static const Color pastelBackground = Color(0xFFFDFDFD);
-  static const Color pastelInputGrey = Color(0xFFF4F4F4);
+  int completedRuns = 0;
+
+  // Gemini Dark Palette
+  static const Color bgDark = Color(0xFF121418);
+  static const Color cardGrey = Color(0xFF1E2228);
+  static const Color geminiTeal = Color(0xFF47D1C1);
 
   @override
-  void initState() {
-    super.initState();
-    _rearController.addListener(_updateFrontPressure);
-  }
-
-  void _updateFrontPressure() {
-    final double? rearValue = double.tryParse(_rearController.text);
-    if (rearValue != null) {
-      // 51/49 Weight Distribution Ratio
-      double calculatedFront = (rearValue / 51) * 49;
-      _frontController.text = calculatedFront.toStringAsFixed(_selectedUnitIndex == 0 ? 1 : 2);
-    } else {
-      _frontController.clear();
-    }
-  }
-
-  void _startRun() {
-    final double? front = double.tryParse(_frontController.text);
-    final double? rear = double.tryParse(_rearController.text);
-
-    if (front != null && rear != null) {
-      setState(() {
-        _completedRuns.add(PressureRun(
-          _completedRuns.length + 1, 
-          front, 
-          rear,
-          _selectedUnitIndex == 0 ? "PSI" : "Bar"
-        ));
-      });
-      _rearController.clear();
-      _frontController.clear();
-      FocusScope.of(context).unfocus(); 
-    }
+  void dispose() {
+    _frontController.dispose();
+    _rearController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: pastelBackground,
-      navigationBar: CupertinoNavigationBar(
-        // FIXED: Explicit iOS Back Arrow
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Icon(CupertinoIcons.back, color: CupertinoColors.activeBlue),
-          onPressed: () => Navigator.of(context).pop(),
+    return Scaffold(
+      backgroundColor: bgDark,
+      appBar: AppBar(
+        backgroundColor: bgDark,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
-        middle: const Text("Tyre Protocol", style: TextStyle(fontWeight: FontWeight.w400)),
-        backgroundColor: pastelBackground.withOpacity(0.9),
-        border: const Border(bottom: BorderSide(color: CupertinoColors.separator, width: 0.5)),
+        title: const Text("PRESSURE INPUT", 
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        centerTitle: true,
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              
-              // UNIT SELECTOR
-              SizedBox(
-                width: double.infinity,
-                child: CupertinoSlidingSegmentedControl<int>(
-                  groupValue: _selectedUnitIndex,
-                  thumbColor: Colors.white,
-                  backgroundColor: CupertinoColors.systemGrey6,
-                  children: const {
-                    0: Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("PSI")),
-                    1: Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("BAR")),
-                  },
-                  onValueChanged: (v) => setState(() {
-                    _selectedUnitIndex = v!;
-                    _rearController.clear();
-                  }),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // INPUT SECTION
-              Row(
-                children: [
-                  _buildPastelInput(_rearController, "REAR [INPUT]", true),
-                  const SizedBox(width: 15),
-                  _buildPastelInput(_frontController, "FRONT [AUTO]", false),
-                ],
-              ),
-              const SizedBox(height: 25),
-
-              // ACTION BUTTON (Pastel Blue)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: CupertinoButton(
-                  color: pastelBlue,
-                  borderRadius: BorderRadius.circular(12),
-                  onPressed: _startRun,
-                  child: const Text("Start Run", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                ),
-              ),
-
-              const SizedBox(height: 35),
-
-              // DATA LOG
-              const Text(" COMPLETE RUNS LOG", 
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: CupertinoColors.systemGrey)),
-              const SizedBox(height: 10),
-              
-              Expanded(
-                child: Container(
-                  width: double.infinity,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("RUN #${completedRuns + 1}", 
+                  style: const TextStyle(color: geminiTeal, fontWeight: FontWeight.w800, fontSize: 22)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: CupertinoColors.systemGrey5),
+                    color: geminiTeal.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: SingleChildScrollView(
-                        child: DataTable(
-                          headingRowHeight: 40,
-                          headingRowColor: MaterialStateProperty.all(pastelInputGrey),
-                          columns: const [
-                            DataColumn(label: Text('ID', style: TextStyle(fontSize: 11))),
-                            DataColumn(label: Text('FRONT', style: TextStyle(fontSize: 11))),
-                            DataColumn(label: Text('REAR', style: TextStyle(fontSize: 11))),
-                            DataColumn(label: Text('UNIT', style: TextStyle(fontSize: 11))),
-                          ],
-                          rows: _completedRuns.map((run) => DataRow(cells: [
-                            DataCell(Text('#${run.id}')),
-                            DataCell(Text(run.front.toString(), style: const TextStyle(color: pastelBlue, fontWeight: FontWeight.bold))),
-                            DataCell(Text(run.rear.toString())),
-                            DataCell(Text(run.unit, style: const TextStyle(fontSize: 10))),
-                          ])).toList(),
-                        ),
+                  child: Text("$completedRuns/3 DONE", 
+                    style: const TextStyle(color: geminiTeal, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+            Row(
+              children: [
+                Expanded(child: _buildPressureField("FRONT PSI", _frontController)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildPressureField("REAR PSI", _rearController)),
+              ],
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              height: 60,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: geminiTeal,
+                  foregroundColor: bgDark,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () async {
+                  // This is line 86/87 where your error was
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecordingPage(
+                        frontPressure: double.tryParse(_frontController.text) ?? 0.0,
+                        rearPressure: double.tryParse(_rearController.text) ?? 0.0,
                       ),
                     ),
+                  );
+
+                  if (result == true) {
+                    setState(() => completedRuns++);
+                  }
+                },
+                child: const Text("START RUN", 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+              ),
+            ),
+            if (completedRuns >= 3) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: geminiTeal, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
+                  onPressed: () => print("Calculating..."),
+                  child: const Text("FINISH AND CALCULATE", 
+                    style: TextStyle(color: geminiTeal, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
-
-              // FINISH ACTION (Pastel Green)
-              if (_completedRuns.length >= 3)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 60,
-                    child: CupertinoButton(
-                      color: pastelGreen,
-                      borderRadius: BorderRadius.circular(15),
-                      onPressed: () {},
-                      child: const Text("Finish and Calculate", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ),
             ],
-          ),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildPastelInput(TextEditingController controller, String label, bool enabled) {
-    return Expanded(
+  Widget _buildPressureField(String label, TextEditingController controller) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardGrey,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(" $label", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: CupertinoColors.systemGrey2)),
-          const SizedBox(height: 6),
-          CupertinoTextField(
+          Text(label, style: const TextStyle(color: geminiTeal, fontSize: 11, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          TextField(
             controller: controller,
-            enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, color: enabled ? CupertinoColors.label : CupertinoColors.systemGrey),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: enabled ? Colors.white : pastelInputGrey,
-              border: Border.all(color: CupertinoColors.systemGrey5),
-              borderRadius: BorderRadius.circular(10),
+            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
             ),
           ),
         ],

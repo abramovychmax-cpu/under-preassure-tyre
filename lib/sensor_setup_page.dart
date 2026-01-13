@@ -139,65 +139,96 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 }
 
   Widget sensorWindow(String title, String subtitle, bool isActive, IconData icon, VoidCallback? onConnect) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      color: isActive ? Colors.blue.withOpacity(0.05) : Colors.white,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: isActive ? Colors.blue : Colors.grey.shade300, width: 2),
-        borderRadius: BorderRadius.circular(16),
+  // Define colors locally for the Dark Aesthetic
+  const Color cardDark = Color(0xFF1E2228); 
+  const Color geminiTeal = Color(0xFF47D1C1);
+  const Color borderGrey = Color(0xFF2C3138);
+
+  return Card(
+    elevation: 0,
+    margin: const EdgeInsets.only(bottom: 12),
+    // 1. Change card background to Deep Charcoal
+    color: cardDark, 
+    shape: RoundedRectangleBorder(
+      // 2. Frame color: Teal if active, subtle Grey if not
+      side: BorderSide(
+        color: isActive ? geminiTeal : borderGrey, 
+        width: 1.5,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Icon(icon, color: isActive ? Colors.blue : Colors.grey, size: 30),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: Text(subtitle),
-        trailing: onConnect != null 
-          ? IconButton(icon: const Icon(Icons.add_link, color: Colors.blue, size: 30), onPressed: onConnect)
-          : (isActive ? const Icon(Icons.check_circle, color: Colors.green) : null),
-      ),
-    );
-  }
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      // 3. Icon color: Teal if active, muted Grey if not
+      leading: Icon(icon, color: isActive ? geminiTeal : Colors.grey, size: 30),
+      // 4. Title color: Pure White
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+      // 5. Subtitle color: Muted Grey
+      subtitle: Text(subtitle, style: TextStyle(color: isActive ? geminiTeal.withOpacity(0.7) : Colors.grey)),
+      trailing: onConnect != null 
+        ? IconButton(
+            icon: Icon(Icons.add_link, color: geminiTeal, size: 30), 
+            onPressed: onConnect
+          )
+        : (isActive ? const Icon(Icons.check_circle, color: geminiTeal) : null),
+    ),
+  );
+}
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Sensor Setup"), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            sensorWindow("GPS Status", gpsGranted ? "Locked" : "Waiting for GPS...", gpsGranted, Icons.gps_fixed, null),
-            sensorWindow("Phone Vibration", accelActive ? "Ready" : "Shake phone to test", accelActive, Icons.sensors, null),
-            const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider()),
-            sensorWindow("Speed Sensor", speedSensorName, speedSensorName != "Not Connected", Icons.speed, () => _startSensorScan("speed")),
-            sensorWindow("Power Meter", powerMeterName, powerMeterName != "Not Connected", Icons.bolt, () => _startSensorScan("power")),
-            sensorWindow("Cadence", cadenceSensorName, cadenceSensorName != "Not Connected", Icons.loop, () => _startSensorScan("cadence")),
-            const Spacer(),
-            SizedBox(
+Widget build(BuildContext context) {
+  // Define our Gemini Dark Palette
+  const Color bgDark = Color(0xFF121418);
+  const Color geminiTeal = Color(0xFF47D1C1);
+
+  return Scaffold(
+    backgroundColor: bgDark, // Changed from Colors.white
+    appBar: AppBar(
+      backgroundColor: bgDark, 
+      elevation: 0, 
+      title: const Text("Sensor Setup", style: TextStyle(color: Colors.white)), 
+      centerTitle: true
+    ),
+    body: Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          sensorWindow("GPS Status", gpsGranted ? "Locked" : "Waiting for GPS...", gpsGranted, Icons.gps_fixed, null),
+          sensorWindow("Phone Vibration", accelActive ? "Ready" : "Shake phone to test", accelActive, Icons.sensors, null),
+          
+          // REMOVED THE DIVIDER - Using space instead for "Symmetrical Guttering"
+          const SizedBox(height: 24), 
+          
+          sensorWindow("Speed Sensor", speedSensorName, speedSensorName != "Not Connected", Icons.speed, () => _startSensorScan("speed")),
+          sensorWindow("Power Meter", powerMeterName, powerMeterName != "Not Connected", Icons.bolt, () => _startSensorScan("power")),
+          sensorWindow("Cadence", cadenceSensorName, cadenceSensorName != "Not Connected", Icons.loop, () => _startSensorScan("cadence")),
+          
+          const Spacer(),
+          
+          SizedBox(
             width: double.infinity,
             height: 55,
             child: ElevatedButton(
-             onPressed: (speedSensorName != "Not Connected" && gpsGranted) 
-              ? () {
-                Navigator.push(
-              context,
-             MaterialPageRoute(builder: (context) => ProtocolSelectionPage()),
-            );
-           } 
-      : null,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color.fromARGB(255, 253, 236, 2),
-      foregroundColor: const Color.fromARGB(255, 20, 46, 197),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-    child: const Text("SELECT TESTING PROTOCOL", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-  ),
-)
-          ],
-        ),
+              onPressed: (speedSensorName != "Not Connected" && gpsGranted) 
+                ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ProtocolSelectionPage()),
+                    );
+                  } 
+                : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: geminiTeal, // The "Action" color from design
+                foregroundColor: bgDark,    // Dark text on bright button
+                disabledBackgroundColor: Colors.grey.shade800,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), // Rounded iOS style
+              ),
+              child: const Text("SELECT TESTING PROTOCOL", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          )
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
