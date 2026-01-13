@@ -22,22 +22,43 @@ class RecordingPage extends StatefulWidget {
 class _RecordingPageState extends State<RecordingPage> {
   final SensorService _sensorService = SensorService();
   double currentSpeed = 0.0;
+  double currentDistance = 0.0;
   int currentPower = 0;
   int currentCadence = 0;
   StreamSubscription? _speedSub;
+  StreamSubscription? _distSub;
+
 
   @override
   void initState() {
     super.initState();
-    // we are initializing the sensors and starting the bluetooth listener
+    
+    // 1. Reset distance to 0 for the start of this specific protocol run
+    _sensorService.resetDistance();
+
+    // 2. Start the sensors
     _sensorService.loadSavedSensors();
+
+    // 3. Listen for Distance updates
+    _distSub = _sensorService.distanceStream.listen((dist) {
+      if (mounted) {
+        setState(() {
+          currentDistance = dist;
+        });
+      }
+    });
+
+    // 4. Listen for Speed updates (Now safely inside the function)
     _speedSub = _sensorService.speedStream.listen((speed) {
-      if (mounted) setState(() => currentSpeed = speed);
+      if (mounted) {
+        setState(() => currentSpeed = speed);
+      }
     });
   }
 
   @override
   void dispose() {
+    _distSub?.cancel(); 
     _speedSub?.cancel();
     super.dispose();
   }
@@ -67,31 +88,35 @@ class _RecordingPageState extends State<RecordingPage> {
                 child: Column(
                   children: [
                     _buildDataRow("SPEED", "${currentSpeed.toStringAsFixed(1)}", "km/h", "POWER", "$currentPower", "watts"),
-                    _buildDataRow("CADENCE", "$currentCadence", "RPM", "G-FORCE (ACCEL)", "0.00", "g"),
-                    _buildDataRow("DISTANCE", "0.00", "km", "TIME LAPSED", "00:00:00", "s"),
+                    _buildDataRow("CADENCE", "$currentCadence", "RPM", "vibrations", "0.00", "g"),
+                    _buildDataRow("DISTANCE", "${currentDistance.toStringAsFixed(2)}", "km", "TIME LAPSED", "00:00:00", "_"),
                   ],
                 ),
               ),
             ),
 
             const SizedBox(height: 10),
-            // we are adding button
+            
+        
+
+            // 2. THE FINISH BUTTON (Important for your protocol!)
             TextButton(
               onPressed: () {
-                // in the code where we make it clickable we return true to indicate the run is finished
+                // This tells the app: "The run is over, go back and save it"
                 Navigator.pop(context, true);
               },
               child: const Text(
                 "FINISH RUN",
-                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
             const SizedBox(height: 20),
-          ],
+          ], // End of Column children
         ),
-      ),
+      ),    
     );
   }
+
 
   // we are defining a helper method to create a row containing two data cards
   Widget _buildDataRow(String label1, String val1, String unit1, String label2, String val2, String unit2) {

@@ -126,6 +126,8 @@ class SensorService {
   }
 
   // --- NEW ROBUST PARSER ---
+  Timer? _stopTimer; // Add this line at the top of your class (above loadSavedSensors)
+
   void _parseData(List<int> data) {
     if (data.isEmpty) return;
 
@@ -139,22 +141,36 @@ class SensorService {
       int currentRevs = (data[1]) | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
       int currentTime = (data[5]) | (data[6] << 8); 
 
-      // --- FIX STARTS HERE ---
-      // If the data is identical to the last update, it's a duplicate packet.
-      // Do nothing and return early so we don't set speed to 0.
+      // 1. FILTER DUPLICATES
       if (currentRevs == _lastWheelRevs && currentTime == _lastWheelTime) {
         return; 
       }
-      // --- FIX ENDS HERE ---
 
-      // 1. Distance Calculation
-      if (_lapStartRevs != null) {
-        int runDeltaRevs = (currentRevs - _lapStartRevs!) & 0xFFFFFFFF;
-        _currentRunDistance = (runDeltaRevs * wheelCircumference) / 1000.0;
-        _distanceController.add(_currentRunDistance);
-      }
+      // 2. TIMEOUT LOGIC (Fixes the "Frozen Speed")
+      // Every time we get NEW data, we reset a 2-second countdown.
+      // If the wheel stops, the countdown finishes and sets speed to 0.
+      _stopTimer?.cancel(); 
+      _stopTimer = Timer(const Duration(seconds: 2), () {
+        _btSpeed = 0.0;
+        _decideWhichSpeedToPublish();
+        print("WHEEL STOPPED: Speed set to 0.0");
+      });
 
-      // 2. Speed Calculation
+      // 3. DISTANCE CALCULATION (Manual Start Version)
+if (_lapStartRevs != null) {
+  // We only calculate distance if a baseline has been set by the "Start Run" button
+  int runDeltaRevs = (currentRevs - _lapStartRevs!) & 0xFFFFFFFF;
+  _currentRunDistance = (runDeltaRevs * wheelCircumference) / 1000.0;
+  
+  // Update the stream so the UI sees the movement
+  _distanceController.add(_currentRunDistance);
+} else {
+  // If a lap hasn't started yet, we keep the UI at 0.0
+  _currentRunDistance = 0.0;
+  _distanceController.add(0.0);
+}
+
+      // 4. SPEED CALCULATION
       if (_lastWheelRevs != null && _lastWheelTime != null) {
         int revDiff = (currentRevs - _lastWheelRevs!) & 0xFFFFFFFF;
         int timeDiff = (currentTime - _lastWheelTime!) & 0xFFFF;
@@ -164,13 +180,11 @@ class SensorService {
           double distanceMeters = revDiff * wheelCircumference;
           _btSpeed = (distanceMeters / timeSeconds) * 3.6;
           _lastBtMovementTime = DateTime.now();
-          
-          print("SUCCESS! Speed: $_btSpeed km/h");
+          print("SUCCESS! Speed: $_btSpeed km/h | Dist: $_currentRunDistance");
         } 
-        // Note: Removed the "else if (revDiff == 0) { _btSpeed = 0.0; }" 
-        // because true "zero speed" is handled by the timeout logic.
       }
 
+      // Update the "last known" values for the next packet
       _lastWheelRevs = currentRevs;
       _lastWheelTime = currentTime;
       
