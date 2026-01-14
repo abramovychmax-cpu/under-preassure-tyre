@@ -1,22 +1,56 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 import 'package:geolocator/geolocator.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 class SensorService {
   static final SensorService _instance = SensorService._internal();
   factory SensorService() => _instance;
   SensorService._internal();
 
+  // --- STREAMS ---
   final _speedController = StreamController<double>.broadcast();
   Stream<double> get speedStream => _speedController.stream;
 
   final _distanceController = StreamController<double>.broadcast();
   Stream<double> get distanceStream => _distanceController.stream;
 
+  final _powerController = StreamController<int>.broadcast();
+  Stream<int> get powerStream => _powerController.stream;
+  final _vibrationController = StreamController<double>.broadcast();
+  Stream<double> get vibrationStream => _vibrationController.stream;
+  // buffer of recent vibration samples for smoothing (timestamp ms -> value in g)
+  final List<Map<String, double>> _vibrationSamples = [];
+  static const int _vibrationWindowMs = 300;
+  // buffer of recent power samples for averaging (timestamp ms -> value)
+  final List<Map<String, int>> _powerSamples = [];
+  static const int _powerWindowMs = 3000;
+
+  final _cadenceController = StreamController<int>.broadcast();
+  Stream<int> get cadenceStream => _cadenceController.stream;
+  Timer? _crankStopTimer;
+
+  final _scanResultsController = StreamController<List<ScanResult>>.broadcast();
+  Stream<List<ScanResult>> get scanResultsStream => _scanResultsController.stream;
+
+  // publishes currently-resolved display names for saved slots
+  final _connectedNamesController = StreamController<Map<String, String>>.broadcast();
+  Stream<Map<String, String>> get connectedNamesStream => _connectedNamesController.stream;
+
+  // cache of discovered device display names by id
+  final Map<String, String> _deviceNames = {};
+
+  // --- VARIABLES ---
   String? _savedSpeedId;
-  BluetoothDevice? _connectedDevice;
+  String? _savedPowerId; 
+  String? _savedCadenceId; 
+  
+  final Map<String, BluetoothDevice> _connectedDevices = {};
+  final Set<String> _connectingIds = {}; 
+  bool _sequentialConnectInProgress = false;
+  final Map<String, int> _requestedMtu = {};
   
   double currentSpeedValue = 0.0;
   double currentDistanceValue = 0.0;
@@ -25,29 +59,95 @@ class SensorService {
   double _gpsSpeed = 0.0;
   bool _usingBt = false;
 
-  DateTime? _lastBtMovementTime;
   static const double minSpeedThreshold = 3.0;
-  static const int sensorTimeoutSeconds = 15;
-
+  
   int? _lastWheelRevs;
   int? _lastWheelTime;
+  
+  int? _lastCrankRevs;
+  int? _lastCrankTime;
   
   int? _lapStartRevs; 
   double _currentRunDistance = 0.0;
   static const double wheelCircumference = 2.100; // Meters
 
+  Timer? _stopTimer;
+  Timer? _uiPublisherTimer;
+  int _lastPublishedCadence = 0;
+  StreamSubscription? _accelSub;
+
+  // --- INITIALIZATION ---
   Future<void> loadSavedSensors() async {
     final prefs = await SharedPreferences.getInstance();
     _savedSpeedId = prefs.getString('speed_sensor_id');
+    _savedPowerId = prefs.getString('power_sensor_id');
+    _savedCadenceId = prefs.getString('cadence_sensor_id');
+
+    print("LOADED SENSORS: Speed($_savedSpeedId), Power($_savedPowerId), Cadence($_savedCadenceId)");
     startScanning();
     _initGps();
+    // start periodic UI publisher (2 Hz) to improve UI refresh reliability
+    _uiPublisherTimer?.cancel();
+    _uiPublisherTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      // re-emit latest values so UI updates at steady rate
+      _speedController.add(currentSpeedValue);
+      _cadenceController.add(_lastPublishedCadence);
+    });
+
+    // start accelerometer listener for vibration magnitude (m/s^2 -> g)
+    _accelSub?.cancel();
+    _accelSub = accelerometerEvents.listen((event) {
+      // magnitude in m/s^2
+      final double mag = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+      // convert to g
+      final double g = mag / 9.80665;
+
+      final int now = DateTime.now().millisecondsSinceEpoch;
+      _vibrationSamples.add({'ts': now.toDouble(), 'v': g});
+
+      final int cutoff = now - _vibrationWindowMs;
+      while (_vibrationSamples.isNotEmpty && (_vibrationSamples.first['ts'] ?? 0) < cutoff) {
+        _vibrationSamples.removeAt(0);
+      }
+
+      if (_vibrationSamples.isNotEmpty) {
+        double sum = 0.0;
+        for (final s in _vibrationSamples) sum += (s['v'] ?? 0.0);
+        final double avg = sum / _vibrationSamples.length;
+        _vibrationController.add(avg);
+      }
+    });
+  }
+
+  void _emitConnectedNames() {
+    final Map<String, String> out = {
+      'speed': _savedSpeedId == null ? 'Not Connected' : (_deviceNames[_savedSpeedId] ?? _savedSpeedId!),
+      'power': _savedPowerId == null ? 'Not Connected' : (_deviceNames[_savedPowerId] ?? _savedPowerId!),
+      'cadence': _savedCadenceId == null ? 'Not Connected' : (_deviceNames[_savedCadenceId] ?? _savedCadenceId!),
+    };
+    _connectedNamesController.add(out);
+  }
+
+  void setSavedSensor(String targetSlot, String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (targetSlot == "speed") {
+      _savedSpeedId = id;
+      await prefs.setString('speed_sensor_id', id);
+    } else if (targetSlot == "power") {
+      _savedPowerId = id;
+      await prefs.setString('power_sensor_id', id);
+    } else if (targetSlot == "cadence") {
+      _savedCadenceId = id;
+      await prefs.setString('cadence_sensor_id', id);
+    }
+    startScanning(); 
   }
 
   void resetDistance() {
     _lapStartRevs = _lastWheelRevs;
     _currentRunDistance = 0.0;
     _distanceController.add(0.0);
-    print("Distance Reset for new Run. Baseline: $_lapStartRevs");
+    print("Distance Reset. Baseline Wheel Revs: $_lapStartRevs");
   }
 
   void _initGps() async {
@@ -65,153 +165,305 @@ class SensorService {
     });
   }
 
+  // --- BLUETOOTH CORE ---
   void startScanning() async {
-    if (_connectedDevice != null || FlutterBluePlus.isScanningNow) return;
+    if (FlutterBluePlus.isScanningNow) return;
 
     FlutterBluePlus.scanResults.listen((results) {
-      for (ScanResult r in results) {
-        if (r.device.remoteId.str == _savedSpeedId) {
-          _connectToDevice(r.device);
-          FlutterBluePlus.stopScan();
-          break;
-        }
+      // cache display names from recent scan results so we can show them when connected
+      for (final r in results) {
+        final name = r.advertisementData.localName.isEmpty ? 'Unknown Device' : r.advertisementData.localName;
+        _deviceNames[r.device.remoteId.str] = name;
       }
+      _processSavedDevicesSequentially(results);
     });
 
     try {
       await FlutterBluePlus.startScan(
-        withServices: [Guid("1816")],
-        timeout: const Duration(minutes: 5),
+        withServices: [Guid("1816"), Guid("1818")],
+        timeout: const Duration(minutes: 10),
       );
-    } catch (e) {
-      print("Scan Error: $e");
+    } catch (e) { print("Scan Error: $e"); }
+  }
+
+  void startFilteredScan(String targetSlot) async {
+    if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
+
+    Guid targetService = (targetSlot == "power") ? Guid("1818") : Guid("1816");
+
+    FlutterBluePlus.scanResults.listen((results) {
+      var filtered = results.where((r) {
+        if (r.advertisementData.localName.isNotEmpty) {
+          _deviceNames[r.device.remoteId.str] = r.advertisementData.localName;
+        }
+        return r.advertisementData.serviceUuids.contains(targetService) &&
+               r.advertisementData.localName.isNotEmpty;
+      }).toList();
+      _scanResultsController.add(filtered);
+    });
+
+    try {
+      await FlutterBluePlus.startScan(
+        withServices: [targetService],
+        timeout: const Duration(seconds: 15),
+      );
+    } catch (e) { print("Filtered Scan Error: $e"); }
+  }
+
+  Future<void> _processSavedDevicesSequentially(List<ScanResult> results) async {
+    if (_sequentialConnectInProgress) return;
+    _sequentialConnectInProgress = true;
+    try {
+      final Map<String, BluetoothDevice> found = {};
+      for (final r in results) {
+        found[r.device.remoteId.str] = r.device;
+      }
+
+      final List<String> order = [
+        if (_savedSpeedId != null) _savedSpeedId!,
+        if (_savedPowerId != null) _savedPowerId!,
+        if (_savedCadenceId != null) _savedCadenceId!,
+      ];
+
+      for (final id in order) {
+        final device = found[id];
+        if (device == null) continue;
+        if (_connectedDevices.containsKey(id) || _connectingIds.contains(id)) continue;
+
+        await _connectToDevice(device);
+        await Future.delayed(const Duration(milliseconds: 1000));
+      }
+    } finally {
+      _sequentialConnectInProgress = false;
     }
   }
 
-  void _connectToDevice(BluetoothDevice device) async {
+  Future<void> _connectToDevice(BluetoothDevice device) async {
+    String deviceId = device.remoteId.str;
+    
+    if (_connectedDevices.containsKey(deviceId) || _connectingIds.contains(deviceId)) return;
+    _connectingIds.add(deviceId);
+
     try {
+      // 1. CRITICAL: Stop scanning before connecting to prevent Status 133
+      if (FlutterBluePlus.isScanningNow) {
+        await FlutterBluePlus.stopScan();
+        await Future.delayed(const Duration(milliseconds: 500)); 
+      }
+
       device.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected) {
-          _handleDisconnection();
+          _handleDisconnection(deviceId);
         }
       });
 
-      await device.connect(autoConnect: false);
-      _connectedDevice = device;
+      // 2. Connect with specific timeout
+      await device.connect(
+        autoConnect: false, 
+        timeout: const Duration(seconds: 15),
+      );
+      
+      print("CONNECTED SUCCESSFULLY: $deviceId");
 
+      // 3. Post-connection Breath (Sequential GATT operations)
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (_requestedMtu[deviceId] != 223) {
+        try {
+          await device.requestMtu(223);
+          _requestedMtu[deviceId] = 223;
+        } catch (_) {
+          // ignore mtu errors
+        }
+      }
+
+      await Future.delayed(const Duration(milliseconds: 800));
       List<BluetoothService> services = await device.discoverServices();
+      
+      _connectedDevices[deviceId] = device;
+      print('REGISTERED CONNECTED DEVICE: $deviceId');
+      // update the connected names broadcast so UI can show friendly names
+      _emitConnectedNames();
+      _connectingIds.remove(deviceId);
+
       for (var s in services) {
         if (s.uuid == Guid("1816")) {
           for (var c in s.characteristics) {
             if (c.uuid == Guid("2A5B")) {
-              await c.setNotifyValue(true);
-            c.onValueReceived.listen((value) => _parseData(value));
+              await _enableNotification(c, (data) => _parseCSC(data, deviceId));
+            }
+          }
+        }
+        if (s.uuid == Guid("1818")) {
+          for (var c in s.characteristics) {
+            if (c.uuid == Guid("2A63")) {
+              await _enableNotification(c, (data) => _parsePower(data, deviceId));
             }
           }
         }
       }
     } catch (e) {
       print("Connect Error: $e");
-      _handleDisconnection();
+      _connectingIds.remove(deviceId);
+
+      // Cooldown for Android BT stack before restarting scan
+      await Future.delayed(const Duration(seconds: 2));
+      if (!_sequentialConnectInProgress && _connectingIds.isEmpty) {
+        startScanning();
+      }
     }
   }
 
-  void _handleDisconnection() {
-    _connectedDevice = null;
-    _usingBt = false;
-    _lastWheelRevs = null;
-    _lastWheelTime = null;
-    _lapStartRevs = null; 
+  Future<void> _enableNotification(BluetoothCharacteristic c, Function(List<int>) parser) async {
+    try {
+      await c.setNotifyValue(true);
+      c.lastValueStream.listen((v) => parser(v));
+    } catch (e) {
+      for (BluetoothDescriptor d in c.descriptors) {
+        if (d.uuid == Guid("2902")) {
+          await d.write([0x01, 0x00]);
+        }
+      }
+      c.lastValueStream.listen((v) => parser(v));
+    }
+  }
+
+  void _handleDisconnection(String id) {
+    _connectedDevices.remove(id);
+    _connectingIds.remove(id);
+    if (id == _savedSpeedId) {
+      _usingBt = false;
+      _lastWheelRevs = null;
+    }
+    // clear cached name for the disconnected saved slot if desired
+    if (_savedSpeedId == id) _deviceNames.remove(id);
+    if (_savedPowerId == id) _deviceNames.remove(id);
+    if (_savedCadenceId == id) _deviceNames.remove(id);
+    _emitConnectedNames();
     startScanning();
   }
 
-  // --- NEW ROBUST PARSER ---
-  Timer? _stopTimer; // Add this line at the top of your class (above loadSavedSensors)
+  // call this when the service is being destroyed (not currently used)
+  void dispose() {
+    _speedController.close();
+    _distanceController.close();
+    _powerController.close();
+    _cadenceController.close();
+    _scanResultsController.close();
+    _connectedNamesController.close();
+    _uiPublisherTimer?.cancel();
+    _stopTimer?.cancel();
+    _crankStopTimer?.cancel();
+    _accelSub?.cancel();
+    _vibrationController.close();
+  }
 
-  void _parseData(List<int> data) {
+  // --- REFACTORED PARSERS ---
+
+  void _parseCSC(List<int> data, String deviceId) {
     if (data.isEmpty) return;
-
     int flags = data[0];
-    bool wheelRevPresent = (flags & 0x01) != 0;
-    if (!wheelRevPresent) return;
+    print('CSC packet from $deviceId flags=$flags len=${data.length}');
+    bool hasWheel = (flags & 0x01) != 0;
+    bool hasCrank = (flags & 0x02) != 0;
 
-    _usingBt = true; 
-    
-    try {
+      if (hasWheel && deviceId == _savedSpeedId && data.length >= 7) {
+      _usingBt = true;
       int currentRevs = (data[1]) | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
-      int currentTime = (data[5]) | (data[6] << 8); 
+      int currentTime = (data[5]) | (data[6] << 8);
+      print('CSC wheel: device=$deviceId revs=$currentRevs time=$currentTime');
 
-      // 1. FILTER DUPLICATES
-      if (currentRevs == _lastWheelRevs && currentTime == _lastWheelTime) {
-        return; 
-      }
+      // If this is the very first wheel reading we see, set lap baseline
+      _lapStartRevs ??= currentRevs;
 
-      // 2. TIMEOUT LOGIC (Fixes the "Frozen Speed")
-      // Every time we get NEW data, we reset a 2-second countdown.
-      // If the wheel stops, the countdown finishes and sets speed to 0.
-      _stopTimer?.cancel(); 
-      _stopTimer = Timer(const Duration(seconds: 2), () {
-        _btSpeed = 0.0;
-        _decideWhichSpeedToPublish();
-        print("WHEEL STOPPED: Speed set to 0.0");
-      });
-
-      // 3. DISTANCE CALCULATION (Manual Start Version)
-if (_lapStartRevs != null) {
-  // We only calculate distance if a baseline has been set by the "Start Run" button
-  int runDeltaRevs = (currentRevs - _lapStartRevs!) & 0xFFFFFFFF;
-  _currentRunDistance = (runDeltaRevs * wheelCircumference) / 1000.0;
-  
-  // Update the stream so the UI sees the movement
-  _distanceController.add(_currentRunDistance);
-} else {
-  // If a lap hasn't started yet, we keep the UI at 0.0
-  _currentRunDistance = 0.0;
-  _distanceController.add(0.0);
-}
-
-      // 4. SPEED CALCULATION
       if (_lastWheelRevs != null && _lastWheelTime != null) {
         int revDiff = (currentRevs - _lastWheelRevs!) & 0xFFFFFFFF;
         int timeDiff = (currentTime - _lastWheelTime!) & 0xFFFF;
-
         if (revDiff > 0 && timeDiff > 0) {
-          double timeSeconds = timeDiff / 1024.0;
-          double distanceMeters = revDiff * wheelCircumference;
-          _btSpeed = (distanceMeters / timeSeconds) * 3.6;
-          _lastBtMovementTime = DateTime.now();
-          print("SUCCESS! Speed: $_btSpeed km/h | Dist: $_currentRunDistance");
-        } 
+          // movement detected -> compute speed and restart stop timer
+          _btSpeed = ((revDiff * wheelCircumference) / (timeDiff / 1024.0)) * 3.6;
+
+          // update distance (use lap baseline)
+          if (_lapStartRevs != null) {
+            int runDeltaRevs = (currentRevs - _lapStartRevs!) & 0xFFFFFFFF;
+            _currentRunDistance = (runDeltaRevs * wheelCircumference) / 1000.0;
+          }
+
+          // only cancel/restart the stop timer when real motion occurred
+          _stopTimer?.cancel();
+          _stopTimer = Timer(const Duration(seconds: 3), () {
+            _btSpeed = 0.0;
+            _decideWhichSpeedToPublish();
+          });
+        }
+      } else {
+        // No previous sample; can't compute speed yet but keep last revs/time
       }
 
-      // Update the "last known" values for the next packet
       _lastWheelRevs = currentRevs;
       _lastWheelTime = currentTime;
-      
-    } catch (e) {
-      print("Parsing error: $e");
+      _decideWhichSpeedToPublish();
     }
-    
-    _decideWhichSpeedToPublish();
+
+    if (hasCrank && deviceId == _savedCadenceId) {
+      int offset = hasWheel ? 7 : 1;
+      if (data.length >= offset + 4) {
+        int currentCrankRevs = (data[offset]) | (data[offset + 1] << 8);
+        int currentCrankTime = (data[offset + 2]) | (data[offset + 3] << 8);
+
+        if (_lastCrankRevs != null) {
+          int revDiff = (currentCrankRevs - _lastCrankRevs!) & 0xFFFF;
+          int timeDiff = (currentCrankTime - _lastCrankTime!) & 0xFFFF;
+          if (revDiff > 0 && timeDiff > 0) {
+            double rpm = (revDiff * 60 * 1024) / timeDiff;
+            int rpmInt = rpm.toInt();
+            _cadenceController.add(rpmInt);
+            _lastPublishedCadence = rpmInt;
+            print('CSC crank: device=$deviceId rpm=${rpm.toStringAsFixed(1)}');
+          }
+        }
+        // reset crank stop timer so we set cadence to zero when pedaling stops
+        _crankStopTimer?.cancel();
+        _crankStopTimer = Timer(const Duration(seconds: 2), () {
+          _cadenceController.add(0);
+          _lastPublishedCadence = 0;
+        });
+        _lastCrankRevs = currentCrankRevs;
+        _lastCrankTime = currentCrankTime;
+      }
+    }
   }
 
-    void _decideWhichSpeedToPublish() {
-    double finalSpeed = 0.0;
+  void _parsePower(List<int> data, String deviceId) {
+    if (deviceId != _savedPowerId) return;
+    if (data.length < 4) return;
+    int power = (data[2]) | (data[3] << 8);
 
-    if (_usingBt) {
-      // If we are using Bluetooth, use the calculated BT speed
-      finalSpeed = _btSpeed;
-    } else {
-      // Otherwise fallback to GPS
-      finalSpeed = _gpsSpeed;
+    // add new sample with timestamp
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    _powerSamples.add({'ts': now, 'v': power});
+
+    // remove old samples outside the window
+    final int cutoff = now - _powerWindowMs;
+    while (_powerSamples.isNotEmpty && (_powerSamples.first['ts'] ?? 0) < cutoff) {
+      _powerSamples.removeAt(0);
     }
 
-    // 1. Update the "Current" variables for the UI to read immediately
+    // compute average over samples in window
+    if (_powerSamples.isNotEmpty) {
+      int sum = 0;
+      for (final s in _powerSamples) {
+        sum += (s['v'] ?? 0);
+      }
+      final int avg = sum ~/ _powerSamples.length;
+      _powerController.add(avg);
+    }
+  }
+
+  void _decideWhichSpeedToPublish() {
+    double finalSpeed = _usingBt ? _btSpeed : _gpsSpeed;
     currentSpeedValue = finalSpeed < 0.1 ? 0.0 : finalSpeed;
     currentDistanceValue = _currentRunDistance;
-
-    // 2. Publish to the streams for the StreamBuilders
     _speedController.add(currentSpeedValue);
     _distanceController.add(currentDistanceValue);
   }
-  }
+}

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'sensor_service.dart';
-import 'pressure_input_page.dart'; 
-import 'recording_page.dart';
 import 'sensor_setup_page.dart'; // <--- ADD THIS IMPORT
 
 void main() async {
