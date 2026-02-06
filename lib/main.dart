@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'sensor_service.dart';
 import 'home_page.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:background_fetch/background_fetch.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,35 +15,11 @@ void main() async {
 
   // Enable wakelock for continuous background recording
   await WakelockPlus.enable();
-  
-  // Setup background fetch for long sessions (iOS only)
-  _setupBackgroundFetch();
 
   final sensorService = SensorService();
   await sensorService.loadSavedSensors();
 
   runApp(const MyApp());
-}
-
-void _setupBackgroundFetch() {
-  BackgroundFetch.configure(
-    BackgroundFetchConfig(
-      minimumFetchInterval: 5, // Re-wake every 5 minutes
-      stopOnTerminate: false,
-      enableHeadless: true,
-    ),
-    (String taskId) async {
-      // Flush pending data to disk during background activity
-      try {
-        SensorService().getFitWriter()?.flush();
-      } catch (_) {}
-      BackgroundFetch.finish(taskId);
-    },
-  ).then((int status) {
-    print('Background fetch initialized with status: $status');
-  }).catchError((e) {
-    print('Background fetch error: $e');
-  });
 }
 
 class MyApp extends StatefulWidget {
