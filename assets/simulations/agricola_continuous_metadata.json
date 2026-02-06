@@ -1,0 +1,37 @@
+{
+  "type": "continuous_three_runs",
+  "file": "agricola_continuous.fit",
+  "format": "Single FIT file - app detects descent/climb by velocity + elevation",
+  "street": "Agricola Street, Warsaw, Poland",
+  "street_length_m": 500.0,
+  "elevation_drop_m": 25.0,
+  "total_mass_kg": 90,
+  "runs": [
+    {
+      "pressure_bar": 3.5,
+      "max_descent_kmh": 36.93274079119198,
+      "avg_descent_kmh": 26.518577801512276,
+      "avg_climb_kmh": 17.632476625079363,
+      "avg_climb_power": 299.89666666666665,
+      "total_duration_s": 150.0
+    },
+    {
+      "pressure_bar": 4.4,
+      "max_descent_kmh": 37.16533150573965,
+      "avg_descent_kmh": 26.65526680781189,
+      "avg_climb_kmh": 17.735927535750726,
+      "avg_climb_power": 300.0077777777778,
+      "total_duration_s": 150.0
+    },
+    {
+      "pressure_bar": 5.0,
+      "max_descent_kmh": 37.32210966218868,
+      "avg_descent_kmh": 26.739424733660424,
+      "avg_climb_kmh": 17.805323305642055,
+      "avg_climb_power": 300.26444444444445,
+      "total_duration_s": 150.0
+    }
+  ],
+  "total_duration_s": 453.0,
+  "strava_ready": true
+}
