@@ -37,9 +37,12 @@ dependencies:
   permission_handler: ^11.3.1 # For handling permissions
   geolocator: ^10.1.0 # For GPS location
   wakelock_plus: ^1.4.0
+  background_fetch: ^1.5.0
   shared_preferences: ^2.5.4
-cupertino_icons: ^1.0.2
-wakelock_plus: ^1.2.8
+  fit_tool: ^1.0.5 # Official Garmin FIT SDK for Dart
+  path_provider: ^2.0.0
+  fl_chart: ^0.68.0 # For pressure-efficiency curve visualization
+  cupertino_icons: ^1.0.2
 # DO NOT paste under dev_dependencies!
 
 

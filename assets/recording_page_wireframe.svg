@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700">
+  <style>
+    .bg { fill: #F2F2F2 }
+    .card { fill: #E0E0E0; stroke: #d0d0d0; stroke-width:1; rx:18; ry:18 }
+    .header { font: 700 24px/1 'Arial'; fill: #222 }
+    .meta { font: 500 14px/1 'Arial'; fill: #444 }
+    .label { font: 700 12px/1 'Arial'; fill: #333 }
+    .value { font: 700 40px/1 'Arial'; fill: #2D2D2D }
+    .unit { font: 400 14px/1 'Arial'; fill: #666 }
+    .button { fill: #fff; stroke:#e0b0b0; stroke-width:1 }
+    .finish { font: 700 16px/1 'Arial'; fill: #c82323 }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="900" height="700"/>
+
+  <!-- Header -->
+  <text x="60" y="70" class="header">RECORDING RUN</text>
+  <text x="60" y="100" class="meta">LAP METADATA: 32.0/34.0 PSI</text>
+
+  <!-- Cards grid -->
+  <!-- Row 1 -->
+  <rect class="card" x="60" y="140" width="380" height="160"/>
+  <rect class="card" x="460" y="140" width="380" height="160"/>
+  <text x="80" y="170" class="label">SPEED</text>
+  <text x="80" y="225" class="value">12.3</text>
+  <text x="220" y="225" class="unit">km/h</text>
+
+  <text x="480" y="170" class="label">POWER</text>
+  <text x="480" y="225" class="value">210</text>
+  <text x="640" y="225" class="unit">watts</text>
+
+  <!-- Row 2 -->
+  <rect class="card" x="60" y="320" width="380" height="160"/>
+  <rect class="card" x="460" y="320" width="380" height="160"/>
+  <text x="80" y="350" class="label">CADENCE</text>
+  <text x="80" y="405" class="value">85</text>
+  <text x="220" y="405" class="unit">RPM</text>
+
+  <text x="480" y="350" class="label">VIBRATIONS</text>
+  <text x="480" y="405" class="value">0.12</text>
+  <text x="640" y="405" class="unit">g</text>
+
+  <!-- Row 3 -->
+  <rect class="card" x="60" y="500" width="380" height="120"/>
+  <rect class="card" x="460" y="500" width="380" height="120"/>
+  <text x="80" y="530" class="label">DISTANCE</text>
+  <text x="80" y="585" class="value">3.42</text>
+  <text x="220" y="585" class="unit">km</text>
+
+  <text x="480" y="530" class="label">TIME LAPSED</text>
+  <text x="480" y="585" class="value">00:12:34</text>
+
+  <!-- Finish button -->
+  <rect class="button" x="360" y="640" width="180" height="34" rx="8" ry="8"/>
+  <text x="400" y="663" class="finish">FINISH RUN</text>
+
+  <!-- Notes -->
+  <text x="60" y="690" font-size="11" fill="#777">Wireframe generated from lib/recording_page.dart layout (values are example placeholders)</text>
+</svg>

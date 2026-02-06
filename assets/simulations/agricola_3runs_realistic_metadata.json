@@ -1,0 +1,28 @@
+{
+  "simulation_type": "Realistic physics-based",
+  "street": "Agricola Street, Warsaw",
+  "street_length_m": 500.0,
+  "elevation_drop_m": 25.0,
+  "gradient_percent": 5.0,
+  "total_mass_kg": 90,
+  "runs": [
+    {
+      "pressure_bar": "3.5/3.5 bar",
+      "max_descent_speed_kmh": 36.93274079119198,
+      "duration_s": 155.0,
+      "avg_speed_kmh": 20.503468157083095
+    },
+    {
+      "pressure_bar": "4.4/4.4 bar",
+      "max_descent_speed_kmh": 37.16533150573965,
+      "duration_s": 155.0,
+      "avg_speed_kmh": 20.6164483012018
+    },
+    {
+      "pressure_bar": "5.0/5.0 bar",
+      "max_descent_speed_kmh": 37.32210966218868,
+      "duration_s": 155.0,
+      "avg_speed_kmh": 20.689319880822
+    }
+  ]
+}

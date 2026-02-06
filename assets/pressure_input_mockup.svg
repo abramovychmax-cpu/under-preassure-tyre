@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1400" viewBox="0 0 800 1400">
+  <defs>
+    <style>
+      .bg { fill: #F6F6F7; }
+      .card { fill: #FFFFFF; stroke: #E6E6E6; stroke-width:1; rx:18; }
+      .accent { fill: #47D1C1; }
+      .muted { fill: #666666; font-family: Arial, Helvetica, sans-serif; }
+      .title { fill: #222222; font-family: Arial, Helvetica, sans-serif; font-weight:700; }
+      .label { fill: #444444; font-family: Arial, Helvetica, sans-serif; font-weight:700; font-size:13px }
+      .value { fill: #222222; font-family: Arial, Helvetica, sans-serif; font-weight:800; font-size:34px }
+      .small { fill: #888888; font-family: Arial, Helvetica, sans-serif; font-size:12px }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" class="bg"/>
+
+  <!-- AppBar -->
+  <rect x="0" y="0" width="800" height="88" fill="#F6F6F7" />
+  <text x="48" y="54" class="title" font-size="18">PRESSURE INPUT</text>
+  <polygon points="22,46 38,32 38,60" fill="#222" opacity="0.9"/>
+
+  <!-- Header Row: Run # and badge -->
+  <text x="48" y="140" class="accent" font-size="28">RUN #1</text>
+  <rect x="580" y="120" width="160" height="36" rx="18" fill="#47D1C1" opacity="0.12"/>
+  <text x="618" y="145" class="accent" font-size="12">0/3 DONE</text>
+
+  <!-- Previous Runs Card -->
+  <g transform="translate(48,180)">
+    <rect width="704" height="180" class="card" rx="16"/>
+    <text x="18" y="36" class="label" font-size="16">Previous Runs</text>
+    <!-- header -->
+    <g transform="translate(18,56)">
+      <text x="0" y="0" class="small">Run</text>
+      <text x="220" y="0" class="small">Front PSI</text>
+      <text x="440" y="0" class="small">Rear PSI</text>
+    </g>
+    <!-- divider -->
+    <line x1="18" y1="74" x2="686" y2="74" stroke="#E9E9E9" stroke-width="1" />
+    <!-- sample rows (populated at runtime) -->
+    <g transform="translate(18,96)" class="rows">
+      <text x="0" y="0" class="muted small">#1</text>
+      <text x="220" y="0" class="value">60.0</text>
+      <text x="440" y="0" class="value">60.0</text>
+
+      <text x="0" y="40" class="muted small">#2</text>
+      <text x="220" y="40" class="value">59.5</text>
+      <text x="440" y="40" class="value">59.8</text>
+
+      <text x="0" y="80" class="muted small">#3</text>
+      <text x="220" y="80" class="value">58.5</text>
+      <text x="440" y="80" class="value">58.9</text>
+    </g>
+  </g>
+
+  <!-- Pressure input cards -->
+  <g transform="translate(48,380)">
+    <rect x="0" y="0" width="336" height="160" class="card" rx="16"/>
+    <text x="18" y="32" class="label">FRONT PSI</text>
+    <text x="18" y="96" class="value">60.0</text>
+
+    <rect x="368" y="0" width="336" height="160" class="card" rx="16"/>
+    <text x="386" y="32" class="label">REAR PSI</text>
+    <text x="386" y="96" class="value">60.0</text>
+  </g>
+
+  <!-- START RUN button -->
+  <g transform="translate(48,580)">
+    <rect x="0" y="0" width="704" height="64" rx="16" fill="#47D1C1"/>
+    <text x="352" y="42" text-anchor="middle" fill="#FFFFFF" font-family="Arial" font-weight="800" font-size="18">START RUN</text>
+  </g>
+
+  <!-- Footer small hint -->
+  <text x="48" y="680" class="small">Finish 3 runs to calculate the optimal pressure.</text>
+
+</svg>
