@@ -1,0 +1,14 @@
+{
+  "front_pressure_psi": 50.0,
+  "rear_pressure_psi": 55.0,
+  "run_number": 1,
+  "duration_seconds": 357,
+  "total_distance_m": 7000,
+  "elevation_loss_m": 350.0,
+  "avg_speed_ms": 19.6,
+  "max_speed_ms": 20.91214198272712,
+  "start_location": "Agricola Street, Warsaw, Poland",
+  "descent": true,
+  "num_descents": 14,
+  "street_length_m": 500
+}

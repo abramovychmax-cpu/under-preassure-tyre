@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
 
 class RecordingPage extends StatefulWidget {
   final double frontPressure;
   final double rearPressure;
+  final String protocol;
 
   const RecordingPage({
     super.key,
     required this.frontPressure,
     required this.rearPressure,
+    this.protocol = 'unknown',
   });
 
   @override
@@ -26,6 +30,7 @@ class _RecordingPageState extends State<RecordingPage> {
   DateTime? _runStart;
   Duration _elapsed = Duration.zero;
   Timer? _elapsedTimer;
+  String _speedUnit = 'km/h'; // Load from SharedPreferences
 
   StreamSubscription? _speedSub;
   StreamSubscription? _distSub;
@@ -36,10 +41,23 @@ class _RecordingPageState extends State<RecordingPage> {
   @override
   void initState() {
     super.initState();
+    _loadSpeedUnit();
+
+    // Ensure keyboard is hidden and page doesn't resize when keyboard appears
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        FocusScope.of(context).unfocus();
+      } catch (_) {}
+      try {
+        SystemChannels.textInput.invokeMethod('TextInput.hide');
+      } catch (_) {}
+    });
 
     // Initialize sensor session for this run
     _sensorService.resetDistance();
     _sensorService.loadSavedSensors();
+    // start FIT/JSONL recording session for this run
+    _sensorService.startRecordingSession(widget.frontPressure, widget.rearPressure, protocol: widget.protocol);
 
     _distSub = _sensorService.distanceStream.listen((dist) {
       if (mounted) setState(() => currentDistance = dist);
@@ -73,6 +91,20 @@ class _RecordingPageState extends State<RecordingPage> {
     });
   }
 
+  Future<void> _loadSpeedUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _speedUnit = prefs.getString('speed_unit') ?? 'km/h';
+    });
+  }
+
+  double _convertSpeed(double kmh) {
+    if (_speedUnit == 'mph') {
+      return kmh * 0.621371;
+    }
+    return kmh;
+  }
+
   @override
   void dispose() {
     _distSub?.cancel();
@@ -87,6 +119,7 @@ class _RecordingPageState extends State<RecordingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFFF2F2F2),
       body: SafeArea(
         child: Column(
@@ -97,7 +130,7 @@ class _RecordingPageState extends State<RecordingPage> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.1),
             ),
             Text(
-              'LAP METADATA: ${widget.frontPressure}/${widget.rearPressure} PSI',
+              'LAP METADATA: ${widget.frontPressure}/${widget.rearPressure} BAR',
               style: TextStyle(fontSize: 14, color: Colors.black.withOpacity(0.4), fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 30),
@@ -107,7 +140,7 @@ class _RecordingPageState extends State<RecordingPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    _buildDataRow('SPEED', currentSpeed.toStringAsFixed(1), 'km/h', 'POWER', '$currentPower', 'watts'),
+                    _buildDataRow('SPEED', _convertSpeed(currentSpeed).toStringAsFixed(1), _speedUnit, 'POWER', '$currentPower', 'watts'),
                     _buildDataRow('CADENCE', '$currentCadence', 'RPM', 'vibrations', currentVibration.toStringAsFixed(2), 'g'),
                     _buildDataRow('DISTANCE', currentDistance.toStringAsFixed(2), 'km', 'TIME LAPSED', _formatDuration(_elapsed), '_'),
                   ],
@@ -118,7 +151,10 @@ class _RecordingPageState extends State<RecordingPage> {
             const SizedBox(height: 10),
 
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () async {
+                await _sensorService.stopRecordingSession();
+                if (mounted) Navigator.pop(context, true);
+              },
               child: const Text(
                 'FINISH RUN',
                 style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),

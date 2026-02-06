@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'coast_down_instructions.dart';
+import 'constant_power_instructions.dart';
+import 'lap_efficiency_instructions.dart';
+import 'ui/common_widgets.dart';
 
 class ProtocolSelectionPage extends StatelessWidget {
   const ProtocolSelectionPage({super.key});
@@ -7,13 +10,16 @@ class ProtocolSelectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgLight,
       appBar: AppBar(
-        title: const Text("Select Protocol"),
+        title: const Text(
+          'SELECT PROTOCOL',
+          style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
+        ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: bgLight,
+        foregroundColor: const Color(0xFF222222),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -45,7 +51,12 @@ class ProtocolSelectionPage extends StatelessWidget {
                   "Action: Flat road; steady effort.\nRequirement: At least 3 runs.\nData: Speed vs. Wattage efficiency.",
                   Icons.bolt,
                   Colors.blue,
-                  () => print("Constant Power selected"),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ConstantPowerInstructions()),
+                    );
+                  },
                 ),
                 _protocolCard(
                   cardHeight,
@@ -53,7 +64,12 @@ class ProtocolSelectionPage extends StatelessWidget {
                   "Action: Closed GPS loop.\nRequirement: At least 3 laps per pressure.\nData: Avg Power vs. Avg Speed.",
                   Icons.loop,
                   Colors.purple,
-                  () => print("Lap Efficiency selected"),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LapEfficiencyInstructions()),
+                    );
+                  },
                 ),
               ],
             ),
@@ -67,50 +83,33 @@ class ProtocolSelectionPage extends StatelessWidget {
     return Container(
       height: height - 16,
       margin: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: color.withOpacity(0.1),
-                      child: Icon(icon, color: color, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.topLeft,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AppCard(
+          height: height - 16,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: color.withOpacity(0.08),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Text(
-                      desc,
-                      style: const TextStyle(height: 1.4, color: Colors.black87, fontSize: 15),
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF222222)),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(desc, style: const TextStyle(height: 1.4, color: Color(0xFF888888), fontSize: 15)),
+            ],
           ),
         ),
       ),
