@@ -38,9 +38,11 @@ dependencies:
   geolocator: ^10.1.0 # For GPS location
   wakelock_plus: ^1.4.0
   shared_preferences: ^2.5.4
-cupertino_icons: ^1.0.2
-wakelock_plus: ^1.2.8
-# DO NOT paste under dev_dependencies!
+  cupertino_icons: ^1.0.2
+  fl_chart: ^0.68.0 # For data visualization
+  path_provider: ^2.1.0 # For file system access
+  fit_tool: ^1.0.5 # For FIT file creation and parsing
+  # DO NOT paste under dev_dependencies!
 
 
 dev_dependencies:

@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'recording_page.dart'; // <--- IF THIS IS MISSING, YOU GET THE UNDEFINED_METHOD ERROR
 
 class PressureInputPage extends StatefulWidget {
-  const PressureInputPage({super.key});
+  final String protocol; // 'constant_power', 'lap_efficiency', or 'coast_down'
+  
+  const PressureInputPage({
+    super.key,
+    this.protocol = 'coast_down',
+  });
 
   @override
   State<PressureInputPage> createState() => _PressureInputPageState();

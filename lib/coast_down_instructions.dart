@@ -49,7 +49,7 @@ class CoastDownInstructions extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const PressureInputPage()),
+                    MaterialPageRoute(builder: (context) => const PressureInputPage(protocol: 'coast_down')),
                   );
                 },
                 child: const Text(
