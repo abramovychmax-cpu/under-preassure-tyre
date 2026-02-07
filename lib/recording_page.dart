@@ -162,13 +162,14 @@ class _RecordingPageState extends State<RecordingPage> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
                 onPressed: () {
-                  // Just pop. The recording session continues in the background (Wait State)
-                  // The next run will trigger a new Lap.
-                  // The final "Fishish and Calculate" on the input page will stop the session.
+                  // Pause recording loop to save battery while in "Wait State"
+                  SensorService().pauseRecordingSession();
+                  
+                  // Pop back to input page
                   Navigator.of(context).pop(true);
                 },
                 child: const Text(
-                  'MARK RUN COMPLETE',
+                  'RUN COMPLETE',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),

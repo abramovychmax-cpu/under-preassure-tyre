@@ -30,6 +30,9 @@ class FitWriter {
   
   // Track where the current lap started in the _records list
   int _currentLapRecordStartIndex = 0;
+  
+  // Public getter to know which lap we are currently recording into
+  int get currentLapIndex => _laps.isNotEmpty ? _laps.last['index'] as int : -1;
 
   FitWriter._(this.fitPath);
 
