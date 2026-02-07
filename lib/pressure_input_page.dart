@@ -226,6 +226,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                         frontPressure: _calculatedFrontPressure,
                         rearPressure: rearVal,
                         protocol: widget.protocol,
+                        pressureUnit: _pressureUnit,
                       ),
                     ),
                   );

@@ -8,12 +8,14 @@ class RecordingPage extends StatefulWidget {
   final double frontPressure;
   final double rearPressure;
   final String protocol;
+  final String pressureUnit;
 
   const RecordingPage({
     super.key,
     required this.frontPressure,
     required this.rearPressure,
     this.protocol = 'unknown',
+    this.pressureUnit = 'PSI',
   });
 
   @override
@@ -31,7 +33,7 @@ class _RecordingPageState extends State<RecordingPage> {
   Duration _elapsed = Duration.zero;
   Timer? _elapsedTimer;
   String _speedUnit = 'km/h'; // Load from SharedPreferences
-  String _pressureUnit = 'PSI'; // Load from SharedPreferences
+  late String _pressureUnit; 
 
   StreamSubscription? _speedSub;
   StreamSubscription? _distSub;
@@ -42,6 +44,7 @@ class _RecordingPageState extends State<RecordingPage> {
   @override
   void initState() {
     super.initState();
+    _pressureUnit = widget.pressureUnit;
     _loadSettings();
 
     // Ensure keyboard is hidden and page doesn't resize when keyboard appears
@@ -98,7 +101,7 @@ class _RecordingPageState extends State<RecordingPage> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _speedUnit = prefs.getString('speed_unit') ?? 'km/h';
-      _pressureUnit = prefs.getString('pressure_unit') ?? 'PSI';
+      // _pressureUnit is passed from parent to avoid race condition
     });
   }
 
