@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/common_widgets.dart';
 
@@ -137,6 +139,7 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
                     final front = (test['optimalFrontPressure'] as num?)?.toDouble() ?? 0.0;
                     final rear = (test['optimalRearPressure'] as num?)?.toDouble() ?? 0.0;
                     final vibrationLoss = (test['vibrationLossPercent'] as num?)?.toDouble() ?? 0.0;
+                    final fitFilePath = test['fitFilePath']?.toString();
 
                     return AppCard(
                       child: Padding(
@@ -151,9 +154,39 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
                                   _protocolLabel(protocol),
                                   style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.6),
                                 ),
-                                Text(
-                                  _formatDate(timestamp),
-                                  style: const TextStyle(color: Color(0xFF888888), fontSize: 10, fontWeight: FontWeight.w700),
+                                Row(
+                                  children: [
+                                    Text(
+                                      _formatDate(timestamp),
+                                      style: const TextStyle(color: Color(0xFF888888), fontSize: 10, fontWeight: FontWeight.w700),
+                                    ),
+                                    if (fitFilePath != null && fitFilePath.isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      InkWell(
+                                        onTap: () async {
+                                          final file = File(fitFilePath);
+                                          // Capture navigator/messenger to avoid async gap issues
+                                          final messenger = ScaffoldMessenger.of(context);
+                                          
+                                          if (await file.exists()) {
+                                            await Share.shareXFiles(
+                                              [XFile(fitFilePath)], 
+                                              text: 'Tire Pressure Test Result (${_formatDate(timestamp)})'
+                                            );
+                                          } else {
+                                            messenger.showSnackBar(
+                                              const SnackBar(content: Text('File not found (may have been deleted)')),
+                                            );
+                                          }
+                                        },
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(4.0),
+                                          child: Icon(Icons.share_outlined, size: 18, color: accentGemini),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ],
                             ),

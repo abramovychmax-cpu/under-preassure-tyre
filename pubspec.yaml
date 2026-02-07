@@ -8,7 +8,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # A version number is three numbers separated by dots, like 1.2.43
 # followed by an optional build number separated by a +.
 # Both the version and the builder number may be overridden in flutter
-version: 1.0.4+4
+version: 1.0.4+5
 # build by specifying --build-name and --build-number, respectively.
 # In Android, build-name is used as versionName while build-number used as versionCode.
 # Read more about Android versioning at https://developer.android.com/studio/publish/versioning
@@ -44,6 +44,7 @@ dependencies:
   path: ^1.8.3 # For path manipulation
   http: ^1.1.0 # For HTTP requests
   fit_tool: ^1.0.5 # For FIT file creation and parsing
+  share_plus: ^7.2.1 # For sharing files
   # DO NOT paste under dev_dependencies!
 
 

@@ -100,201 +100,214 @@ class _PressureInputPageState extends State<PressureInputPage> {
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "RUN #${completedRuns + 1}", 
-                  style: const TextStyle(color: accentGemini, fontWeight: FontWeight.w900, fontSize: 24)
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: accentGemini.withAlpha((0.1 * 255).round()),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: accentGemini, width: 1.5),
-                  ),
-                  child: Text(
-                    "$completedRuns - DONE", 
-                    style: const TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.bold)
-                  ),
-                ),
-              ],
-            ),
-            
-            // Show previous run pressures if any
-            if (_previousPressures.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: AppCard(
-                  padding: const EdgeInsets.all(16),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+              ),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Previous Runs',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._previousPressures.asMap().entries.map((entry) {
-                        int idx = entry.key;
-                        Map<String, double> pressure = entry.value;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "RUN #${completedRuns + 1}", 
+                            style: const TextStyle(color: accentGemini, fontWeight: FontWeight.w900, fontSize: 24)
                           ),
-                        );
-                      }).toList(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: accentGemini.withAlpha((0.1 * 255).round()),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: accentGemini, width: 1.5),
+                            ),
+                            child: Text(
+                              "$completedRuns - DONE", 
+                              style: const TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.bold)
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Show previous run pressures if any
+                      if (_previousPressures.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Previous Runs',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
+                                ),
+                                const SizedBox(height: 8),
+                                ..._previousPressures.asMap().entries.map((entry) {
+                                  int idx = entry.key;
+                                  Map<String, double> pressure = entry.value;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
+                                      style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      
+                      const SizedBox(height: 30),
+                      Row(
+                        children: [
+                          // FRONT PRESSURE - Read-only, calculated from rear based on Silca ratios
+                          Expanded(
+                            child: Container(
+                              height: 125, // Fixed height to match neighbor
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F5F5),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: cardBorder, width: 1),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "FRONT $_pressureUnit", 
+                                    style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _calculatedFrontPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1),
+                                    style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "$_bikeType Ratio",
+                                    style: const TextStyle(color: Color(0xFF888888), fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // REAR PRESSURE - User input
+                          Expanded(
+                            child: SizedBox(
+                              height: 125,
+                              child: _buildPressureField("REAR $_pressureUnit", _rearController)
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentGemini,
+                            foregroundColor: bgLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          onPressed: () async {
+                            String cleanText = _rearController.text.replaceAll(',', '.');
+                            final rearVal = double.tryParse(cleanText) ?? 0.0;
+                            
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RecordingPage(
+                                  frontPressure: _calculatedFrontPressure,
+                                  rearPressure: rearVal,
+                                  protocol: widget.protocol,
+                                  pressureUnit: _pressureUnit,
+                                ),
+                              ),
+                            );
+
+                            if (result == true) {
+                              setState(() {
+                                // Store current run pressure
+                                _previousPressures.add({
+                                  'front': _calculatedFrontPressure,
+                                  'rear': rearVal,
+                                });
+                                completedRuns++;
+                              });
+                            }
+                          },
+                          child: const Text(
+                            "START RUN", 
+                            style: TextStyle(fontWeight: FontWeight.bold)
+                          ),
+                        ),
+                      ),
+                      if (completedRuns >= 3) ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 55,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: accentGemini, width: 2),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                            ),
+                            onPressed: () async {
+                              // Stop recording and get FIT file path
+                              final fitPath = SensorService().getFitFilePath();
+                              if (fitPath == null) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('No recording session found. Please complete at least one run first.')),
+                                );
+                                return;
+                              }
+                              
+                              // Capture navigator before async call to avoid BuildContext warning
+                              final navigator = Navigator.of(context);
+                              await SensorService().stopRecordingSession();
+                              
+                              // Navigate to analysis page using captured navigator
+                              if (!mounted) return;
+                              navigator.pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (context) => AnalysisPage(
+                                    fitFilePath: fitPath,
+                                    protocol: widget.protocol,
+                                    bikeType: _bikeType.toLowerCase(),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              "FINISH AND CALCULATE", 
+                              style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 30),
                     ],
                   ),
                 ),
               ),
-            ],
-            
-            const SizedBox(height: 30),
-            Row(
-              children: [
-                // FRONT PRESSURE - Read-only, calculated from rear based on Silca ratios
-                Expanded(
-                  child: Container(
-                    height: 125, // Fixed height to match neighbor
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: cardBorder, width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "FRONT $_pressureUnit", 
-                          style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _calculatedFrontPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1),
-                          style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "$_bikeType Ratio",
-                          style: const TextStyle(color: Color(0xFF888888), fontSize: 10),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // REAR PRESSURE - User input
-                Expanded(
-                  child: SizedBox(
-                    height: 125,
-                    child: _buildPressureField("REAR $_pressureUnit", _rearController)
-                  ),
-                ),
-              ],
             ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentGemini,
-                  foregroundColor: bgLight,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                onPressed: () async {
-                  String cleanText = _rearController.text.replaceAll(',', '.');
-                  final rearVal = double.tryParse(cleanText) ?? 0.0;
-                  
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RecordingPage(
-                        frontPressure: _calculatedFrontPressure,
-                        rearPressure: rearVal,
-                        protocol: widget.protocol,
-                        pressureUnit: _pressureUnit,
-                      ),
-                    ),
-                  );
-
-                  if (result == true) {
-                    setState(() {
-                      // Store current run pressure
-                      _previousPressures.add({
-                        'front': _calculatedFrontPressure,
-                        'rear': rearVal,
-                      });
-                      completedRuns++;
-                    });
-                  }
-                },
-                child: const Text(
-                  "START RUN", 
-                  style: TextStyle(fontWeight: FontWeight.bold)
-                ),
-              ),
-            ),
-            if (completedRuns >= 3) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: accentGemini, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  ),
-                  onPressed: () async {
-                    // Stop recording and get FIT file path
-                    final fitPath = SensorService().getFitFilePath();
-                    if (fitPath == null) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No recording session found. Please complete at least one run first.')),
-                      );
-                      return;
-                    }
-                    
-                    // Capture navigator before async call to avoid BuildContext warning
-                    final navigator = Navigator.of(context);
-                    await SensorService().stopRecordingSession();
-                    
-                    // Navigate to analysis page using captured navigator
-                    if (!mounted) return;
-                    navigator.pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => AnalysisPage(
-                          fitFilePath: fitPath,
-                          protocol: widget.protocol,
-                          bikeType: _bikeType.toLowerCase(),
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    "FINISH AND CALCULATE", 
-                    style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 30),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

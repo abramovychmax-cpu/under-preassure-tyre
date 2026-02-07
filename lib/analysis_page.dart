@@ -667,6 +667,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         'rSquared': _rSquared,
         'vibrationLossPercent': _vibrationLossPercent ?? 0.0,
         'dataPointsCount': _regressionDataPoints.length,
+        'fitFilePath': widget.fitFilePath,
       };
       
       await prefs.setString(testKey, jsonEncode(testData));
