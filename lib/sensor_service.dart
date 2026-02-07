@@ -435,14 +435,16 @@ class SensorService {
             _cadenceController.add(rpmInt);
             _lastPublishedCadence = rpmInt;
             print('CSC crank: device=$deviceId rpm=${rpm.toStringAsFixed(1)}');
+            
+            // Only reset timer on ACTUAL crank movement to avoid repeated resets on static packets
+            _crankStopTimer?.cancel();
+            _crankStopTimer = Timer(const Duration(milliseconds: 1500), () {
+              _cadenceController.add(0);
+              _lastPublishedCadence = 0;
+              print('CSC crank: Cadence timeout -> 0 RPM');
+            });
           }
         }
-        // reset crank stop timer so we set cadence to zero when pedaling stops
-        _crankStopTimer?.cancel();
-        _crankStopTimer = Timer(const Duration(seconds: 2), () {
-          _cadenceController.add(0);
-          _lastPublishedCadence = 0;
-        });
         _lastCrankRevs = currentCrankRevs;
         _lastCrankTime = currentCrankTime;
       }
@@ -518,4 +520,7 @@ class SensorService {
 
   /// Get the current FIT writer instance (for background flush)
   FitWriter? getFitWriter() => _fitWriter;
+  
+  /// Get the current FIT file path (for analysis after recording)
+  String? getFitFilePath() => _fitWriter?.fitPath;
 }

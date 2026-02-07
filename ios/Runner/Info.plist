@@ -58,5 +58,10 @@
 	<!-- Motion/Accelerometer Permissions -->
 	<key>NSMotionUsageDescription</key>
 	<string>Motion detection is used to validate phone setup and measure tire vibration during testing.</string>
+	<!-- File Sharing - Make FIT files accessible in Files app -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

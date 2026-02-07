@@ -189,15 +189,17 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
                       if (targetSlot == "speed") {
                         // 1816 is Cycling Speed and Cadence Service
-                        return serviceUuids.contains("1816") || name.contains("speed") || name.contains("cadence") || name.contains("kickr");
+                        return serviceUuids.contains("1816") || name.contains("speed") || name.contains("cadence");
                       }
                       if (targetSlot == "cadence") {
-                        // 1816 is Cycling Speed and Cadence Service - KICKR also provides cadence
-                        return serviceUuids.contains("1816") || name.contains("kickr") || name.contains("cadence");
+                        // 1816 is Cycling Speed and Cadence Service
+                        // 1818 is Cycling Power Service (most power meters provide cadence)
+                        return serviceUuids.contains("1816") || serviceUuids.contains("1818") || 
+                               name.contains("cadence") || name.contains("power") || name.contains("kickr");
                       }
                       if (targetSlot == "power") {
                         // 1818 is Cycling Power Service
-                        return serviceUuids.contains("1818") || name.contains("kickr") || name.contains("power");
+                        return serviceUuids.contains("1818") || name.contains("power") || name.contains("kickr");
                       }
                       return true;
                     }).toList();
@@ -215,7 +217,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                         return ListTile(
                           leading: const Icon(Icons.bluetooth, color: Color(0xFF47D1C1)),
                           title: Text(name, style: const TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.bold)),
-                          subtitle: Text(data.device.remoteId.str, style: const TextStyle(color: Colors.grey)),
+                          subtitle: const Text("Tap to select", style: TextStyle(color: Colors.grey, fontSize: 12)),
                           onTap: () {
                             // Cache the device name immediately before connecting
                             SensorService().cacheDeviceName(data.device.remoteId.str, name);

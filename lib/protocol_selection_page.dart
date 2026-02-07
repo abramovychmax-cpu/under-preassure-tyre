@@ -87,30 +87,34 @@ class ProtocolSelectionPage extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: AppCard(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    backgroundColor: color.withAlpha((0.08 * 255).round()),
-                    child: Icon(icon, color: color, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF222222)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: color.withAlpha((0.08 * 255).round()),
+                      child: Icon(icon, color: color, size: 24),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(desc, textAlign: TextAlign.center, style: const TextStyle(height: 1.4, color: Color(0xFF888888), fontSize: 15)),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF222222)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(desc, textAlign: TextAlign.center, style: const TextStyle(height: 1.4, color: Color(0xFF888888), fontSize: 15)),
+              ],
+            ),
           ),
         ),
       ),

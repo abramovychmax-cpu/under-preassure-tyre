@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'recording_page.dart';
+import 'analysis_page.dart';
+import 'sensor_service.dart';
 import 'ui/common_widgets.dart';
 
 class PressureInputPage extends StatefulWidget {
@@ -17,29 +19,51 @@ class PressureInputPage extends StatefulWidget {
 
 class _PressureInputPageState extends State<PressureInputPage> {
   // Controllers for pressure input
-  final TextEditingController _frontController = TextEditingController(text: "60.0");
   final TextEditingController _rearController = TextEditingController(text: "60.0");
 
   int completedRuns = 0;
   String _pressureUnit = 'PSI';
+  String _bikeType = 'Road';
+  double _calculatedFrontPressure = 60.0;
   final List<Map<String, double>> _previousPressures = []; // Store previous run pressures
+  
+  // Silca pressure ratios (front as % of rear) based on bike type
+  final Map<String, double> _silcaRatios = {
+    'Road': 0.95,        // Front slightly lower for road bikes
+    'Mountain': 0.85,    // MTBs prefer lower front pressure
+    'Gravel': 0.90,      // Gravel slightly lower than rear
+    'Hybrid': 0.90,      // Hybrid same as gravel
+    'BMX': 1.00,         // BMX tends to use equal pressure
+  };
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _rearController.addListener(_updateFrontPressure);
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _pressureUnit = prefs.getString('pressure_unit') ?? 'PSI';
+      _bikeType = prefs.getString('bike_type') ?? 'Road';
     });
+  }
+  
+  void _updateFrontPressure() {
+    final rearValue = double.tryParse(_rearController.text);
+    if (rearValue != null && rearValue > 0) {
+      final ratio = _silcaRatios[_bikeType] ?? 0.95;
+      setState(() {
+        _calculatedFrontPressure = rearValue * ratio;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _frontController.dispose();
+    _rearController.removeListener(_updateFrontPressure);
     _rearController.dispose();
     super.dispose();
   }
@@ -115,11 +139,39 @@ class _PressureInputPageState extends State<PressureInputPage> {
             ],
             
             const SizedBox(height: 30),
-            Row(
+            Column(
               children: [
-                Expanded(child: _buildPressureField("FRONT $_pressureUnit", _frontController)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildPressureField("REAR $_pressureUnit", _rearController)),
+                // FRONT PRESSURE - Read-only, calculated from rear based on Silca ratios
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: cardBorder, width: 1),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "FRONT $_pressureUnit", 
+                        style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _calculatedFrontPressure.toStringAsFixed(1),
+                        style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Calculated for $_bikeType (${(_silcaRatios[_bikeType] ?? 0.95) * 100}% of rear)",
+                        style: const TextStyle(color: Color(0xFF888888), fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // REAR PRESSURE - User input
+                _buildPressureField("REAR $_pressureUnit", _rearController),
               ],
             ),
             const Spacer(),
@@ -137,7 +189,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => RecordingPage(
-                        frontPressure: double.tryParse(_frontController.text) ?? 0.0,
+                        frontPressure: _calculatedFrontPressure,
                         rearPressure: double.tryParse(_rearController.text) ?? 0.0,
                       ),
                     ),
@@ -147,7 +199,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                     setState(() {
                       // Store current run pressure
                       _previousPressures.add({
-                        'front': double.tryParse(_frontController.text) ?? 0.0,
+                        'front': _calculatedFrontPressure,
                         'rear': double.tryParse(_rearController.text) ?? 0.0,
                       });
                       completedRuns++;
@@ -170,7 +222,33 @@ class _PressureInputPageState extends State<PressureInputPage> {
                     side: const BorderSide(color: accentGemini, width: 2),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  onPressed: () => print("Calculating..."),
+                  onPressed: () async {
+                    // Stop recording and get FIT file path
+                    final fitPath = SensorService().getFitFilePath();
+                    if (fitPath == null) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No recording session found. Please complete at least one run first.')),
+                      );
+                      return;
+                    }
+                    
+                    // Capture navigator before async call to avoid BuildContext warning
+                    final navigator = Navigator.of(context);
+                    await SensorService().stopRecordingSession();
+                    
+                    // Navigate to analysis page using captured navigator
+                    if (!mounted) return;
+                    navigator.pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => AnalysisPage(
+                          fitFilePath: fitPath,
+                          protocol: widget.protocol,
+                          bikeType: _bikeType.toLowerCase(),
+                        ),
+                      ),
+                    );
+                  },
                   child: const Text(
                     "FINISH AND CALCULATE", 
                     style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)
