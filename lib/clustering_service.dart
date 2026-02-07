@@ -332,8 +332,10 @@ class CoastDownClusteringService {
     final duration = dAlt.length.toDouble(); // 1 record ≈ 1 second
     final avgSpd = dSpd.reduce((a, b) => a + b) / dSpd.length;
     final maxSpd = dSpd.reduce((a, b) => a > b ? a : b);
+    final vStart = dSpd.first;
+    final vEnd = dSpd.last;
     final dist = avgSpd * duration;
-    final crr = _calculateCRR(altDrop, dist);
+    final crr = _calculateCRR(altDrop, dist, vStart, vEnd);
     final efficiency = dist / math.max(maxSpd, 0.1);
 
     return DescentSegment(
@@ -639,10 +641,34 @@ class CoastDownClusteringService {
   static double _rad(double deg) => deg * math.pi / 180.0;
 
   /// Coefficient of Rolling Resistance from energy balance.
-  /// CRR ≈ altitude_drop / distance (gravity energy vs rolling loss).
-  /// Clamped to realistic tire range [0.002, 0.020].
-  static double _calculateCRR(double altDrop, double distance) {
+  /// 
+  /// Physics: m·g·Δh = CRR·m·g·d + ½m·(v_end² - v_start²) + air_drag
+  /// Solving for CRR (ignoring air drag at low speeds):
+  /// CRR = (Δh - Δ(v²/2g)) / d
+  /// 
+  /// This accounts for the change in kinetic energy during coast-down.
+  /// Previously used Δh/d which is only valid when v_start ≈ v_end.
+  /// 
+  /// Returns realistic tire CRR [0.002, 0.020].
+  static double _calculateCRR(
+    double altDrop, 
+    double distance,
+    double vStart,  // m/s
+    double vEnd,    // m/s
+  ) {
     if (distance <= 0) return 0.01;
-    return (altDrop / distance).clamp(0.002, 0.020);
+    
+    const g = 9.81; // m/s²
+    
+    // Change in kinetic energy per unit mass: Δ(v²/2)
+    // Note: vEnd < vStart in coast-down → negative ΔKE → adds to available energy
+    final deltaKineticEnergy = (vEnd * vEnd - vStart * vStart) / 2.0;
+    
+    // Energy balance: gravity_potential = rolling_resistance + kinetic_change
+    // altDrop = CRR·distance + deltaKineticEnergy/g
+    // CRR = (altDrop - deltaKineticEnergy/g) / distance
+    final crr = (altDrop - deltaKineticEnergy / g) / distance;
+    
+    return crr.clamp(0.002, 0.020);
   }
 }

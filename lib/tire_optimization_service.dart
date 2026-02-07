@@ -196,9 +196,14 @@ class TireOptimizationService {
       sumA += a;
     }
 
-    // Solve using Cramer's rule (3x3 system)
-    final det = sumP4 * (sumP2 * n - 0) - sumP3 * (sumP3 * n - 0) +
-        sumP2 * (sumP3 * 0 - sumP2 * sumP2);
+    // Solve normal equations using Cramer's rule (3x3 system)
+    // Matrix for centered data (sumP = 0):
+    // | sumP4  sumP3  sumP2 | | a |   | sumP2A |
+    // | sumP3  sumP2  0     | | b | = | sumPA  |
+    // | sumP2  0      n     | | c |   | sumA   |
+    
+    // Determinant of coefficient matrix
+    final det = n * (sumP4 * sumP2 - sumP3 * sumP3);
 
     if (det.abs() < 1e-10) {
       return OptimizationResult(
@@ -214,14 +219,11 @@ class TireOptimizationService {
       );
     }
 
-    final detA = sumP2A * (sumP2 * n - 0) - sumPA * (sumP3 * n - 0) +
-        sumA * (sumP3 * 0 - sumP2 * sumP2);
-    final detB = sumP4 * (sumPA * n - sumA * sumP2) -
-        sumP3 * (sumP2A * n - sumA * sumP2) +
-        sumP2 * (sumP2A * 0 - sumPA * sumP2);
-    final detC = sumP4 * (sumP2 * sumA - 0 * sumPA) -
-        sumP3 * (sumP2 * sumPA - 0 * sumP2A) +
-        sumP2 * (sumP3 * sumA - 0 * sumPA);
+    // Determinants for Cramer's rule
+    final detA = n * (sumP2A * sumP2 - sumPA * sumP3);
+    final detB = n * (sumP4 * sumPA - sumP3 * sumP2A);
+    final detC = sumA * (sumP4 * sumP2 - sumP3 * sumP3) +
+                 sumP2 * (sumP3 * sumPA - sumP2 * sumP2A);
 
     final a = detA / det;
     final b = detB / det;
