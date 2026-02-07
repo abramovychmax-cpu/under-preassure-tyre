@@ -338,8 +338,6 @@ Future<void> generateContinuousFIT() async {
   for (final stat in allStats) {
     print('   ${(stat['pressure'] as double).toStringAsFixed(1)} bar: ${(stat['maxDescent'] as double).toStringAsFixed(1)} km/h max');
   }
-  print('\n✅ Strava-ready! (Generated with Garmin FIT SDK)');
-  print('=' * 70);
 }
 
 void main() async {

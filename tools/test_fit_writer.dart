@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:tyre_preassure/fit_writer.dart';
 
 /// Test script to generate a minimal valid FIT file
