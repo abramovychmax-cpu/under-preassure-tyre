@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'recording_page.dart'; // <--- IF THIS IS MISSING, YOU GET THE UNDEFINED_METHOD ERROR
+import 'package:shared_preferences/shared_preferences.dart';
+import 'recording_page.dart';
+import 'ui/common_widgets.dart';
 
 class PressureInputPage extends StatefulWidget {
   final String protocol; // 'constant_power', 'lap_efficiency', or 'coast_down'
@@ -14,16 +16,26 @@ class PressureInputPage extends StatefulWidget {
 }
 
 class _PressureInputPageState extends State<PressureInputPage> {
-  // Controllers for PSI input
+  // Controllers for pressure input
   final TextEditingController _frontController = TextEditingController(text: "60.0");
   final TextEditingController _rearController = TextEditingController(text: "60.0");
 
   int completedRuns = 0;
+  String _pressureUnit = 'PSI';
+  final List<Map<String, double>> _previousPressures = []; // Store previous run pressures
 
-  // Gemini Dark Palette
-  static const Color bgDark = Color(0xFF121418);
-  static const Color cardGrey = Color(0xFF1E2228);
-  static const Color geminiTeal = Color(0xFF47D1C1);
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _pressureUnit = prefs.getString('pressure_unit') ?? 'PSI';
+    });
+  }
 
   @override
   void dispose() {
@@ -35,60 +47,92 @@ class _PressureInputPageState extends State<PressureInputPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgDark,
+      backgroundColor: bgLight,
       appBar: AppBar(
-        backgroundColor: bgDark,
+        backgroundColor: bgLight,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        title: const Text(
+          "PRESSURE INPUT", 
+          style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16)
         ),
-        title: const Text("PRESSURE INPUT", 
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         centerTitle: true,
+        foregroundColor: const Color(0xFF222222),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("RUN #${completedRuns + 1}", 
-                  style: const TextStyle(color: geminiTeal, fontWeight: FontWeight.w800, fontSize: 22)),
+                Text(
+                  "RUN #${completedRuns + 1}", 
+                  style: const TextStyle(color: accentGemini, fontWeight: FontWeight.w900, fontSize: 24)
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: geminiTeal.withAlpha((0.1 * 255).round()),
+                    color: accentGemini.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accentGemini, width: 1.5),
                   ),
-                  child: Text("$completedRuns/3 DONE", 
-                    style: const TextStyle(color: geminiTeal, fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "$completedRuns/3 DONE", 
+                    style: const TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.bold)
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 40),
+            
+            // Show previous run pressures if any
+            if (_previousPressures.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Previous Runs',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._previousPressures.asMap().entries.map((entry) {
+                      int idx = entry.key;
+                      Map<String, double> pressure = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(1)} $_pressureUnit',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ],
+            
+            const SizedBox(height: 30),
             Row(
               children: [
-                Expanded(child: _buildPressureField("FRONT PSI", _frontController)),
+                Expanded(child: _buildPressureField("FRONT $_pressureUnit", _frontController)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildPressureField("REAR PSI", _rearController)),
+                Expanded(child: _buildPressureField("REAR $_pressureUnit", _rearController)),
               ],
             ),
             const Spacer(),
             SizedBox(
               width: double.infinity,
-              height: 60,
+              height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: geminiTeal,
-                  foregroundColor: bgDark,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  backgroundColor: accentGemini,
+                  foregroundColor: bgLight,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
                 onPressed: () async {
-                  // This is line 86/87 where your error was
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -100,30 +144,41 @@ class _PressureInputPageState extends State<PressureInputPage> {
                   );
 
                   if (result == true) {
-                    setState(() => completedRuns++);
+                    setState(() {
+                      // Store current run pressure
+                      _previousPressures.add({
+                        'front': double.tryParse(_frontController.text) ?? 0.0,
+                        'rear': double.tryParse(_rearController.text) ?? 0.0,
+                      });
+                      completedRuns++;
+                    });
                   }
                 },
-                child: const Text("START RUN", 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                child: const Text(
+                  "START RUN", 
+                  style: TextStyle(fontWeight: FontWeight.bold)
+                ),
               ),
             ),
             if (completedRuns >= 3) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                height: 60,
+                height: 55,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: geminiTeal, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    side: const BorderSide(color: accentGemini, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
                   onPressed: () => print("Calculating..."),
-                  child: const Text("FINISH AND CALCULATE", 
-                    style: TextStyle(color: geminiTeal, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    "FINISH AND CALCULATE", 
+                    style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -134,18 +189,29 @@ class _PressureInputPageState extends State<PressureInputPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardGrey,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((0.03 * 255).round()),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: geminiTeal, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(
+            label, 
+            style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
             decoration: const InputDecoration(
               border: InputBorder.none,
               isDense: true,

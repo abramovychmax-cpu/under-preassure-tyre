@@ -69,11 +69,12 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
             // Persistent button at the bottom
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentGemini,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  foregroundColor: bgLight,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
                 onPressed: () {
                   Navigator.push(
@@ -83,7 +84,7 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                 },
                 child: const Text(
                   "UNDERSTOOD - SETUP RUN",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),

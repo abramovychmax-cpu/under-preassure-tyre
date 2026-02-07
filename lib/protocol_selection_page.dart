@@ -92,6 +92,7 @@ class ProtocolSelectionPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     backgroundColor: color.withAlpha((0.08 * 255).round()),
@@ -101,13 +102,14 @@ class ProtocolSelectionPage extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF222222)),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              Text(desc, style: const TextStyle(height: 1.4, color: Color(0xFF888888), fontSize: 15)),
+              Text(desc, textAlign: TextAlign.center, style: const TextStyle(height: 1.4, color: Color(0xFF888888), fontSize: 15)),
             ],
           ),
         ),

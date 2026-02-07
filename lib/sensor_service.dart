@@ -134,6 +134,12 @@ class SensorService {
     _connectedNamesController.add(out);
   }
 
+  // Cache a device name before connecting to prevent showing ID temporarily
+  void cacheDeviceName(String deviceId, String deviceName) {
+    _deviceNames[deviceId] = deviceName;
+    _emitConnectedNames(); // Immediately update UI with cached name
+  }
+
   void setSavedSensor(String targetSlot, String id) async {
     final prefs = await SharedPreferences.getInstance();
     if (targetSlot == "speed") {
@@ -150,9 +156,13 @@ class SensorService {
   }
 
   void resetDistance() {
-    _lapStartRevs = _lastWheelRevs;
+    // Save current position as lap baseline
+    if (_lastWheelRevs != null) {
+      _lapStartRevs = _lastWheelRevs;
+    }
     _currentRunDistance = 0.0;
     _distanceController.add(0.0);
+    // Don't reset _lastWheelRevs/_lastWheelTime - keep them for speed calculation continuity
     print("Distance Reset. Baseline Wheel Revs: $_lapStartRevs");
   }
 
@@ -396,7 +406,7 @@ class SensorService {
 
           // only cancel/restart the stop timer when real motion occurred
           _stopTimer?.cancel();
-          _stopTimer = Timer(const Duration(seconds: 3), () {
+          _stopTimer = Timer(const Duration(seconds: 2), () {
             _btSpeed = 0.0;
             _decideWhichSpeedToPublish();
           });

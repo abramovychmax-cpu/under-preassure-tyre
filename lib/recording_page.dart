@@ -55,7 +55,9 @@ class _RecordingPageState extends State<RecordingPage> {
 
     // Initialize sensor session for this run
     _sensorService.resetDistance();
-    _sensorService.loadSavedSensors();
+    // Don't call loadSavedSensors() here - sensors should already be connected from SensorSetupPage
+    // Calling it again might cause unnecessary re-scanning and connection interruption
+    
     // start FIT/JSONL recording session for this run
     _sensorService.startRecordingSession(widget.frontPressure, widget.rearPressure, protocol: widget.protocol);
 

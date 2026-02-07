@@ -33,6 +33,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
   int _selectedTireWidth = 28; // in mm
   String _selectedPressureUnit = 'PSI';
   String _selectedSpeedUnit = 'km/h';
+  String _selectedBikeType = 'Road'; // New bike type field
   double _calculatedCircumference = 2.1;
 
   bool _isLoading = true;
@@ -51,6 +52,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
       _selectedTireWidth = _prefs.getInt('tire_width') ?? 28;
       _selectedPressureUnit = _prefs.getString('pressure_unit') ?? 'PSI';
       _selectedSpeedUnit = _prefs.getString('speed_unit') ?? 'km/h';
+      _selectedBikeType = _prefs.getString('bike_type') ?? 'Road';
       _calculatedCircumference = _prefs.getDouble('wheel_circumference') ?? 2.1;
       _isLoading = false;
 
@@ -77,6 +79,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
     _prefs.setString('wheel_size', _selectedWheelSize);
     _prefs.setInt('tire_width', _selectedTireWidth);
     _prefs.setString('pressure_unit', _selectedPressureUnit);
+    _prefs.setString('bike_type', _selectedBikeType);
     _prefs.setString('speed_unit', _selectedSpeedUnit);
     _prefs.setDouble('wheel_circumference', circumferenceM);
   }
@@ -88,7 +91,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
       appBar: AppBar(
         backgroundColor: bgLight,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
         title: const Text(
           'WHEEL & TIRE SETUP',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
@@ -103,6 +106,45 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Bike Type',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF222222),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: cardBorder, width: 1),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: DropdownButton<String>(
+                      value: _selectedBikeType,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      style: const TextStyle(color: Color(0xFF222222), fontSize: 16, fontWeight: FontWeight.w500),
+                      dropdownColor: Colors.white,
+                      items: ['Road', 'Mountain', 'Gravel', 'Hybrid', 'BMX']
+                          .map((type) => DropdownMenuItem(
+                                value: type,
+                                child: Text(type, style: const TextStyle(color: Color(0xFF222222))),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedBikeType = value);
+                          _calculateAndSaveCircumference();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
                   const Text(
                     'Wheel Size',
                     style: TextStyle(
@@ -125,10 +167,11 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                       isExpanded: true,
                       underline: const SizedBox(),
                       style: const TextStyle(color: Color(0xFF222222), fontSize: 16, fontWeight: FontWeight.w500),
+                      dropdownColor: Colors.white,
                       items: wheelSizes
                           .map((wheel) => DropdownMenuItem(
                                 value: wheel['name'] as String,
-                                child: Text(wheel['name'] as String),
+                                child: Text(wheel['name'] as String, style: const TextStyle(color: Color(0xFF222222))),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -308,12 +351,12 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                   // Continue button
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
+                    height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF47D1C1),
-                        foregroundColor: const Color(0xFFF2F2F2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        foregroundColor: bgLight,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         elevation: 0,
                       ),
                       onPressed: () {
@@ -325,9 +368,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                       child: const Text(
                         'CONTINUE',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),

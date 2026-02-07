@@ -27,9 +27,11 @@ class _HomePageState extends State<HomePage> {
             children: [
               // App Title
               const Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
                     'PERFECT PRESSURE',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: accentGemini,
                       fontSize: 32,

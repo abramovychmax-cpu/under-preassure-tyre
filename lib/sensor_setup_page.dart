@@ -52,9 +52,9 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     _connectedNamesSub = SensorService().connectedNamesStream.listen((map) {
       if (!mounted) return;
       setState(() {
-        speedSensorName = map['speed'] ?? 'Not Connected';
-        powerMeterName = map['power'] ?? 'Not Connected';
-        cadenceSensorName = map['cadence'] ?? 'Not Connected';
+        speedSensorName = map['speed'] ?? '';
+        powerMeterName = map['power'] ?? '';
+        cadenceSensorName = map['cadence'] ?? '';
       });
     });
   }
@@ -187,8 +187,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                       final name = data.advertisementData.advName.toLowerCase();
                       final serviceUuids = data.advertisementData.serviceUuids.map((e) => e.toString().toLowerCase()).toList();
 
-                      if (targetSlot == "cadence") {
+                      if (targetSlot == "speed") {
                         // 1816 is Cycling Speed and Cadence Service
+                        return serviceUuids.contains("1816") || name.contains("speed") || name.contains("cadence") || name.contains("kickr");
+                      }
+                      if (targetSlot == "cadence") {
+                        // 1816 is Cycling Speed and Cadence Service - KICKR also provides cadence
                         return serviceUuids.contains("1816") || name.contains("kickr") || name.contains("cadence");
                       }
                       if (targetSlot == "power") {
@@ -213,6 +217,9 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                           title: Text(name, style: const TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.bold)),
                           subtitle: Text(data.device.remoteId.str, style: const TextStyle(color: Colors.grey)),
                           onTap: () {
+                            // Cache the device name immediately before connecting
+                            SensorService().cacheDeviceName(data.device.remoteId.str, name);
+                            
                             // CHANGE 2: Treating slots as independent connections
                             // We set the sensor for the specific slot even if the ID is already in use elsewhere
                             SensorService().setSavedSensor(targetSlot, data.device.remoteId.str);
