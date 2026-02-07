@@ -426,16 +426,23 @@ class SensorService {
       }
 
       final now = DateTime.now().toUtc();
-      _fitWriter!.writeRecord({
+      
+      // Filter out invalid GPS coordinates (0.0, 0.0) which cause Strava data rejection
+      final Map<String, dynamic> record = {
         'ts': now.toIso8601String(),
         'speed_kmh': currentSpeedValue,
         'distance': currentDistanceValue,
         'power': _lastPublishedPower,
         'cadence': _lastPublishedCadence,
-        'altitude': _currentAltitude,
-        'lat': _currentLat,
-        'lon': _currentLon,
-      });
+      };
+
+      if (_currentLat != 0.0 || _currentLon != 0.0) {
+        record['lat'] = _currentLat;
+        record['lon'] = _currentLon;
+        record['altitude'] = _currentAltitude;
+      }
+
+      _fitWriter!.writeRecord(record);
     });
   }
 
