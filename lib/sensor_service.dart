@@ -1,25 +1,15 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'fit_writer.dart';
-import 'weather_service.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter/widgets.dart';
 
-class SensorService with WidgetsBindingObserver {
+class SensorService {
   static final SensorService _instance = SensorService._internal();
   factory SensorService() => _instance;
-  SensorService._internal() {
-    try {
-      WidgetsBinding.instance.addObserver(this);
-    } catch (_) {}
-  }
+  SensorService._internal();
 
   // --- STREAMS ---
   final _speedController = StreamController<double>.broadcast();
@@ -46,8 +36,8 @@ class SensorService with WidgetsBindingObserver {
   final _scanResultsController = StreamController<List<ScanResult>>.broadcast();
   Stream<List<ScanResult>> get scanResultsStream => _scanResultsController.stream;
 
-  final _positionController = StreamController<Position>.broadcast();
-  Stream<Position> get positionStream => _positionController.stream;
+  // --- FIT RECORDING ---
+  FitWriter? _fitWriter;
 
   // publishes currently-resolved display names for saved slots
   final _connectedNamesController = StreamController<Map<String, String>>.broadcast();
@@ -83,25 +73,12 @@ class SensorService with WidgetsBindingObserver {
   
   int? _lapStartRevs; 
   double _currentRunDistance = 0.0;
-  
-  // Track last FIT file path for analysis
-  String? _lastRecordingPath;
-  static const double wheelCircumference = 2.100; // Meters (default)
-  late double _customWheelCircumference = 2.100; // Will be loaded from settings
+  static const double wheelCircumference = 2.100; // Meters
 
   Timer? _stopTimer;
   Timer? _uiPublisherTimer;
   int _lastPublishedCadence = 0;
-  int _lastPublishedPower = 0;
   StreamSubscription? _accelSub;
-  // Recording
-  bool _isRecording = false;
-  FitWriter? _fitWriter;
-  final List<StreamSubscription> _recordingSubs = [];
-  int _lapIndex = 0;
-  
-  // Weather service for temperature and atmospheric pressure
-  final WeatherService _weatherService = WeatherService();
 
   // --- INITIALIZATION ---
   Future<void> loadSavedSensors() async {
@@ -109,12 +86,8 @@ class SensorService with WidgetsBindingObserver {
     _savedSpeedId = prefs.getString('speed_sensor_id');
     _savedPowerId = prefs.getString('power_sensor_id');
     _savedCadenceId = prefs.getString('cadence_sensor_id');
-    
-    // Load custom wheel circumference from settings
-    _customWheelCircumference = prefs.getDouble('wheel_circumference') ?? wheelCircumference;
 
     print("LOADED SENSORS: Speed($_savedSpeedId), Power($_savedPowerId), Cadence($_savedCadenceId)");
-    print("LOADED WHEEL CIRCUMFERENCE: ${_customWheelCircumference}m");
     startScanning();
     _initGps();
     // start periodic UI publisher (2 Hz) to improve UI refresh reliability
@@ -127,7 +100,7 @@ class SensorService with WidgetsBindingObserver {
 
     // start accelerometer listener for vibration magnitude (m/s^2 -> g)
     _accelSub?.cancel();
-    _accelSub = accelerometerEvents.listen((event) {
+    _accelSub = accelerometerEventStream().listen((event) {
       // magnitude in m/s^2
       final double mag = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
       // convert to g
@@ -148,121 +121,15 @@ class SensorService with WidgetsBindingObserver {
         }
         final double avg = sum / _vibrationSamples.length;
         _vibrationController.add(avg);
-        
-        // If recording, pass vibration sample to FitWriter for per-second aggregation
-        if (_isRecording && _fitWriter != null) {
-          _fitWriter!.recordVibrationSample(_lapIndex, g);
-        }
       }
     });
   }
-
-  /// Start recording session: opens writer, writes initial metadata and subscribes
-  /// to sensor streams. The writer currently writes JSONL + placeholder .fit.
-  Future<void> startRecordingSession(double frontPsi, double rearPsi, {String protocol = 'unknown'}) async {
-    if (_isRecording) return;
-
-    // Create a single FitWriter for the whole analysis session. If a writer
-    // already exists, reuse it so multiple runs (laps) end up in the same
-    // FIT file. Only initialize metadata once on the first run.
-    if (_fitWriter == null) {
-      _fitWriter = await FitWriter.create(protocol: protocol);
-      await _fitWriter!.startSession({'protocol': protocol, 'wheel_circumference_m': _customWheelCircumference});
-      _lapIndex = 0;
-    } else {
-      // increment lap index for subsequent runs
-      _lapIndex = (_lapIndex) + 1;
-    }
-
-    await _fitWriter!.writeLap(frontPsi, rearPsi, lapIndex: _lapIndex);
-
-    // Instead of writing separate records per sensor, consolidate into periodic combined records
-    // This ensures GPS coordinates appear with speed/power/cadence in Strava
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isRecording) {
-        timer.cancel();
-        return;
-      }
-      
-      // Write one combined record per second with ALL current values
-      _fitWriter?.writeRecord({
-        'ts': DateTime.now().toUtc().toIso8601String(),
-        'lat': _lastGpsLat,
-        'lon': _lastGpsLon,
-        'altitude': (_lastGpsAlt ?? 0).round(),
-        'speed_kmh': currentSpeedValue,
-        'distance': (currentDistanceValue * 1000).round(), // km to meters
-        'power': _lastPublishedPower,
-        'cadence': _lastPublishedCadence,
-        'temperature': _weatherService.getTemperature(),
-        'atmospheric_pressure': _weatherService.getAtmosphericPressurePa(),
-        'front_psi': frontPsi,
-        'rear_psi': rearPsi,
-        'vibration': 0.0, // TODO: add vibration if available
-      });
-    });
-
-    _isRecording = true;
-  }
-
-  // Track last GPS values for consolidation
-  double? _lastGpsLat;
-  double? _lastGpsLon;
-  double? _lastGpsAlt;
-
-
-  /// Stop recording session and finalize writer
-  Future<void> stopRecordingSession() async {
-    if (!_isRecording) return;
-    for (final s in _recordingSubs) {
-      await s.cancel();
-    }
-    _recordingSubs.clear();
-    // Do not finalize the writer here: keep the session writer alive so
-    // multiple runs (laps) are appended to the same FIT/JSONL. Call
-    // `finalizeRecordingSession()` when the user finishes the analysis.
-    _isRecording = false;
-  }
-
-  /// Finalize and export the current recording session. This should be
-  /// called once the user has completed all runs and wants to export a
-  /// single FIT containing all laps.
-  Future<void> finalizeRecordingSession() async {
-    try {
-      await _fitWriter?.finish();
-      _lastRecordingPath = _fitWriter?.fitPath;
-    } catch (_) {}
-    _fitWriter = null;
-  }
-
-  /// Get the path to the last recording's FIT file
-  String? getLastRecordingPath() => _lastRecordingPath;
-
-  double getWheelCircumference() => _customWheelCircumference;
-
-  /// Get the current FIT writer for flushing data during background operations
-  FitWriter? getFitWriter() => _fitWriter;
 
   void _emitConnectedNames() {
-    String resolveIfConnected(String? id) {
-      if (id == null) return '';
-      // Only show a name if the device is currently connected
-      final connected = _connectedDevices[id];
-      if (connected == null) return '';
-      // Prefer cached advertisement name, then device.name, else fallback to id
-      final cached = _deviceNames[id];
-      if (cached != null && cached.isNotEmpty) return cached;
-      try {
-        final devName = connected.name;
-        if (devName.isNotEmpty) return devName;
-      } catch (_) {}
-      return id;
-    }
-
     final Map<String, String> out = {
-      'speed': resolveIfConnected(_savedSpeedId),
-      'power': resolveIfConnected(_savedPowerId),
-      'cadence': resolveIfConnected(_savedCadenceId),
+      'speed': _savedSpeedId == null ? 'Not Connected' : (_deviceNames[_savedSpeedId] ?? _savedSpeedId!),
+      'power': _savedPowerId == null ? 'Not Connected' : (_deviceNames[_savedPowerId] ?? _savedPowerId!),
+      'cadence': _savedCadenceId == null ? 'Not Connected' : (_deviceNames[_savedCadenceId] ?? _savedCadenceId!),
     };
     _connectedNamesController.add(out);
   }
@@ -300,19 +167,6 @@ class SensorService with WidgetsBindingObserver {
     ).listen((Position position) {
       double rawGps = position.speed * 3.6;
       _gpsSpeed = rawGps < minSpeedThreshold ? 0.0 : rawGps;
-      
-      // Update last GPS position for consolidated recording
-      _lastGpsLat = position.latitude;
-      _lastGpsLon = position.longitude;
-      _lastGpsAlt = position.altitude;
-      
-      // Fetch weather data based on GPS location (rate-limited to once per 10 min)
-      _weatherService.updateWeather(position.latitude, position.longitude);
-      
-      // emit raw position for consumers
-      try {
-        _positionController.add(position);
-      } catch (_) {}
       _decideWhichSpeedToPublish();
     });
   }
@@ -324,13 +178,9 @@ class SensorService with WidgetsBindingObserver {
     FlutterBluePlus.scanResults.listen((results) {
       // cache display names from recent scan results so we can show them when connected
       for (final r in results) {
-        final name = r.advertisementData.localName;
-        if (name.isNotEmpty) {
-          _deviceNames[r.device.remoteId.str] = name;
-        }
+        final name = r.advertisementData.advName.isEmpty ? 'Unknown Device' : r.advertisementData.advName;
+        _deviceNames[r.device.remoteId.str] = name;
       }
-      // emit any newly discovered friendly names so UI updates from MAC -> name
-      _emitConnectedNames();
       _processSavedDevicesSequentially(results);
     });
 
@@ -345,37 +195,22 @@ class SensorService with WidgetsBindingObserver {
   void startFilteredScan(String targetSlot) async {
     if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
 
-    // For cadence, accept both CSC (0x1816) and Power (0x1818) services
-    // since many power meters include cadence data
-    List<Guid> targetServices = [];
-    if (targetSlot == "power") {
-      targetServices = [Guid("1818")];
-    } else if (targetSlot == "cadence") {
-      targetServices = [Guid("1816"), Guid("1818")]; // CSC or Power with cadence
-    } else {
-      targetServices = [Guid("1816")]; // speed: CSC only
-    }
+    Guid targetService = (targetSlot == "power") ? Guid("1818") : Guid("1816");
 
     FlutterBluePlus.scanResults.listen((results) {
       var filtered = results.where((r) {
-        final lname = r.advertisementData.localName;
-        final services = r.advertisementData.serviceUuids.map((s) => s.toString()).join(',');
-        print('Scan result: ${r.device.remoteId.str} name="$lname" services=[$services]');
-        
-        if (lname.isNotEmpty) {
-          _deviceNames[r.device.remoteId.str] = lname;
+        if (r.advertisementData.advName.isNotEmpty) {
+          _deviceNames[r.device.remoteId.str] = r.advertisementData.advName;
         }
-        // Accept devices with any matching service
-        final matches = targetServices.any((service) => r.advertisementData.serviceUuids.contains(service));
-        if (matches) print('  -> MATCHED for slot $targetSlot');
-        return matches;
+        return r.advertisementData.serviceUuids.contains(targetService) &&
+               r.advertisementData.advName.isNotEmpty;
       }).toList();
       _scanResultsController.add(filtered);
     });
 
     try {
       await FlutterBluePlus.startScan(
-        withServices: targetServices,
+        withServices: [targetService],
         timeout: const Duration(seconds: 15),
       );
     } catch (e) { print("Filtered Scan Error: $e"); }
@@ -526,19 +361,6 @@ class SensorService with WidgetsBindingObserver {
     _crankStopTimer?.cancel();
     _accelSub?.cancel();
     _vibrationController.close();
-    try {
-      WidgetsBinding.instance.removeObserver(this);
-    } catch (_) {}
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // flush writer when app pauses or goes inactive to reduce data loss
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      try {
-        _fitWriter?.flush();
-      } catch (_) {}
-    }
   }
 
   // --- REFACTORED PARSERS ---
@@ -564,12 +386,12 @@ class SensorService with WidgetsBindingObserver {
         int timeDiff = (currentTime - _lastWheelTime!) & 0xFFFF;
         if (revDiff > 0 && timeDiff > 0) {
           // movement detected -> compute speed and restart stop timer
-          _btSpeed = ((revDiff * _customWheelCircumference) / (timeDiff / 1024.0)) * 3.6;
+          _btSpeed = ((revDiff * wheelCircumference) / (timeDiff / 1024.0)) * 3.6;
 
           // update distance (use lap baseline)
           if (_lapStartRevs != null) {
             int runDeltaRevs = (currentRevs - _lapStartRevs!) & 0xFFFFFFFF;
-            _currentRunDistance = (runDeltaRevs * _customWheelCircumference) / 1000.0;
+            _currentRunDistance = (runDeltaRevs * wheelCircumference) / 1000.0;
           }
 
           // only cancel/restart the stop timer when real motion occurred
@@ -603,22 +425,14 @@ class SensorService with WidgetsBindingObserver {
             _cadenceController.add(rpmInt);
             _lastPublishedCadence = rpmInt;
             print('CSC crank: device=$deviceId rpm=${rpm.toStringAsFixed(1)}');
-            
-            // reset crank stop timer so we set cadence to zero when pedaling stops
-            _crankStopTimer?.cancel();
-            _crankStopTimer = Timer(const Duration(seconds: 2), () {
-              _cadenceController.add(0);
-              _lastPublishedCadence = 0;
-            });
           }
-        } else {
-          // First sample: start the stop timer
-          _crankStopTimer?.cancel();
-          _crankStopTimer = Timer(const Duration(seconds: 2), () {
-            _cadenceController.add(0);
-            _lastPublishedCadence = 0;
-          });
         }
+        // reset crank stop timer so we set cadence to zero when pedaling stops
+        _crankStopTimer?.cancel();
+        _crankStopTimer = Timer(const Duration(seconds: 2), () {
+          _cadenceController.add(0);
+          _lastPublishedCadence = 0;
+        });
         _lastCrankRevs = currentCrankRevs;
         _lastCrankTime = currentCrankTime;
       }
@@ -626,92 +440,28 @@ class SensorService with WidgetsBindingObserver {
   }
 
   void _parsePower(List<int> data, String deviceId) {
-    // Check if this device is assigned to power or cadence
-    final bool isPowerDevice = deviceId == _savedPowerId;
-    final bool isCadenceDevice = deviceId == _savedCadenceId;
-    if (!isPowerDevice && !isCadenceDevice) return;
-    
+    if (deviceId != _savedPowerId) return;
     if (data.length < 4) return;
-    
-    // Parse flags (bytes 0-1)
-    int flags = data[0] | (data[1] << 8);
-    bool hasCrankRevData = (flags & 0x20) != 0; // bit 5: Crank Revolution Data Present
-    
-    // Parse power (bytes 2-3) if device is assigned to power slot
-    if (isPowerDevice) {
-      int power = (data[2]) | (data[3] << 8);
-      print('Power meter raw: device=$deviceId bytes=[${data.sublist(0, 4).map((b) => b.toRadixString(16).padLeft(2, "0")).join(" ")}] power=$power watts');
+    int power = (data[2]) | (data[3] << 8);
 
-      // add new sample with timestamp
-      final int now = DateTime.now().millisecondsSinceEpoch;
-      _powerSamples.add({'ts': now, 'v': power});
+    // add new sample with timestamp
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    _powerSamples.add({'ts': now, 'v': power});
 
-      // remove old samples outside the window
-      final int cutoff = now - _powerWindowMs;
-      while (_powerSamples.isNotEmpty && (_powerSamples.first['ts'] ?? 0) < cutoff) {
-        _powerSamples.removeAt(0);
-      }
-
-      // compute average over samples in window
-      if (_powerSamples.isNotEmpty) {
-        int sum = 0;
-        for (final s in _powerSamples) {
-          sum += (s['v'] ?? 0);
-        }
-        final int avg = sum ~/ _powerSamples.length;
-        _lastPublishedPower = avg;
-        _powerController.add(avg);
-      }
+    // remove old samples outside the window
+    final int cutoff = now - _powerWindowMs;
+    while (_powerSamples.isNotEmpty && (_powerSamples.first['ts'] ?? 0) < cutoff) {
+      _powerSamples.removeAt(0);
     }
-    
-    // Parse cadence (bytes 4-7: cumulative crank revs + last crank time) if present and device assigned to cadence
-    if (isCadenceDevice && hasCrankRevData && data.length >= 8) {
-      int crankRevs = (data[4]) | (data[5] << 8);
-      int crankTime = (data[6]) | (data[7] << 8); // 1/1024 second resolution
-      
-      print('Power meter cadence raw: revs=$crankRevs time=$crankTime (last: revs=$_lastCrankRevs time=$_lastCrankTime)');
-      
-      if (_lastCrankRevs != null) {
-        int revDiff = (crankRevs - _lastCrankRevs!) & 0xFFFF;
-        int timeDiff = (crankTime - _lastCrankTime!) & 0xFFFF;
-        
-        // Require minimum time delta to avoid huge RPM values from tiny time differences
-        // 1024 units = 1 second, so 20 units = ~20ms minimum
-        if (revDiff > 0 && timeDiff >= 20) {
-          double rpm = (revDiff * 60 * 1024) / timeDiff;
-          int rpmInt = rpm.toInt();
-          
-          // Sanity check: cadence should be 0-250 RPM for cycling
-          if (rpmInt > 250) {
-            print('Power meter cadence REJECTED: rpm=$rpmInt (revDiff=$revDiff timeDiff=$timeDiff) - value too high');
-          } else {
-            _cadenceController.add(rpmInt);
-            _lastPublishedCadence = rpmInt;
-            print('Power meter cadence: device=$deviceId rpm=${rpm.toStringAsFixed(1)}');
-            
-            // reset crank stop timer
-            _crankStopTimer?.cancel();
-            _crankStopTimer = Timer(const Duration(seconds: 2), () {
-              _cadenceController.add(0);
-              _lastPublishedCadence = 0;
-            });
-          }
-        } else {
-          print('Power meter cadence skipped: revDiff=$revDiff timeDiff=$timeDiff (minimum timeDiff=20)');
-        }
-      } else {
-        print('Power meter cadence: first sample, establishing baseline');
-        // First sample: start the stop timer
-        _crankStopTimer?.cancel();
-        _crankStopTimer = Timer(const Duration(seconds: 2), () {
-          _cadenceController.add(0);
-          _lastPublishedCadence = 0;
-        });
+
+    // compute average over samples in window
+    if (_powerSamples.isNotEmpty) {
+      int sum = 0;
+      for (final s in _powerSamples) {
+        sum += (s['v'] ?? 0);
       }
-      
-      // Update baseline for next comparison
-      _lastCrankRevs = crankRevs;
-      _lastCrankTime = crankTime;
+      final int avg = sum ~/ _powerSamples.length;
+      _powerController.add(avg);
     }
   }
 
@@ -723,128 +473,39 @@ class SensorService with WidgetsBindingObserver {
     _distanceController.add(currentDistanceValue);
   }
 
-  /// Export any existing session files from the app documents `tyre_sessions`
-  /// directory to `/sdcard/tyre_sessions` so they are visible in the phone
-  /// file explorer. Returns true if at least one file was copied.
-  Future<bool> exportSessionsToSdcard() async {
+  /// Start a new FIT recording session with tire pressure metadata
+  Future<void> startRecordingSession(double frontPressure, double rearPressure, {String protocol = 'coast_down'}) async {
     try {
-      final appDoc = await getApplicationDocumentsDirectory();
-      final src = Directory('${appDoc.path}/tyre_sessions');
-      if (!await src.exists()) return false;
-
-      // prefer external storage provided by path_provider (app-specific);
-      // only attempt to write to public locations if we have storage
-      // permission (or manageExternalStorage on modern Android).
-      String? extBase;
-      try {
-        final ext = await getExternalStorageDirectory();
-        extBase = ext?.path;
-      } catch (_) {}
-
-      bool publicAllowed = true;
-      if (Platform.isAndroid) {
-        // request manageExternalStorage first (Android 11+), else legacy storage
-        if (!await Permission.manageExternalStorage.isGranted) {
-          final res = await Permission.manageExternalStorage.request();
-          if (!res.isGranted) {
-            final res2 = await Permission.storage.request();
-            if (!res2.isGranted) publicAllowed = false;
-          }
-        }
-      }
-
-      final candidates = <String?>[extBase];
-      if (publicAllowed) candidates.addAll(['/storage/emulated/0', '/sdcard']);
-
-      for (final base in candidates) {
-        if (base == null) continue;
-        try {
-          final destRoot = Directory('$base/tyre_sessions');
-          await destRoot.create(recursive: true);
-
-          bool copiedAnything = false;
-          await for (final entity in src.list(recursive: true)) {
-            if (entity is File) {
-              try {
-                final rel = entity.path.substring(src.path.length + 1);
-                final destPath = '${destRoot.path}/$rel';
-                final destDir = Directory(p.dirname(destPath));
-                await destDir.create(recursive: true);
-                await entity.copy(destPath);
-                copiedAnything = true;
-              } catch (_) {
-                // ignore single-file errors
-              }
-            }
-          }
-          if (copiedAnything) return true;
-        } catch (_) {
-          // try next candidate
-        }
-      }
-      return false;
+      _fitWriter = await FitWriter.create(protocol: protocol);
+      await _fitWriter?.startSession({
+        'sportType': 'cycling',
+        'subSport': 'cycling',
+        'protocol': protocol,
+        'frontPressure': frontPressure,
+        'rearPressure': rearPressure,
+        'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000,
+      });
+      print('FIT recording session started: Front=$frontPressure, Rear=$rearPressure, Protocol=$protocol');
     } catch (e) {
-      return false;
+      print('ERROR starting FIT recording session: $e');
     }
   }
 
-  /// Export sessions and return a list of destination paths that were copied.
-  /// Useful for debugging export failures from the UI.
-  Future<List<String>> exportSessionsReport() async {
-    final List<String> copied = [];
+  /// Stop recording and finalize the FIT file
+  Future<void> stopRecordingSession() async {
     try {
-      final appDoc = await getApplicationDocumentsDirectory();
-      final src = Directory('${appDoc.path}/tyre_sessions');
-      if (!await src.exists()) return copied;
-
-      String? extBase;
-      try {
-        final ext = await getExternalStorageDirectory();
-        extBase = ext?.path;
-      } catch (_) {}
-
-      bool publicAllowed = true;
-      if (Platform.isAndroid) {
-        if (!await Permission.manageExternalStorage.isGranted) {
-          final res = await Permission.manageExternalStorage.request();
-          if (!res.isGranted) {
-            final res2 = await Permission.storage.request();
-            if (!res2.isGranted) publicAllowed = false;
-          }
-        }
+      if (_fitWriter == null) {
+        print('WARNING: No active FIT recording session to stop');
+        return;
       }
-
-      final candidates = <String?>[extBase];
-      if (publicAllowed) candidates.addAll(['/storage/emulated/0', '/sdcard']);
-
-      for (final base in candidates) {
-        if (base == null) continue;
-        try {
-          final destRoot = Directory('$base/tyre_sessions');
-          await destRoot.create(recursive: true);
-
-          await for (final entity in src.list(recursive: true)) {
-            if (entity is File) {
-              try {
-                final rel = entity.path.substring(src.path.length + 1);
-                final destPath = '${destRoot.path}/$rel';
-                final destDir = Directory(p.dirname(destPath));
-                await destDir.create(recursive: true);
-                await entity.copy(destPath);
-                copied.add(destPath);
-              } catch (_) {
-                // ignore single-file copy errors
-              }
-            }
-          }
-          if (copied.isNotEmpty) return copied;
-        } catch (_) {
-          // try next candidate
-        }
-      }
-      return copied;
+      await _fitWriter?.finish();
+      print('FIT recording session finished successfully');
+      _fitWriter = null;
     } catch (e) {
-      return copied;
+      print('ERROR stopping FIT recording session: $e');
     }
   }
+
+  /// Get the current FIT writer instance (for background flush)
+  FitWriter? getFitWriter() => _fitWriter;
 }

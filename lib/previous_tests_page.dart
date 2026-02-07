@@ -100,13 +100,13 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
                         Icon(
                           Icons.hourglass_empty,
                           size: 64,
-                          color: Colors.grey.withOpacity(0.3),
+                          color: Colors.grey.withValues(alpha: 0.3),
                         ),
                         const SizedBox(height: 24),
                         Text(
                           'No tests saved yet',
                           style: TextStyle(
-                            color: Colors.grey.withOpacity(0.7),
+                            color: Colors.grey.withValues(alpha: 0.7),
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
@@ -116,7 +116,7 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
                           'Complete your first tire pressure test to see results here',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.grey.withOpacity(0.5),
+                            color: Colors.grey.withValues(alpha: 0.5),
                             fontSize: 13,
                           ),
                         ),

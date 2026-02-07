@@ -104,7 +104,7 @@ class _HomePageState extends State<HomePage> {
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isFilled ? BorderSide.none : BorderSide(color: color.withOpacity(0.2), width: 1.5),
+            side: isFilled ? BorderSide.none : BorderSide(color: color.withValues(alpha: 0.2), width: 1.5),
           ),
         ),
         child: Row(

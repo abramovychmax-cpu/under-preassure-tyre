@@ -94,7 +94,7 @@ class ProtocolSelectionPage extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: color.withOpacity(0.08),
+                    backgroundColor: color.withValues(alpha: 0.08),
                     child: Icon(icon, color: color, size: 24),
                   ),
                   const SizedBox(width: 12),

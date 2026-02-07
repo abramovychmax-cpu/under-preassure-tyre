@@ -84,18 +84,18 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) {
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('GPS permission is needed for speed fallback measurement.'),
+          const SnackBar(
+            content: Text('GPS permission is needed for speed fallback measurement.'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('GPS permission granted!'),
+          const SnackBar(
+            content: Text('GPS permission granted!'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -152,9 +152,9 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: bgLight,
-        body: const Center(child: CircularProgressIndicator(color: accentGemini)),
+        body: Center(child: CircularProgressIndicator(color: accentGemini)),
       );
     }
 
@@ -207,9 +207,9 @@ class _SettingsPageState extends State<SettingsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
+                color: Colors.blue.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withOpacity(0.2), width: 1),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.2), width: 1),
               ),
               child: const Text(
                 '💡 GPS is optional - used as fallback when Bluetooth sensor isn\'t available. Bluetooth connections don\'t require extra permissions.',
@@ -239,7 +239,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accentGemini.withOpacity(0.3)),
+                        border: Border.all(color: accentGemini.withValues(alpha: 0.3)),
                       ),
                       child: DropdownButton<String>(
                         value: _selectedWheelSize,
@@ -284,7 +284,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accentGemini.withOpacity(0.3)),
+                        border: Border.all(color: accentGemini.withValues(alpha: 0.3)),
                       ),
                       child: DropdownButton<int>(
                         value: _selectedTireWidth,
@@ -327,9 +327,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: accentGemini.withOpacity(0.08),
+                        color: accentGemini.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accentGemini.withOpacity(0.3)),
+                        border: Border.all(color: accentGemini.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         '${_calculatedCircumference.toStringAsFixed(3)} meters',
@@ -342,9 +342,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
+                    const Text(
                       'Used for speed calculations from wheel rotations',
-                      style: const TextStyle(color: Color(0xFF888888), fontSize: 11),
+                      style: TextStyle(color: Color(0xFF888888), fontSize: 11),
                     ),
                   ],
                 ),
@@ -382,7 +382,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? accentGemini.withOpacity(0.15) : Colors.white,
+                                  color: isSelected ? accentGemini.withValues(alpha: 0.15) : Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected ? accentGemini : cardBorder,
@@ -393,7 +393,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   unit,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: isSelected ? accentGemini : Color(0xFF888888),
+                                    color: isSelected ? accentGemini : const Color(0xFF888888),
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                     fontSize: 14,
                                   ),
@@ -436,7 +436,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? accentGemini.withOpacity(0.15) : Colors.white,
+                                  color: isSelected ? accentGemini.withValues(alpha: 0.15) : Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected ? accentGemini : cardBorder,
@@ -447,7 +447,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   unit,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: isSelected ? accentGemini : Color(0xFF888888),
+                                    color: isSelected ? accentGemini : const Color(0xFF888888),
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                     fontSize: 14,
                                   ),
@@ -472,14 +472,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: cardBorder),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'ℹ Wheel Circumference Calculation',
                     style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     'Circumference = π × (rim_diameter + 2 × tire_width)\n\n'
                     'This is used to calculate your speed from wheel rotations measured by the CSC (Cadence & Speed) sensor.',

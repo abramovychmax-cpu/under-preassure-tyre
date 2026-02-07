@@ -126,7 +126,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     }
 
     // ACCELEROMETER LISTENER (for shake detection)
-    accelerometerEvents.listen((event) {
+    accelerometerEventStream().listen((event) {
       // Vibration magnitude in m/s² → convert to G (divide by 9.81)
       final magnitude = (event.x.abs() + event.y.abs() + event.z.abs()) / 3.0;
       final magnitudeInG = magnitude / 9.81;
@@ -184,7 +184,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
                     // CHANGE 1: Filtering the results based on the Slot
                     final filteredResults = results.where((data) {
-                      final name = data.advertisementData.localName.toLowerCase();
+                      final name = data.advertisementData.advName.toLowerCase();
                       final serviceUuids = data.advertisementData.serviceUuids.map((e) => e.toString().toLowerCase()).toList();
 
                       if (targetSlot == "cadence") {
@@ -206,7 +206,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                       itemCount: filteredResults.length,
                       itemBuilder: (context, index) {
                         final data = filteredResults[index];
-                        final name = data.advertisementData.localName.isEmpty ? "Unknown Device" : data.advertisementData.localName;
+                        final name = data.advertisementData.advName.isEmpty ? "Unknown Device" : data.advertisementData.advName;
 
                         return ListTile(
                           leading: const Icon(Icons.bluetooth, color: Color(0xFF47D1C1)),
@@ -256,7 +256,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         horizontalTitleGap: 12,
         leading: Icon(icon, color: isActive ? geminiTeal : Colors.grey, size: 30),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF222222))),
-        subtitle: Text(isActive ? subtitle : "Not Connected", style: TextStyle(color: isActive ? geminiTeal.withOpacity(0.9) : Colors.grey)),
+        subtitle: Text(isActive ? subtitle : "Not Connected", style: TextStyle(color: isActive ? geminiTeal.withValues(alpha: 0.9) : Colors.grey)),
         trailing: onConnect != null
             ? IconButton(icon: const Icon(Icons.add_link, color: geminiTeal, size: 30), onPressed: onConnect)
             : (isActive ? const Icon(Icons.check_circle, color: geminiTeal) : null),
@@ -292,7 +292,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                     minLeadingWidth: 44,
                     horizontalTitleGap: 12,
                     leading: Icon(Icons.gps_fixed, color: gpsGranted ? accentGemini : Colors.black54),
-                    title: Text('GPS', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                    title: const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
                     subtitle: Text(gpsGranted ? 'Locked' : 'Waiting...', style: TextStyle(color: gpsGranted ? accentGemini : Colors.black54)),
                   ),
                 ),
@@ -307,7 +307,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                     minLeadingWidth: 44,
                     horizontalTitleGap: 12,
                     leading: Icon(Icons.sensors, color: accelActive ? accentGemini : Colors.black54),
-                    title: Text('Phone Vibration', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                    title: const Text('Phone Vibration', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
                     subtitle: Text(accelActive ? 'Ready' : 'Shake phone', style: TextStyle(color: accelActive ? accentGemini : Colors.black54)),
                   ),
                 ),
@@ -324,12 +324,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                   minLeadingWidth: 44,
                   horizontalTitleGap: 12,
                   leading: Icon(Icons.speed, color: speedSensorName.isNotEmpty ? accentGemini : Colors.black54),
-                  title: Text('Speed Sensor', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                  title: const Text('Speed Sensor', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
                   subtitle: speedSensorName.isNotEmpty
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(speedSensorName, style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                        Text(speedSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
                         if (liveSpeedValue > 0.1) ...[
                           const SizedBox(height: 4),
                           Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
@@ -347,12 +347,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                     minLeadingWidth: 44,
                   horizontalTitleGap: 12,
                   leading: Icon(Icons.bolt, color: powerMeterName.isNotEmpty ? accentGemini : Colors.black54),
-                  title: Text('Power Meter', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                  title: const Text('Power Meter', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
                   subtitle: powerMeterName.isNotEmpty
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(powerMeterName, style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                        Text(powerMeterName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
                         if (livePowerValue > 0) ...[
                           const SizedBox(height: 4),
                           Text(livePower, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
@@ -370,12 +370,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                   minLeadingWidth: 44,
                   horizontalTitleGap: 12,
                   leading: Icon(Icons.loop, color: cadenceSensorName.isNotEmpty ? accentGemini : Colors.black54),
-                  title: Text('Cadence', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                  title: const Text('Cadence', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
                   subtitle: cadenceSensorName.isNotEmpty
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(cadenceSensorName, style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                        Text(cadenceSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
                         if (liveCadenceValue > 0) ...[
                           const SizedBox(height: 4),
                           Text(liveCadence, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),

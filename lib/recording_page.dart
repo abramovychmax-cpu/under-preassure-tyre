@@ -131,7 +131,7 @@ class _RecordingPageState extends State<RecordingPage> {
             ),
             Text(
               'LAP METADATA: ${widget.frontPressure}/${widget.rearPressure} BAR',
-              style: TextStyle(fontSize: 14, color: Colors.black.withOpacity(0.4), fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 14, color: Colors.black.withValues(alpha: 0.4), fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 30),
 
@@ -190,7 +190,7 @@ class _RecordingPageState extends State<RecordingPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           )
@@ -199,13 +199,13 @@ class _RecordingPageState extends State<RecordingPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.black.withOpacity(0.5), fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.black.withValues(alpha: 0.5), fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(value, style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D))),
           ),
-          Text(unit, style: TextStyle(fontSize: 14, color: Colors.black.withOpacity(0.4))),
+          Text(unit, style: TextStyle(fontSize: 14, color: Colors.black.withValues(alpha: 0.4))),
         ],
       ),
     );
