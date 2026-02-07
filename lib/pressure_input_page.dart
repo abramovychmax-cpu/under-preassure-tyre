@@ -131,27 +131,31 @@ class _PressureInputPageState extends State<PressureInputPage> {
             // Show previous run pressures if any
             if (_previousPressures.isNotEmpty) ...[
               const SizedBox(height: 20),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Previous Runs',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
-                    ),
-                    const SizedBox(height: 8),
-                    ..._previousPressures.asMap().entries.map((entry) {
-                      int idx = entry.key;
-                      Map<String, double> pressure = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
-                          style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
-                        ),
-                      );
-                    }).toList(),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                child: AppCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Previous Runs',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._previousPressures.asMap().entries.map((entry) {
+                        int idx = entry.key;
+                        Map<String, double> pressure = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
                 ),
               ),
             ],

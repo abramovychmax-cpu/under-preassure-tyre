@@ -523,77 +523,97 @@ class SensorService {
 
   void _parsePower(List<int> data, String deviceId) {
     // Handling Cadence from Power Meter Characteristic (0x2A63)
-    // Format: Flags(16), Power(16), ...
-    // Bit 5 of Flags = Crank Revolution Data Present
-    if (data.length >= 4) {
-      int flags = data[0] | (data[1] << 8);
-      bool hasCrankData = (flags & 0x20) != 0;
-      
-      // If this device is the selected Cadence source (e.g. Kickr), try to extract cadence
-      // Or if no specific cadence sensor is selected but we have a power meter
-      bool useForCadence = (deviceId == _savedCadenceId) || (_savedCadenceId == null && deviceId == _savedPowerId);
-      
-      if (hasCrankData && useForCadence && data.length >= 8) {
-         // Should verify offset.
-         // Standard: Flags(2) + Power(2) = 4 bytes.
-         // + Balance(1) if Bit 0. + Torque(2) if Bit 2? No, let's just scan for it.
-         // Actually, let's be safer.
-         // Mandatory: Flags(2), Power(2) -> Offset 4.
-         int offset = 4;
-         if ((flags & 0x01) != 0) offset += 1; // Pedal Power Balance
-         if ((flags & 0x04) != 0) offset += 2; // Accumulated Torque
+    // Format according to GATT spec for Cycling Power Measurement
+    // Flags: 16 bits (Uint16)
+    // Instantaneous Power: 16 bits (Sint16)
+    // ... optional fields ...
+    
+    if (data.length < 4) return;
+    
+    int flags = data[0] | (data[1] << 8);
+    int power = data[2] | (data[3] << 8); // Sint16, usually positive
+    
+    // Publish Power if this matches our Power Source ID
+    if (deviceId == _savedPowerId) {
+        // Average power via window
+        // (Existing logic: Power Window smoothing) - let's keep it simple for now or delegate
+        // For now, let's just push to controller if we want raw updates, or add to sample list
+        final int now = DateTime.now().millisecondsSinceEpoch;
+        _powerSamples.add({'ts': now, 'w': power});
+        
+        // ... prune old ...
+        final int cutoff = now - _powerWindowMs;
+         while (_powerSamples.isNotEmpty && (_powerSamples.first['ts'] ?? 0) < cutoff) {
+          _powerSamples.removeAt(0);
+        }
+        
+        if (_powerSamples.isNotEmpty) {
+           int sum = 0;
+           for (final s in _powerSamples) {
+             sum += (s['w'] ?? 0);
+           }
+           final int avg = (sum / _powerSamples.length).round();
+           _powerController.add(avg);
+           _lastPublishedPower = avg;
+        }
+    }
+
+    // --- CADENCE EXTRACTION LOGIC ---
+    // Check Bit 5 (0x20): Crank Revolution Data Present
+    bool hasCrankData = (flags & 0x20) != 0;
+    
+    // Only parse cadence if this device is the desigated cadence source
+    if (hasCrankData && deviceId == _savedCadenceId) {
+         int offset = 4; // Start after Flags(2) + Power(2)
          
-         if ((flags & 0x20) != 0 && data.length >= offset + 4) {
+         // If Bit 0 (Pedal Power Balance) is present -> +1 byte (Uint8)
+         if ((flags & 0x01) != 0) offset += 1;
+         
+         // If Bit 2 (Accumulated Torque) is present -> +2 bytes (Uint16)
+         if ((flags & 0x04) != 0) offset += 2;
+         
+         // If Bit 4 (Wheel Revolution Data) is present -> +4 bytes (Uint32) + 2 bytes (Uint16)
+         // Note: Some power meters (like Tacx/Garmin) might send Wheel Revs too!
+         if ((flags & 0x10) != 0) offset += 6;
+
+         // Now we should be at Crank Data (if Bit 5 was set)
+         // Crank Data: Cumulative Crank Revolutions (Uint16) + Last Crank Event Time (Uint16)
+         if (data.length >= offset + 4) {
             int crankRevs = data[offset] | (data[offset+1] << 8);
             int crankTime = data[offset+2] | (data[offset+3] << 8);
             
-            if (_lastCrankRevs != null) {
+            // print("DEBUG: PowerMeter Cadence extracted. Revs: $crankRevs, Time: $crankTime");
+
+            if (_lastCrankRevs != null && _lastCrankTime != null) { // Ensure both are non-null
                int rDiff = (crankRevs - _lastCrankRevs!) & 0xFFFF;
                int tDiff = (crankTime - _lastCrankTime!) & 0xFFFF;
+               
+               // Handle counter wrap-around or fresh start
                if (rDiff > 0 && tDiff > 0) {
-                 double rpm = (rDiff * 60 * 1024) / tDiff;
+                 // time unit is 1/1024 seconds
+                 double rpm = (rDiff * 60 * 1024.0) / tDiff;
                  int rpmInt = rpm.toInt();
-                 _cadenceController.add(rpmInt);
-                 _lastPublishedCadence = rpmInt;
                  
-                  _crankStopTimer?.cancel();
-                  _crankStopTimer = Timer(const Duration(milliseconds: 1500), () {
-                    _cadenceController.add(0);
-                    _lastPublishedCadence = 0;
-                  });
+                 // Basic sanity check for cadence (0-200)
+                 if (rpmInt < 200) {
+                    _cadenceController.add(rpmInt);
+                    _lastPublishedCadence = rpmInt;
+                    
+                    _crankStopTimer?.cancel();
+                    _crankStopTimer = Timer(const Duration(milliseconds: 1500), () {
+                      _cadenceController.add(0);
+                      _lastPublishedCadence = 0;
+                    });
+                 }
                }
             }
+            // Update state
             _lastCrankRevs = crankRevs;
             _lastCrankTime = crankTime;
          }
-      }
-    }
-
-    if (deviceId != _savedPowerId) return;
-    if (data.length < 4) return;
-    int power = (data[2]) | (data[3] << 8);
-
-    // add new sample with timestamp
-    final int now = DateTime.now().millisecondsSinceEpoch;
-    _powerSamples.add({'ts': now, 'v': power});
-
-    // remove old samples outside the window
-    final int cutoff = now - _powerWindowMs;
-    while (_powerSamples.isNotEmpty && (_powerSamples.first['ts'] ?? 0) < cutoff) {
-      _powerSamples.removeAt(0);
-    }
-
-    // compute average over samples in window
-    if (_powerSamples.isNotEmpty) {
-      int sum = 0;
-      for (final s in _powerSamples) {
-        sum += (s['v'] ?? 0);
-      }
-      final int avg = sum ~/ _powerSamples.length;
-      _powerController.add(avg);
-      _lastPublishedPower = avg; // Cache for recording
     }
   }
+
 
   void _decideWhichSpeedToPublish() {
     double finalSpeed = _usingBt ? _btSpeed : _gpsSpeed;

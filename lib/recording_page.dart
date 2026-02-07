@@ -31,6 +31,7 @@ class _RecordingPageState extends State<RecordingPage> {
   Duration _elapsed = Duration.zero;
   Timer? _elapsedTimer;
   String _speedUnit = 'km/h'; // Load from SharedPreferences
+  String _pressureUnit = 'PSI'; // Load from SharedPreferences
 
   StreamSubscription? _speedSub;
   StreamSubscription? _distSub;
@@ -41,7 +42,7 @@ class _RecordingPageState extends State<RecordingPage> {
   @override
   void initState() {
     super.initState();
-    _loadSpeedUnit();
+    _loadSettings();
 
     // Ensure keyboard is hidden and page doesn't resize when keyboard appears
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -93,10 +94,11 @@ class _RecordingPageState extends State<RecordingPage> {
     });
   }
 
-  Future<void> _loadSpeedUnit() async {
+  Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _speedUnit = prefs.getString('speed_unit') ?? 'km/h';
+      _pressureUnit = prefs.getString('pressure_unit') ?? 'PSI';
     });
   }
 
@@ -132,7 +134,7 @@ class _RecordingPageState extends State<RecordingPage> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.1),
             ),
             Text(
-              'LAP METADATA: ${widget.frontPressure}/${widget.rearPressure} BAR',
+              'LAP METADATA: ${widget.frontPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)}/${widget.rearPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
               style: TextStyle(fontSize: 14, color: Colors.black.withAlpha((0.4 * 255).round()), fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 30),
