@@ -391,7 +391,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: (_powerConsistencyPercent! <= 10.0 ? Colors.green : Colors.orange).withValues(alpha: 0.08),
+                                color: (_powerConsistencyPercent! <= 10.0 ? Colors.green : Colors.orange).withAlpha((0.08 * 255).round()),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Row(
@@ -419,7 +419,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: accentGemini.withValues(alpha: 0.08),
+                              color: accentGemini.withAlpha((0.08 * 255).round()),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -442,9 +442,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.05),
+                        color: Colors.orange.withAlpha((0.05 * 255).round()),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3), width: 1),
+                        border: Border.all(color: Colors.orange.withAlpha((0.3 * 255).round()), width: 1),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,10 +470,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: (_confidenceLevel == 'HIGH' ? Colors.green : _confidenceLevel == 'MEDIUM' ? Colors.orange : Colors.red).withValues(alpha: 0.05),
+                color: (_confidenceLevel == 'HIGH' ? Colors.green : _confidenceLevel == 'MEDIUM' ? Colors.orange : Colors.red).withAlpha((0.05 * 255).round()),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: (_confidenceLevel == 'HIGH' ? Colors.green : _confidenceLevel == 'MEDIUM' ? Colors.orange : Colors.red).withValues(alpha: 0.2),
+                  color: (_confidenceLevel == 'HIGH' ? Colors.green : _confidenceLevel == 'MEDIUM' ? Colors.orange : Colors.red).withAlpha((0.2 * 255).round()),
                   width: 1,
                 ),
               ),
@@ -529,7 +529,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                             ],
                           ),
                         ),
-                        VerticalDivider(color: Colors.grey.withValues(alpha: 0.2), thickness: 1, indent: 5, endIndent: 5),
+                        VerticalDivider(color: Colors.grey.withAlpha((0.2 * 255).round()), thickness: 1, indent: 5, endIndent: 5),
                         // REAR PRESSURE
                         Expanded(
                           child: Column(
@@ -552,9 +552,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.05),
+                        color: Colors.green.withAlpha((0.05 * 255).round()),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.1), width: 1),
+                        border: Border.all(color: Colors.green.withAlpha((0.1 * 255).round()), width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -572,7 +572,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                 const SizedBox(height: 2),
                                 Text(
                                   'vs the highest pressure',
-                                  style: TextStyle(color: Colors.green.withValues(alpha: 0.7), fontSize: 9, fontWeight: FontWeight.w500),
+                                  style: TextStyle(color: Colors.green.withAlpha((0.7 * 255).round()), fontSize: 9, fontWeight: FontWeight.w500),
                                 ),
                               ],
                             ),
@@ -634,7 +634,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isFilled ? BorderSide.none : BorderSide(color: color.withValues(alpha: 0.2), width: 1.5),
+            side: isFilled ? BorderSide.none : BorderSide(color: color.withAlpha((0.2 * 255).round()), width: 1.5),
           ),
         ),
         child: Row(
@@ -776,7 +776,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.withValues(alpha: 0.1), strokeWidth: 1),
+          getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.withAlpha((0.1 * 255).round()), strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
           bottomTitles: AxisTitles(
@@ -816,7 +816,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
-                colors: [accentGemini.withValues(alpha: 0.2), accentGemini.withValues(alpha: 0.0)],
+                colors: [accentGemini.withAlpha((0.2 * 255).round()), accentGemini.withAlpha((0.0 * 255).round())],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),

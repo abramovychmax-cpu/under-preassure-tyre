@@ -256,7 +256,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         horizontalTitleGap: 12,
         leading: Icon(icon, color: isActive ? geminiTeal : Colors.grey, size: 30),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF222222))),
-        subtitle: Text(isActive ? subtitle : "Not Connected", style: TextStyle(color: isActive ? geminiTeal.withValues(alpha: 0.9) : Colors.grey)),
+        subtitle: Text(isActive ? subtitle : "Not Connected", style: TextStyle(color: isActive ? geminiTeal.withAlpha((0.9 * 255).round()) : Colors.grey)),
         trailing: onConnect != null
             ? IconButton(icon: const Icon(Icons.add_link, color: geminiTeal, size: 30), onPressed: onConnect)
             : (isActive ? const Icon(Icons.check_circle, color: geminiTeal) : null),

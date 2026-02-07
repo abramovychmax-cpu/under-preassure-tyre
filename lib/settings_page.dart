@@ -207,9 +207,9 @@ class _SettingsPageState extends State<SettingsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.05),
+                color: Colors.blue.withAlpha((0.05 * 255).round()),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.2), width: 1),
+                border: Border.all(color: Colors.blue.withAlpha((0.2 * 255).round()), width: 1),
               ),
               child: const Text(
                 '💡 GPS is optional - used as fallback when Bluetooth sensor isn\'t available. Bluetooth connections don\'t require extra permissions.',
@@ -239,7 +239,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accentGemini.withValues(alpha: 0.3)),
+                        border: Border.all(color: accentGemini.withAlpha((0.3 * 255).round())),
                       ),
                       child: DropdownButton<String>(
                         value: _selectedWheelSize,
@@ -284,7 +284,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accentGemini.withValues(alpha: 0.3)),
+                        border: Border.all(color: accentGemini.withAlpha((0.3 * 255).round())),
                       ),
                       child: DropdownButton<int>(
                         value: _selectedTireWidth,
@@ -327,9 +327,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: accentGemini.withValues(alpha: 0.08),
+                        color: accentGemini.withAlpha((0.08 * 255).round()),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accentGemini.withValues(alpha: 0.3)),
+                        border: Border.all(color: accentGemini.withAlpha((0.3 * 255).round())),
                       ),
                       child: Text(
                         '${_calculatedCircumference.toStringAsFixed(3)} meters',
@@ -382,7 +382,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? accentGemini.withValues(alpha: 0.15) : Colors.white,
+                                  color: isSelected ? accentGemini.withAlpha((0.15 * 255).round()) : Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected ? accentGemini : cardBorder,
@@ -436,7 +436,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? accentGemini.withValues(alpha: 0.15) : Colors.white,
+                                  color: isSelected ? accentGemini.withAlpha((0.15 * 255).round()) : Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected ? accentGemini : cardBorder,

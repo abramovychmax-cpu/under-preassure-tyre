@@ -61,7 +61,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: geminiTeal.withValues(alpha: 0.1),
+                    color: geminiTeal.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text("$completedRuns/3 DONE", 
