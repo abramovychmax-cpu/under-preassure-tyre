@@ -62,6 +62,8 @@ class SensorService {
   double _btSpeed = 0.0;
   double _gpsSpeed = 0.0;
   double _currentAltitude = 0.0;
+  double _currentLat = 0.0;
+  double _currentLon = 0.0;
   bool _usingBt = false;
 
   static const double minSpeedThreshold = 3.0;
@@ -177,6 +179,8 @@ class SensorService {
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     ).listen((Position position) {
       _currentAltitude = position.altitude;
+      _currentLat = position.latitude;
+      _currentLon = position.longitude;
       double rawGps = position.speed * 3.6;
       _gpsSpeed = rawGps < minSpeedThreshold ? 0.0 : rawGps;
       _decideWhichSpeedToPublish();
@@ -429,6 +433,8 @@ class SensorService {
         'power': _lastPublishedPower,
         'cadence': _lastPublishedCadence,
         'altitude': _currentAltitude,
+        'lat': _currentLat,
+        'lon': _currentLon,
       });
     });
   }

@@ -79,6 +79,14 @@ class FitWriter {
       ..timeCreated = _dateTimeToFitEpoch(_sessionStartTime!);
 
     _builder.add(fileIdMessage);
+
+    // Add Timer Start Event (Required for proper duration calculation)
+    final eventMsg = EventMessage()
+      ..timestamp = _dateTimeToFitEpoch(_sessionStartTime!)
+      ..event = Event.timer
+      ..eventType = EventType.start
+      ..eventGroup = 0;
+    _builder.add(eventMsg);
   }
 
   Future<void> writeLap(double front, double rear,
@@ -259,6 +267,14 @@ class FitWriter {
        // If we have records but no explicit lap was started (edge case), wrap in a lap
        _builder.addAll(_records);
     }
+    
+    // Add Timer Stop Event (Standard practice)
+    final stopEvent = EventMessage()
+      ..timestamp = endTimeEpoch
+      ..event = Event.timer
+      ..eventType = EventType.stopDisable
+      ..eventGroup = 0;
+    _builder.add(stopEvent);
 
     // Note: We used to write a single monolithic LapMessage here.
     // Now we write distinct LapMessages via _finishCurrentLap.
