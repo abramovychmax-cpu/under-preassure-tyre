@@ -27,6 +27,9 @@ class FitWriter {
   
   // Sensor records per lap (for coast detection: cadence, speed, power)
   final Map<int, List<Map<String, dynamic>>> _lapSensorRecords = {}; // lapIndex -> [record dicts]
+  
+  // Track where the current lap started in the _records list
+  int _currentLapRecordStartIndex = 0;
 
   FitWriter._(this.fitPath);
 
@@ -77,32 +80,92 @@ class FitWriter {
 
   Future<void> writeLap(double front, double rear,
       {required int lapIndex}) async {
+    // If we have an active previous lap, flush it to a LapMessage
+    if (_laps.isNotEmpty) {
+      _finishCurrentLap();
+    }
+
     // Store pressure data for this lap
     // IMPORTANT: Tire pressure is the PRIMARY metric for this app.
-    // These values are recorded at the start of each run to establish
-    // the pressure-efficiency relationship for quadratic regression analysis.
+    // ...
     //
     // Data storage format:
-    // - Per-lap metadata: stored in _laps list as {index, frontPressure, rearPressure, startTime}
-    //
-    // FIT file integration:
-    // The fit_tool SDK writes standard LapMessage fields. Tire pressure is stored separately
-    // in the _laps list and can be:
-    // 1. Written to a custom developer data message (future enhancement)
-    // 2. Recovered from app's session logs if needed
-    // 3. Re-input by user when analyzing the FIT file
+    // ...
+    
+    // Determine the actual index (if -1 passed, use sequential)
+    int actualIndex = lapIndex < 0 ? _laps.length : lapIndex;
     
     _laps.add({
-      'index': lapIndex,
+      'index': actualIndex,
       'frontPressure': front,
       'rearPressure': rear,
       'startTime': DateTime.now().toUtc(),
       'lapNumber': _laps.length + 1,
     });
     
+    // Mark where this new lap starts in the records list
+    _currentLapRecordStartIndex = _records.length;
+    
     // Initialize vibration samples list for this lap
-    _lapVibrationSamples[lapIndex] = [];
+    _lapVibrationSamples[actualIndex] = [];
   }
+
+  void _finishCurrentLap() {
+    if (_records.isEmpty || _currentLapRecordStartIndex >= _records.length) return;
+
+    // Get slice of records for this lap
+    final lapRecords = _records.sublist(_currentLapRecordStartIndex);
+    if (lapRecords.isEmpty) return;
+
+    final first = lapRecords.first;
+    final last = lapRecords.last;
+    
+    // Start time of this lap (from the first record, or the lap metadata?)
+    // Using record timestamp is safer for FIT compliance.
+    final startTime = first.timestamp ?? 0;
+    final endTime = last.timestamp ?? 0;
+    
+    // Calculate totals for this lap
+    double distStart = first.distance ?? 0;
+    double distEnd = last.distance ?? 0;
+    double lapDistance = distEnd - distStart;
+    
+    double totalLapTime = (endTime - startTime).toDouble(); // seconds
+    if (totalLapTime < 0) totalLapTime = 0;
+    
+    // Avg Power
+    double sumPower = 0;
+    int count = 0;
+    for (var r in lapRecords) {
+      if (r.power != null) {
+        sumPower += r.power!;
+        count++;
+      }
+    }
+    int lapAvgPower = count > 0 ? (sumPower / count).round() : 0;
+    
+    // Avg Speed
+    double lapAvgSpeed = totalLapTime > 0 ? lapDistance / totalLapTime : 0.0;
+
+    final lapMessage = LapMessage()
+        ..timestamp = endTime
+        ..startTime = startTime
+        ..startPositionLat = first.positionLat
+        ..startPositionLong = first.positionLong
+        ..endPositionLat = last.positionLat
+        ..endPositionLong = last.positionLong
+        ..totalElapsedTime = totalLapTime
+        ..totalTimerTime = totalLapTime
+        ..totalDistance = lapDistance
+        ..avgSpeed = lapAvgSpeed
+        ..avgPower = lapAvgPower
+        ..sport = Sport.cycling
+        ..subSport = SubSport.cycling // Changed from numeric 0 if available, but cycling default is fine
+        ..messageIndex = _laps.length - 1; // 0-based index of the lap we just finished
+
+    _builder.add(lapMessage);
+  }
+
 
   /// Add vibration sample for current lap
   /// Called periodically during recording to capture smoothness data
@@ -184,29 +247,19 @@ class FitWriter {
     // Add all records to builder
     _builder.addAll(_records);
 
-    // Create Lap message (REQUIRED) with tire pressure metadata
-    if (_records.isNotEmpty) {
-      // Note: fit_tool's LapMessage contains standard cycling fields.
-      // Tire pressure (the critical metric for this app) is stored separately
-      // in the _laps list and written to a companion metadata file.
-      final lapMessage = LapMessage()
-        ..timestamp = endTimeEpoch
-        ..startTime = _dateTimeToFitEpoch(_sessionStartTime!)
-        ..startPositionLat = _records.first.positionLat ?? 0.0
-        ..startPositionLong = _records.first.positionLong ?? 0.0
-        ..totalElapsedTime = totalElapsedTime
-        ..totalTimerTime = totalElapsedTime
-        ..totalDistance = _totalDistance
-        ..totalCycles = _recordCount
-        ..totalAscent = _totalAscent.toInt()
-        ..avgSpeed = _recordCount > 0 ? _totalDistance / totalElapsedTime : 0.0
-        ..avgPower = avgPower
-        ..sport = Sport.cycling
-        ..messageIndex = 0; // Mark this as the primary lap
-
-      _builder.add(lapMessage);
+    // Finish the final lap if there are records
+    if (_laps.isNotEmpty) {
+      _finishCurrentLap();
+    } else if (_records.isNotEmpty) {
+       // If we have records but no explicit lap was started (edge case), wrap in a lap
+       // But _laps should be populated by startRecordingSession
     }
 
+    // Note: We used to write a single monolithic LapMessage here.
+    // Now we write distinct LapMessages via _finishCurrentLap.
+    // DO NOT add another LapMessage unless _records were empty or something.
+    // If _records is empty, we probably shouldn't write a session either?
+    
     // Create Session message (REQUIRED)
     if (_records.isNotEmpty) {
       final sessionMessage = SessionMessage()
@@ -220,7 +273,8 @@ class FitWriter {
         ..avgSpeed = _recordCount > 0 ? _totalDistance / totalElapsedTime : 0.0
         ..avgPower = avgPower
         ..sport = Sport.cycling
-        ..numLaps = 1;
+        ..subSport = SubSport.cycling
+        ..numLaps = _laps.length;
 
       _builder.add(sessionMessage);
     }

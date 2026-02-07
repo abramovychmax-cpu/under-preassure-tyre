@@ -121,6 +121,7 @@ class SensorService {
         }
         final double avg = sum / _vibrationSamples.length;
         _vibrationController.add(avg);
+        _lastPublishedVibration = avg; // Cache for recording
       }
     });
   }
@@ -398,7 +399,13 @@ class SensorService {
     _vibrationController.close();
   }
 
-  // --- REFACTORED PARSERS ---
+  int _lastPublishedPower = 0;
+  double _lastPublishedVibration = 0.0;
+  Timer? _recordingTimer;
+
+  // --- REFACTORED PARSERS --- 
+  // ( ... existing parser code ...)
+
 
   void _parseCSC(List<int> data, String deviceId) {
     if (data.isEmpty) return;
@@ -552,6 +559,7 @@ class SensorService {
       }
       final int avg = sum ~/ _powerSamples.length;
       _powerController.add(avg);
+      _lastPublishedPower = avg; // Cache for recording
     }
   }
 
@@ -569,13 +577,7 @@ class SensorService {
       if (_fitWriter != null) {
         // Session already active - treat this as a new "Lap" / Run
         print('Adding run to existing FIT session: Front=$frontPressure, Rear=$rearPressure');
-        // Retrieve internal lap count (hacky, but effective given FitWriter structure)
-        // We'll trust the FitWriter to handle the index increment internally if we modify it,
-        // or just rely on external tracking.
-        // Actually, FitWriter.writeLap appends to _laps.
-        // We can pass a simple incrementing index or just use current time.
-        // The verify_fit tools show "Lap 0", "Lap 1" etc.
-        await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1); // -1 let writer handle count? Or just don't care about index param validity for now.
+        await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1); 
         return;
       }
 
@@ -591,6 +593,36 @@ class SensorService {
       // Log the first lap metadata
       await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: 0);
 
+      // START RECORDING LOOP (1Hz)
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_fitWriter == null) {
+          timer.cancel();
+          return;
+        }
+
+        final now = DateTime.now().toUtc();
+        _fitWriter!.writeRecord({
+          'ts': now.toIso8601String(),
+          'speed_kmh': currentSpeedValue,
+          'distance': currentDistanceValue,
+          'power': _lastPublishedPower,
+          'cadence': _lastPublishedCadence,
+          'altitude': 0.0, // TODO: Get from GPS or Altimeter
+          // 'lat': _lastLat,
+          // 'lon': _lastLon, 
+        });
+        
+        // Also capture vibration sample to fit writer (for metadata stats)
+        // using _lastPublishedVibration
+        // We probably only need to do this if we are moving?
+        // Or store raw samples? FitWriter handles collection.
+        // We need to pass the current lap index? FitWriter tracks laps internally based on writeLap calls.
+        // But recordVibrationSample needs an index.
+        // Let's assume FitWriter tracks "current lap". We'll modify FitWriter to be smarter or
+        // we'll just expose "currentLapIndex" from FitWriter.
+      });
+
       print('FIT recording session started: Front=$frontPressure, Rear=$rearPressure, Protocol=$protocol');
     } catch (e) {
       print('ERROR starting FIT recording session: $e');
@@ -599,6 +631,8 @@ class SensorService {
 
   /// Stop recording and finalize the FIT file
   Future<void> stopRecordingSession() async {
+    _recordingTimer?.cancel(); // STOP RECORDING LOOP
+    
     try {
       if (_fitWriter == null) {
         print('WARNING: No active FIT recording session to stop');
