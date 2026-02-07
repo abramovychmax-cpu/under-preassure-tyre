@@ -194,7 +194,16 @@ class FitWriter {
     if (_sessionStartTime == null) return;
 
     // Extract data from record
-    final timestamp = _dateTimeToFitEpoch(DateTime.now().toUtc());
+    // Use the timestamp passed from the service (from the timer tick) if available
+    // Fallback to DateTime.now() if not present, but ensure we don't double-call .now()
+    DateTime recordTime;
+    if (record.containsKey('ts')) {
+      recordTime = DateTime.parse(record['ts'] as String);
+    } else {
+      recordTime = DateTime.now().toUtc();
+    }
+    final timestamp = _dateTimeToFitEpoch(recordTime);
+
     final lat = (record['lat'] as num?)?.toDouble() ?? 0.0;
     final lon = (record['lon'] as num?)?.toDouble() ?? 0.0;
     final speedKmh = (record['speed_kmh'] as num?)?.toDouble() ?? 0.0;
