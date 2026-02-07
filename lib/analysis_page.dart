@@ -681,7 +681,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
             content: Text('Results saved to history'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: const Color(0xFF333333),
-            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }

@@ -117,7 +117,7 @@ void main() {
             }
 
             // Verify all points are within 1km (realistic descent)
-            final dist = _haversineDistance(firstLat, firstLon, lat.toDouble(), lon.toDouble());
+            final dist = _haversineDistance(firstLat!, firstLon!, lat.toDouble(), lon.toDouble());
             
             expect(dist, lessThan(1000), reason: 'All GPS points should be within 1km (descent route)');
           }
