@@ -48,6 +48,14 @@ class _PressureInputPageState extends State<PressureInputPage> {
     setState(() {
       _pressureUnit = prefs.getString('pressure_unit') ?? 'PSI';
       _bikeType = prefs.getString('bike_type') ?? 'Road';
+
+      // Set default pressure based on unit
+      if (_pressureUnit == 'Bar') {
+        _rearController.text = "5.0";
+      } else {
+        _rearController.text = "60.0";
+      }
+      _updateFrontPressure();
     });
   }
   
@@ -103,7 +111,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                     border: Border.all(color: accentGemini, width: 1.5),
                   ),
                   child: Text(
-                    "$completedRuns/3 DONE", 
+                    "$completedRuns - DONE", 
                     style: const TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.bold)
                   ),
                 ),
@@ -139,39 +147,48 @@ class _PressureInputPageState extends State<PressureInputPage> {
             ],
             
             const SizedBox(height: 30),
-            Column(
+            Row(
               children: [
                 // FRONT PRESSURE - Read-only, calculated from rear based on Silca ratios
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: cardBorder, width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "FRONT $_pressureUnit", 
-                        style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _calculatedFrontPressure.toStringAsFixed(1),
-                        style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Calculated for $_bikeType (${(_silcaRatios[_bikeType] ?? 0.95) * 100}% of rear)",
-                        style: const TextStyle(color: Color(0xFF888888), fontSize: 10),
-                      ),
-                    ],
+                Expanded(
+                  child: Container(
+                    height: 125, // Fixed height to match neighbor
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder, width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "FRONT $_pressureUnit", 
+                          style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _calculatedFrontPressure.toStringAsFixed(1),
+                          style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "$_bikeType Ratio",
+                          style: const TextStyle(color: Color(0xFF888888), fontSize: 10),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(width: 16),
                 // REAR PRESSURE - User input
-                _buildPressureField("REAR $_pressureUnit", _rearController),
+                Expanded(
+                  child: SizedBox(
+                    height: 125,
+                    child: _buildPressureField("REAR $_pressureUnit", _rearController)
+                  ),
+                ),
               ],
             ),
             const Spacer(),
@@ -280,6 +297,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             label, 

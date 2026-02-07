@@ -205,22 +205,47 @@ class SensorService {
   void startFilteredScan(String targetSlot) async {
     if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
 
-    Guid targetService = (targetSlot == "power") ? Guid("1818") : Guid("1816");
+    // Determine which services to scan for
+    List<Guid> targetServices = [];
+    if (targetSlot == "power") {
+      targetServices = [Guid("1818")]; // Power only
+    } else if (targetSlot == "speed") {
+      targetServices = [Guid("1816")]; // Speed/Cadence only
+    } else {
+      // Cadence can come from 1816 (SPD/CAD) or 1818 (Power Meter)
+      targetServices = [Guid("1816"), Guid("1818")]; 
+    }
 
     FlutterBluePlus.scanResults.listen((results) {
       var filtered = results.where((r) {
         if (r.advertisementData.advName.isNotEmpty) {
           _deviceNames[r.device.remoteId.str] = r.advertisementData.advName;
         }
-        return r.advertisementData.serviceUuids.contains(targetService) &&
-               r.advertisementData.advName.isNotEmpty;
+        
+        bool matchesService = false;
+        for (var uuid in targetServices) {
+          if (r.advertisementData.serviceUuids.contains(uuid)) {
+            matchesService = true;
+            break;
+          }
+        }
+        
+        // Also allow by name if service UUID is missing from advertisement packet (common in some BLE devices)
+        String name = r.advertisementData.advName.toLowerCase();
+        if (!matchesService) {
+           if (targetSlot == 'cadence' || targetSlot == 'power') {
+             if (name.contains('kickr') || name.contains('power') || name.contains('cadence')) matchesService = true;
+           }
+        }
+
+        return matchesService && r.advertisementData.advName.isNotEmpty;
       }).toList();
       _scanResultsController.add(filtered);
     });
 
     try {
       await FlutterBluePlus.startScan(
-        withServices: [targetService],
+        withServices: targetServices,
         timeout: const Duration(seconds: 15),
       );
     } catch (e) { print("Filtered Scan Error: $e"); }

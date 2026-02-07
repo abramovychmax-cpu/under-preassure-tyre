@@ -80,6 +80,31 @@ class ProtocolSelectionPage extends StatelessWidget {
   }
 
   Widget _protocolCard(double height, String title, String desc, IconData icon, Color color, VoidCallback onTap) {
+    // Parse description for bold keys (Action, Requirement, Note, Data)
+    List<Widget> descWidgets = desc.split('\n').map((line) {
+      int splitIdx = line.indexOf(':');
+      if (splitIdx > 0) {
+        final key = line.substring(0, splitIdx + 1);
+        final val = line.substring(splitIdx + 1);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text.rich(
+            TextSpan(
+              style: const TextStyle(height: 1.4, color: Color(0xFF666666), fontSize: 14),
+              children: [
+                TextSpan(text: key, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                TextSpan(text: val),
+              ],
+            ),
+          ),
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(line, style: const TextStyle(height: 1.4, color: Color(0xFF666666), fontSize: 14)),
+      );
+    }).toList();
+
     return Container(
       height: height - 16,
       margin: const EdgeInsets.only(bottom: 16),
@@ -88,31 +113,30 @@ class ProtocolSelectionPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: AppCard(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start, // Left align
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     CircleAvatar(
-                      backgroundColor: color.withAlpha((0.08 * 255).round()),
-                      child: Icon(icon, color: color, size: 24),
+                      backgroundColor: color.withAlpha((0.1 * 255).round()),
+                      radius: 20,
+                      child: Icon(icon, color: color, size: 22),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Text(
                         title,
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF222222)),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(desc, textAlign: TextAlign.center, style: const TextStyle(height: 1.4, color: Color(0xFF888888), fontSize: 15)),
+                const SizedBox(height: 16),
+                ...descWidgets,
               ],
             ),
           ),
