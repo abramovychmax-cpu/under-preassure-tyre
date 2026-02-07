@@ -152,15 +152,25 @@ class _RecordingPageState extends State<RecordingPage> {
 
             const SizedBox(height: 10),
 
-            TextButton(
-              onPressed: () async {
-                final nav = Navigator.of(context);
-                await _sensorService.stopRecordingSession();
-                if (mounted) nav.pop(true);
-              },
-              child: const Text(
-                'FINISH RUN',
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                onPressed: () {
+                  // Just pop. The recording session continues in the background (Wait State)
+                  // The next run will trigger a new Lap.
+                  // The final "Fishish and Calculate" on the input page will stop the session.
+                  Navigator.of(context).pop(true);
+                },
+                child: const Text(
+                  'MARK RUN COMPLETE',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ),
             const SizedBox(height: 20),
