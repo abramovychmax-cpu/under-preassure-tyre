@@ -3,8 +3,6 @@ import 'package:tyre_preassure/fit_writer.dart';
 
 /// Test script to generate a minimal valid FIT file
 void main() async {
-  print('Creating minimal test FIT file...');
-
   final writer = await FitWriter.create(protocol: 'minimal_test');
   await writer.startSession({'test': true});
 
@@ -23,8 +21,5 @@ void main() async {
 
   // Finish session
   await writer.finish();
-
-  print('Test FIT file created at: ${writer.fitPath}');
-  print('File size: ${await File(writer.fitPath).length()} bytes');
 }
 
