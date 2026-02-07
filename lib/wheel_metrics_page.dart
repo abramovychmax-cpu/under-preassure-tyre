@@ -58,7 +58,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
 
       // Ensure tire width is in valid range
       if (_selectedTireWidth < 16) _selectedTireWidth = 16;
-      if (_selectedTireWidth > 60) _selectedTireWidth = 60;
+      if (_selectedTireWidth > 100) _selectedTireWidth = 100; // Allow up to ~4.0" (100mm)
     });
   }
 
@@ -129,7 +129,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                       underline: const SizedBox(),
                       style: const TextStyle(color: Color(0xFF222222), fontSize: 16, fontWeight: FontWeight.w500),
                       dropdownColor: Colors.white,
-                      items: ['Road', 'Mountain', 'Gravel', 'Hybrid', 'BMX']
+                      items: ['Road', 'Mountain', 'Gravel']
                           .map((type) => DropdownMenuItem(
                                 value: type,
                                 child: Text(type, style: const TextStyle(color: Color(0xFF222222))),
@@ -137,7 +137,17 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
-                          setState(() => _selectedBikeType = value);
+                          setState(() {
+                            _selectedBikeType = value;
+                            // Auto-adjust default tire width based on type
+                            if (_selectedBikeType == 'Mountain') {
+                               if (_selectedTireWidth < 38) _selectedTireWidth = 56; // Default to ~2.2"
+                            } else {
+                               // For Road/Gravel, keep within standard range
+                               if (_selectedTireWidth > 60) _selectedTireWidth = 28;
+                               if (_selectedTireWidth < 16) _selectedTireWidth = 28;
+                            }
+                          });
                           _calculateAndSaveCircumference();
                         }
                       },
@@ -185,9 +195,9 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                   const SizedBox(height: 24),
 
                   // Tire Width with slider (1mm increments)
-                  const Text(
-                    'Tire Width (mm)',
-                    style: TextStyle(
+                  Text(
+                    'Tire Width (${_selectedBikeType == 'Mountain' ? 'inches' : 'mm'})',
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF222222),
@@ -196,7 +206,9 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '$_selectedTireWidth mm',
+                    _selectedBikeType == 'Mountain'
+                        ? '${(_selectedTireWidth / 25.4).toStringAsFixed(2)}"'
+                        : '$_selectedTireWidth mm',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -205,10 +217,13 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                   ),
                   const SizedBox(height: 16),
                   Slider(
-                    value: _selectedTireWidth.toDouble(),
-                    min: 16,
-                    max: 60,
-                    divisions: 44, // 16-60 = 44 increments = 1mm each
+                    value: _selectedTireWidth.toDouble().clamp(
+                      _selectedBikeType == 'Mountain' ? 38.0 : 16.0,
+                      _selectedBikeType == 'Mountain' ? 76.0 : 60.0,
+                    ),
+                    min: _selectedBikeType == 'Mountain' ? 38.0 : 16.0,
+                    max: _selectedBikeType == 'Mountain' ? 76.0 : 60.0,
+                    divisions: _selectedBikeType == 'Mountain' ? 38 : 44,
                     activeColor: const Color(0xFF47D1C1),
                     inactiveColor: cardBorder,
                     onChanged: (value) {
@@ -354,7 +369,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                     height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF47D1C1),
+                        backgroundColor: accentGemini,
                         foregroundColor: bgLight,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         elevation: 0,

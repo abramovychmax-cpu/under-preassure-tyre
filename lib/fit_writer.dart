@@ -163,7 +163,7 @@ class FitWriter {
         ..avgSpeed = lapAvgSpeed
         ..avgPower = lapAvgPower
         ..sport = Sport.cycling
-        ..subSport = SubSport.cycling // Changed from numeric 0 if available, but cycling default is fine
+        ..subSport = SubSport.generic // Changed from numeric 0 if available, but cycling default is fine
         ..messageIndex = _laps.length - 1; // 0-based index of the lap we just finished
 
     _builder.add(lapMessage);
@@ -276,7 +276,7 @@ class FitWriter {
         ..avgSpeed = _recordCount > 0 ? _totalDistance / totalElapsedTime : 0.0
         ..avgPower = avgPower
         ..sport = Sport.cycling
-        ..subSport = SubSport.cycling
+        ..subSport = SubSport.generic
         ..numLaps = _laps.length;
 
       _builder.add(sessionMessage);

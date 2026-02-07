@@ -61,6 +61,7 @@ class SensorService {
 
   double _btSpeed = 0.0;
   double _gpsSpeed = 0.0;
+  double _currentAltitude = 0.0;
   bool _usingBt = false;
 
   static const double minSpeedThreshold = 3.0;
@@ -121,7 +122,6 @@ class SensorService {
         }
         final double avg = sum / _vibrationSamples.length;
         _vibrationController.add(avg);
-        _lastPublishedVibration = avg; // Cache for recording
       }
     });
   }
@@ -176,6 +176,7 @@ class SensorService {
     Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     ).listen((Position position) {
+      _currentAltitude = position.altitude;
       double rawGps = position.speed * 3.6;
       _gpsSpeed = rawGps < minSpeedThreshold ? 0.0 : rawGps;
       _decideWhichSpeedToPublish();
@@ -400,12 +401,37 @@ class SensorService {
   }
 
   int _lastPublishedPower = 0;
-  double _lastPublishedVibration = 0.0;
   Timer? _recordingTimer;
 
   // --- REFACTORED PARSERS --- 
   // ( ... existing parser code ...)
 
+
+  void pauseRecordingSession() {
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    print("Recording paused (Wait State)");
+  }
+
+  void _startRecordingTimer() {
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_fitWriter == null) {
+        timer.cancel();
+        return;
+      }
+
+      final now = DateTime.now().toUtc();
+      _fitWriter!.writeRecord({
+        'ts': now.toIso8601String(),
+        'speed_kmh': currentSpeedValue,
+        'distance': currentDistanceValue,
+        'power': _lastPublishedPower,
+        'cadence': _lastPublishedCadence,
+        'altitude': _currentAltitude,
+      });
+    });
+  }
 
   void _parseCSC(List<int> data, String deviceId) {
     if (data.isEmpty) return;
@@ -578,6 +604,7 @@ class SensorService {
         // Session already active - treat this as a new "Lap" / Run
         print('Adding run to existing FIT session: Front=$frontPressure, Rear=$rearPressure');
         await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1); 
+        _startRecordingTimer();
         return;
       }
 
@@ -594,34 +621,7 @@ class SensorService {
       await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: 0);
 
       // START RECORDING LOOP (1Hz)
-      _recordingTimer?.cancel();
-      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_fitWriter == null) {
-          timer.cancel();
-          return;
-        }
-
-        final now = DateTime.now().toUtc();
-        _fitWriter!.writeRecord({
-          'ts': now.toIso8601String(),
-          'speed_kmh': currentSpeedValue,
-          'distance': currentDistanceValue,
-          'power': _lastPublishedPower,
-          'cadence': _lastPublishedCadence,
-          'altitude': 0.0, // TODO: Get from GPS or Altimeter
-          // 'lat': _lastLat,
-          // 'lon': _lastLon, 
-        });
-        
-        // Also capture vibration sample to fit writer (for metadata stats)
-        // using _lastPublishedVibration
-        // We probably only need to do this if we are moving?
-        // Or store raw samples? FitWriter handles collection.
-        // We need to pass the current lap index? FitWriter tracks laps internally based on writeLap calls.
-        // But recordVibrationSample needs an index.
-        // Let's assume FitWriter tracks "current lap". We'll modify FitWriter to be smarter or
-        // we'll just expose "currentLapIndex" from FitWriter.
-      });
+      _startRecordingTimer();
 
       print('FIT recording session started: Front=$frontPressure, Rear=$rearPressure, Protocol=$protocol');
     } catch (e) {

@@ -625,15 +625,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
     bool isFilled = false,
   }) {
     return SizedBox(
-      height: 56,
+      height: 55,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: isFilled ? color : Colors.white,
           foregroundColor: isFilled ? Colors.white : color,
-          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(30),
             side: isFilled ? BorderSide.none : BorderSide(color: color.withAlpha((0.2 * 255).round()), width: 1.5),
           ),
         ),

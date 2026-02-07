@@ -152,25 +152,28 @@ class _RecordingPageState extends State<RecordingPage> {
 
             const SizedBox(height: 10),
 
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                onPressed: () {
-                  // Pause recording loop to save battery while in "Wait State"
-                  SensorService().pauseRecordingSession();
-                  
-                  // Pop back to input page
-                  Navigator.of(context).pop(true);
-                },
-                child: const Text(
-                  'RUN COMPLETE',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  onPressed: () {
+                    // Pause recording loop to save battery while in "Wait State"
+                    SensorService().pauseRecordingSession();
+                    
+                    // Pop back to input page
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text(
+                    'RUN COMPLETE',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
             ),

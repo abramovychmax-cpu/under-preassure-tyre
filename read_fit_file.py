@@ -1,6 +1,6 @@
 import struct
 
-fit_file = 'test_data/agr.fit'
+fit_file = 'dart_test_output.fit'
 
 try:
     with open(fit_file, 'rb') as f:
@@ -19,21 +19,24 @@ try:
         print(f"Data Type: {data_type}")
         print(f"Total File Size: {header_size + data_size + 2} bytes (including CRC)")
         
-        # Try to read with fit_tool
+        # Try to read with fitdecode
         try:
-            from fit_tool import FitFileDecoder
-            
-            f.seek(0)
-            data = f.read()
-            messages = FitFileDecoder().decode(data)
+            import fitdecode
             
             print(f"\n=== DECODED MESSAGES ===")
-            print(f"Total messages: {len(messages)}")
+            
+            messages = []
+            with fitdecode.FitReader(fit_file) as fit:
+                for frame in fit:
+                    if isinstance(frame, fitdecode.FitDataMessage):
+                        messages.append(frame)
+
+            print(f"Total data messages: {len(messages)}")
             
             # Count message types
             message_types = {}
             for msg in messages:
-                msg_type = type(msg).__name__
+                msg_type = msg.name
                 message_types[msg_type] = message_types.get(msg_type, 0) + 1
             
             print(f"\nMessage breakdown:")
@@ -41,20 +44,18 @@ try:
                 print(f"  {msg_type}: {count}")
             
             # Look for LAP messages
-            from fit_tool import LapMessage
             lap_count = 0
             for msg in messages:
-                if isinstance(msg, LapMessage):
+                if msg.name == 'lap':
                     lap_count += 1
                     print(f"\nLap {lap_count}:")
-                    print(f"  avgSpeed: {msg.avgSpeed}")
-                    print(f"  avgPower: {msg.avgPower}")
-                    print(f"  totalDistance: {msg.totalDistance}")
-                    print(f"  totalElapsedTime: {msg.totalElapsedTime}")
+                    for field in ['avg_speed', 'avg_power', 'total_distance', 'total_elapsed_time']:
+                        if msg.has_field(field):
+                            print(f"  {field}: {msg.get_value(field)}")
             
         except Exception as e:
-            print(f"\nError decoding with fit_tool: {e}")
-            print("File appears to be valid FIT format but may need fit_tool SDK")
+            print(f"\nError decoding with fitdecode: {e}")
+            print("Ensure 'fitdecode' is installed: pip install fitdecode")
         
 except Exception as e:
     print(f"Error reading file: {e}")
