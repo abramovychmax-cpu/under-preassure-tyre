@@ -45,5 +45,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- GPS Permissions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GPS is used as a fallback speed measurement when Bluetooth wheel sensors are unavailable. We don't store or share your location data.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>GPS is used as a fallback speed measurement when Bluetooth wheel sensors are unavailable. We don't store or share your location data.</string>
+	<!-- Bluetooth Permissions -->
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Bluetooth is required to connect to your wheel speed sensor and power meter for tire pressure optimization.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetooth is required to connect to your wheel speed sensor and power meter for tire pressure optimization.</string>
+	<!-- Motion/Accelerometer Permissions -->
+	<key>NSMotionUsageDescription</key>
+	<string>Motion detection is used to validate phone setup and measure tire vibration during testing.</string>
 </dict>
 </plist>

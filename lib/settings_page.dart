@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 import 'ui/common_widgets.dart';
 
 /// Settings page for wheel size, tire width, and unit preferences.
@@ -40,11 +41,65 @@ class _SettingsPageState extends State<SettingsPage> {
   double _calculatedCircumference = 2.1;
 
   bool _isLoading = true;
+  
+  // Permission tracking
+  bool _gpsPermissionGranted = false;
+  String _gpsPermissionStatus = 'Checking...';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final locationPerm = await Geolocator.checkPermission();
+    setState(() {
+      _gpsPermissionGranted = locationPerm == LocationPermission.always || 
+                             locationPerm == LocationPermission.whileInUse;
+      _gpsPermissionStatus = _getPermissionStatusString(locationPerm);
+    });
+  }
+
+  String _getPermissionStatusString(LocationPermission permission) {
+    switch (permission) {
+      case LocationPermission.whileInUse:
+        return 'Enabled (While Using App)';
+      case LocationPermission.always:
+        return 'Enabled (Always)';
+      case LocationPermission.denied:
+        return 'Disabled - Tap to Enable';
+      case LocationPermission.deniedForever:
+        return 'Permanently Disabled - Go to iPhone Settings';
+      case LocationPermission.unableToDetermine:
+        return 'Unable to determine';
+    }
+  }
+
+  Future<void> _requestGpsPermission() async {
+    final permission = await Geolocator.requestPermission();
+    await _checkPermissions();
+    
+    if (mounted) {
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('GPS permission is needed for speed fallback measurement.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('GPS permission granted!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -120,6 +175,49 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // PERMISSIONS SECTION
+            _buildSectionHeader('PERMISSIONS'),
+            const SizedBox(height: 12),
+            AppCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                leading: Icon(
+                  Icons.location_on,
+                  color: _gpsPermissionGranted ? accentGemini : Colors.red,
+                  size: 28,
+                ),
+                title: const Text(
+                  'GPS Location',
+                  style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                subtitle: Text(
+                  _gpsPermissionStatus,
+                  style: TextStyle(
+                    color: _gpsPermissionGranted ? Colors.green : Colors.orange,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: _gpsPermissionStatus.contains('Permanently')
+                    ? const Icon(Icons.info, color: Colors.orange, size: 20)
+                    : const Icon(Icons.arrow_forward_ios, size: 16, color: accentGemini),
+                onTap: _requestGpsPermission,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.withOpacity(0.2), width: 1),
+              ),
+              child: const Text(
+                '💡 GPS is optional - used as fallback when Bluetooth sensor isn\'t available. Bluetooth connections don\'t require extra permissions.',
+                style: TextStyle(fontSize: 11, color: Colors.blue, height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 32),
+            
             // Wheel Configuration Section
             _buildSectionHeader('WHEEL CONFIGURATION'),
             const SizedBox(height: 12),

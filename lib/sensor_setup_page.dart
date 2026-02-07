@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -110,18 +111,46 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   }
 
   Future<void> _initInternalSensors() async {
+    // REQUEST GPS PERMISSION (iOS popup)
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.deniedForever) {
+        _showPermissionError('GPS', 'Please enable Location in Settings → Privacy → Location Services');
+        return;
+      }
     }
     if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
       setState(() => gpsGranted = true);
+      print('GPS Permission Granted: $permission');
     }
+
+    // ACCELEROMETER LISTENER (for shake detection)
     accelerometerEvents.listen((event) {
-      if (!accelActive && (event.x.abs() > 1.2)) {
+      // Vibration magnitude in m/s² → convert to G (divide by 9.81)
+      final magnitude = (event.x.abs() + event.y.abs() + event.z.abs()) / 3.0;
+      final magnitudeInG = magnitude / 9.81;
+      
+      // Lower threshold: any shake >0.8G should register (typical phone shake = 2-5G)
+      if (!accelActive && magnitudeInG > 0.8) {
         setState(() => accelActive = true);
+        print('ACCELEROMETER DETECTED: Magnitude=$magnitudeInG G');
+        // Vibrate/haptic feedback on detection
+        try {
+          HapticFeedback.mediumImpact();
+        } catch (_) {}
       }
     });
+  }
+
+  void _showPermissionError(String permissionName, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$permissionName Permission Required: $message'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _startSensorScan(String targetSlot) {
