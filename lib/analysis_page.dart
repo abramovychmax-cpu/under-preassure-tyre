@@ -123,7 +123,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
         throw Exception('Unknown protocol: ${widget.protocol}');
       }
     } catch (e) {
-      print('ERROR: _loadAndAnalyze failed: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = 'Analysis failed: $e';
