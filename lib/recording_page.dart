@@ -152,8 +152,9 @@ class _RecordingPageState extends State<RecordingPage> {
 
             TextButton(
               onPressed: () async {
+                final nav = Navigator.of(context);
                 await _sensorService.stopRecordingSession();
-                if (mounted) Navigator.pop(context, true);
+                if (mounted) nav.pop(true);
               },
               child: const Text(
                 'FINISH RUN',

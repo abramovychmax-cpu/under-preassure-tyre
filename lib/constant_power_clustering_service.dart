@@ -184,14 +184,14 @@ class ConstantPowerClusteringService {
     if (records.isEmpty) return [];
 
     final segments = <ConstantPowerSegment>[];
-    final segmentThreshold = 0.10; // 10% CV threshold for constant power
+    const segmentThreshold = 0.10; // 10% CV threshold for constant power
 
     int i = 0;
     int segmentId = 0;
 
     while (i < records.length) {
       // Find a window of constant power
-      final windowSize = 10; // ~10 records at 1 Hz
+      const windowSize = 10; // ~10 records at 1 Hz
       if (i + windowSize > records.length) break;
 
       final window = records.sublist(i, i + windowSize);

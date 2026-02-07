@@ -69,7 +69,7 @@ class FitProtocol {
   /// Convert degrees to FIT semicircles (sint32)
   static int degreesToSemicircles(double degrees) {
     // semicircles = degrees * (2^31 / 180)
-    final factor = 2147483648.0 / 180.0; // 2^31
+    const factor = 2147483648.0 / 180.0; // 2^31
     return (degrees * factor).round();
   }
 

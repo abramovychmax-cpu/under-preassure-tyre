@@ -41,6 +41,8 @@ dependencies:
   cupertino_icons: ^1.0.2
   fl_chart: ^0.63.0 # For data visualization
   path_provider: ^2.1.0 # For file system access
+  path: ^1.8.3 # For path manipulation
+  http: ^1.1.0 # For HTTP requests
   fit_tool: ^1.0.5 # For FIT file creation and parsing
   # DO NOT paste under dev_dependencies!
 
