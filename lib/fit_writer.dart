@@ -150,6 +150,9 @@ class FitWriter {
     // Avg Speed
     double lapAvgSpeed = totalLapTime > 0 ? lapDistance / totalLapTime : 0.0;
 
+    // 1. ADD RECORDS TO BUILDER (Must precede the LapMessage)
+    _builder.addAll(lapRecords);
+
     final lapMessage = LapMessage()
         ..timestamp = endTime
         ..startTime = startTime
@@ -247,15 +250,14 @@ class FitWriter {
     final totalElapsedTime = endTime.difference(_sessionStartTime!).inSeconds.toDouble();
     final avgPower = _recordCount > 0 ? (_totalPower / _recordCount).toInt() : 0;
 
-    // Add all records to builder
-    _builder.addAll(_records);
+    // NO: _builder.addAll(_records); -> Records are now added incrementally in _finishCurrentLap
 
     // Finish the final lap if there are records
     if (_laps.isNotEmpty) {
       _finishCurrentLap();
     } else if (_records.isNotEmpty) {
        // If we have records but no explicit lap was started (edge case), wrap in a lap
-       // But _laps should be populated by startRecordingSession
+       _builder.addAll(_records);
     }
 
     // Note: We used to write a single monolithic LapMessage here.
