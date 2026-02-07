@@ -39,6 +39,13 @@ class _PressureInputPageState extends State<PressureInputPage> {
   @override
   void initState() {
     super.initState();
+    // Ensure any previous recording session is closed when starting a new flow
+    // But be careful not to close it if we are just returning from a run.
+    // Actually, PressureInputPage is created fresh when coming from Instructions.
+    // It is NOT re-created between runs if we just push RecordingPage.
+    // So initState runs once at the beginning of the 3-run sequence.
+    SensorService().stopRecordingSession();
+    
     _loadSettings();
     _rearController.addListener(_updateFrontPressure);
   }
@@ -60,7 +67,10 @@ class _PressureInputPageState extends State<PressureInputPage> {
   }
   
   void _updateFrontPressure() {
-    final rearValue = double.tryParse(_rearController.text);
+    // Replace comma with dot to support formatted inputs (e.g. from iOS keyboard)
+    String cleanText = _rearController.text.replaceAll(',', '.');
+    final rearValue = double.tryParse(cleanText);
+    
     if (rearValue != null && rearValue > 0) {
       final ratio = _silcaRatios[_bikeType] ?? 0.95;
       setState(() {
@@ -136,7 +146,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
-                          'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(1)} $_pressureUnit',
+                          'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
                           style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
                         ),
                       );
@@ -169,7 +179,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _calculatedFrontPressure.toStringAsFixed(1),
+                          _calculatedFrontPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1),
                           style: const TextStyle(color: Color(0xFF222222), fontSize: 32, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
@@ -202,12 +212,16 @@ class _PressureInputPageState extends State<PressureInputPage> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
                 onPressed: () async {
+                  String cleanText = _rearController.text.replaceAll(',', '.');
+                  final rearVal = double.tryParse(cleanText) ?? 0.0;
+                  
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => RecordingPage(
                         frontPressure: _calculatedFrontPressure,
-                        rearPressure: double.tryParse(_rearController.text) ?? 0.0,
+                        rearPressure: rearVal,
+                        protocol: widget.protocol,
                       ),
                     ),
                   );
@@ -217,7 +231,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                       // Store current run pressure
                       _previousPressures.add({
                         'front': _calculatedFrontPressure,
-                        'rear': double.tryParse(_rearController.text) ?? 0.0,
+                        'rear': rearVal,
                       });
                       completedRuns++;
                     });

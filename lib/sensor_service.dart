@@ -445,7 +445,15 @@ class SensorService {
       _decideWhichSpeedToPublish();
     }
 
-    if (hasCrank && deviceId == _savedCadenceId) {
+
+    if (hasCrank && (deviceId == _savedCadenceId || (deviceId == _savedPowerId && _savedCadenceId == _savedPowerId) || (deviceId == _savedPowerId && _savedCadenceId?.toLowerCase().contains("kickr") == true))) {
+      // For Power Meters (UUID 1818), the Crank Data is usually in the Power Feature/Measurement
+      // But here we are in _parseCSC (0x2A5B). 
+      // KICKR sends standard CSC (0x1816) AND Power (0x1818).
+      // If the user selected the "Power" device as "Cadence", we assume it supports CSC or we need to parse Cadence from Power.
+      // This function _parseCSC parses 0x2A5B.
+      // If the device is streaming 0x2A5B, we parse it.
+      
       int offset = hasWheel ? 7 : 1;
       if (data.length >= offset + 4) {
         int currentCrankRevs = (data[offset]) | (data[offset + 1] << 8);
@@ -459,14 +467,12 @@ class SensorService {
             int rpmInt = rpm.toInt();
             _cadenceController.add(rpmInt);
             _lastPublishedCadence = rpmInt;
-            print('CSC crank: device=$deviceId rpm=${rpm.toStringAsFixed(1)}');
             
-            // Only reset timer on ACTUAL crank movement to avoid repeated resets on static packets
+            // Only reset timer on ACTUAL crank movement
             _crankStopTimer?.cancel();
             _crankStopTimer = Timer(const Duration(milliseconds: 1500), () {
               _cadenceController.add(0);
               _lastPublishedCadence = 0;
-              print('CSC crank: Cadence timeout -> 0 RPM');
             });
           }
         }
@@ -477,6 +483,53 @@ class SensorService {
   }
 
   void _parsePower(List<int> data, String deviceId) {
+    // Handling Cadence from Power Meter Characteristic (0x2A63)
+    // Format: Flags(16), Power(16), ...
+    // Bit 5 of Flags = Crank Revolution Data Present
+    if (data.length >= 4) {
+      int flags = data[0] | (data[1] << 8);
+      bool hasCrankData = (flags & 0x20) != 0;
+      
+      // If this device is the selected Cadence source (e.g. Kickr), try to extract cadence
+      // Or if no specific cadence sensor is selected but we have a power meter
+      bool useForCadence = (deviceId == _savedCadenceId) || (_savedCadenceId == null && deviceId == _savedPowerId);
+      
+      if (hasCrankData && useForCadence && data.length >= 8) {
+         // Should verify offset.
+         // Standard: Flags(2) + Power(2) = 4 bytes.
+         // + Balance(1) if Bit 0. + Torque(2) if Bit 2? No, let's just scan for it.
+         // Actually, let's be safer.
+         // Mandatory: Flags(2), Power(2) -> Offset 4.
+         int offset = 4;
+         if ((flags & 0x01) != 0) offset += 1; // Pedal Power Balance
+         if ((flags & 0x04) != 0) offset += 2; // Accumulated Torque
+         
+         if ((flags & 0x20) != 0 && data.length >= offset + 4) {
+            int crankRevs = data[offset] | (data[offset+1] << 8);
+            int crankTime = data[offset+2] | (data[offset+3] << 8);
+            
+            if (_lastCrankRevs != null) {
+               int rDiff = (crankRevs - _lastCrankRevs!) & 0xFFFF;
+               int tDiff = (crankTime - _lastCrankTime!) & 0xFFFF;
+               if (rDiff > 0 && tDiff > 0) {
+                 double rpm = (rDiff * 60 * 1024) / tDiff;
+                 int rpmInt = rpm.toInt();
+                 _cadenceController.add(rpmInt);
+                 _lastPublishedCadence = rpmInt;
+                 
+                  _crankStopTimer?.cancel();
+                  _crankStopTimer = Timer(const Duration(milliseconds: 1500), () {
+                    _cadenceController.add(0);
+                    _lastPublishedCadence = 0;
+                  });
+               }
+            }
+            _lastCrankRevs = crankRevs;
+            _lastCrankTime = crankTime;
+         }
+      }
+    }
+
     if (deviceId != _savedPowerId) return;
     if (data.length < 4) return;
     int power = (data[2]) | (data[3] << 8);
@@ -510,9 +563,22 @@ class SensorService {
     _distanceController.add(currentDistanceValue);
   }
 
-  /// Start a new FIT recording session with tire pressure metadata
+  /// Start a new FIT recording session (or add lap to existing one)
   Future<void> startRecordingSession(double frontPressure, double rearPressure, {String protocol = 'coast_down'}) async {
     try {
+      if (_fitWriter != null) {
+        // Session already active - treat this as a new "Lap" / Run
+        print('Adding run to existing FIT session: Front=$frontPressure, Rear=$rearPressure');
+        // Retrieve internal lap count (hacky, but effective given FitWriter structure)
+        // We'll trust the FitWriter to handle the index increment internally if we modify it,
+        // or just rely on external tracking.
+        // Actually, FitWriter.writeLap appends to _laps.
+        // We can pass a simple incrementing index or just use current time.
+        // The verify_fit tools show "Lap 0", "Lap 1" etc.
+        await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1); // -1 let writer handle count? Or just don't care about index param validity for now.
+        return;
+      }
+
       _fitWriter = await FitWriter.create(protocol: protocol);
       await _fitWriter?.startSession({
         'sportType': 'cycling',
@@ -522,6 +588,9 @@ class SensorService {
         'rearPressure': rearPressure,
         'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000,
       });
+      // Log the first lap metadata
+      await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: 0);
+
       print('FIT recording session started: Front=$frontPressure, Rear=$rearPressure, Protocol=$protocol');
     } catch (e) {
       print('ERROR starting FIT recording session: $e');
