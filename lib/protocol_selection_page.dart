@@ -136,7 +136,7 @@ class ProtocolSelectionPage extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            (color as Color).withValues(alpha: 0.10),
+            color.withValues(alpha: 0.10),
             Colors.white,
           ],
         ),
@@ -153,7 +153,7 @@ class ProtocolSelectionPage extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: (color as Color).withValues(alpha: 0.12),
+                    backgroundColor: color.withValues(alpha: 0.12),
                     radius: 20,
                     child: Icon(icon, color: color, size: 22),
                   ),
@@ -171,7 +171,7 @@ class ProtocolSelectionPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: (color as Color).withValues(alpha: 0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
