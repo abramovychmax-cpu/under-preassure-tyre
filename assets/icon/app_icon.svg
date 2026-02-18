@@ -1,0 +1,40 @@
+<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#F2F2F2"/>
+  
+  <!-- Cycling Wheel Icon -->
+  <g transform="translate(512, 512)">
+    <!-- Outer Tire -->
+    <circle cx="0" cy="0" r="390" fill="none" stroke="#222222" stroke-width="40"/>
+    
+    <!-- Rim -->
+    <circle cx="0" cy="0" r="310" fill="none" stroke="#47D1C1" stroke-opacity="0.4" stroke-width="25"/>
+    
+    <!-- Spokes (16 total) -->
+    <g stroke="#666666" stroke-opacity="0.5" stroke-width="8" stroke-linecap="round">
+      <!-- Each spoke from hub to rim -->
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(0)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(22.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(45)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(67.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(90)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(112.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(135)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(157.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(180)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(202.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(225)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(247.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(270)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(292.5)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(315)"/>
+      <line x1="0" y1="-50" x2="0" y2="-310" transform="rotate(337.5)"/>
+    </g>
+    
+    <!-- Hub (center) -->
+    <circle cx="0" cy="0" r="50" fill="#47D1C1"/>
+    
+    <!-- Valve Stem (at bottom) -->
+    <rect x="-8" y="380" width="16" height="60" rx="8" fill="#222222"/>
+  </g>
+</svg>

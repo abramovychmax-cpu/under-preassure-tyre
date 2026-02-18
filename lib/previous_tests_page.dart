@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'ui/common_widgets.dart';
 
 /// Previous Tests Page: Display list of past optimal tire pressures
@@ -24,18 +25,22 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
   }
 
   Future<void> _loadTests() async {
-    final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getStringList('test_keys') ?? [];
-
     final tests = <Map<String, dynamic>>[];
-    for (final key in keys) {
-      final raw = prefs.getString(key);
-      if (raw == null) continue;
-      try {
-        final data = jsonDecode(raw) as Map<String, dynamic>;
-        tests.add(data);
-      } catch (_) {}
-    }
+
+    // Load durable history file (JSONL); gracefully skip bad lines
+    try {
+      final file = await _historyFile();
+      if (await file.exists()) {
+        final lines = await file.readAsLines();
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          try {
+            final data = jsonDecode(line) as Map<String, dynamic>;
+            tests.add(data);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
 
     tests.sort((a, b) {
       final at = DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -76,6 +81,11 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
     }
   }
 
+  Future<File> _historyFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File(p.join(dir.path, 'test_history.jsonl'));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,6 +93,7 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
       appBar: AppBar(
         backgroundColor: bgLight,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'PREVIOUS TESTS',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
@@ -140,6 +151,7 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
                     final rear = (test['optimalRearPressure'] as num?)?.toDouble() ?? 0.0;
                     final vibrationLoss = (test['vibrationLossPercent'] as num?)?.toDouble() ?? 0.0;
                     final fitFilePath = test['fitFilePath']?.toString();
+                    final hasFitPath = fitFilePath != null && fitFilePath.isNotEmpty;
 
                     return AppCard(
                       child: Padding(
@@ -160,7 +172,7 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
                                       _formatDate(timestamp),
                                       style: const TextStyle(color: Color(0xFF888888), fontSize: 10, fontWeight: FontWeight.w700),
                                     ),
-                                    if (fitFilePath != null && fitFilePath.isNotEmpty) ...[
+                                    if (hasFitPath) ...[
                                       const SizedBox(width: 8),
                                       InkWell(
                                         onTap: () async {

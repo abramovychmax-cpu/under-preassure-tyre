@@ -142,12 +142,19 @@ class CoastDownClusteringService {
   static const double _durationTolerancePct = 10.0;
   static const double _minAltitudeDropM = 5.0;
   static const double _maxAltitudeErrorRate = 0.20; // 20% erratic points allowed
-  static const double _minDescentSpeedMs = 2.0;     // Must be moving at descent start
   static const double _speedThresholdPct = 95.0;    // 95% of slowest max_speed
   static const double _signatureMatchRadiusM = 1000.0;
-  static const int _consecutiveDrops = 3;           // Consecutive falling points to detect start
   static const int _flatOrUpTolerance = 3;          // Points before descent end declared
   static const String _signatureKey = 'route_signatures_v2';
+
+  // Standing-start, brake-aware triggers
+  static const double _startSpeedThresholdMs = 0.3;   // First nonzero wheel speed (~1 km/h)
+  static const int _pushOffIgnoreSeconds = 2;         // Skip early wobble from the shove-off
+  static const double _powerSpikeThresholdW = 80.0;   // Keep start after any pedal spike
+  static const int _powerSpikeLookahead = 1;          // Look ±1s around start for spikes
+  static const double _brakeDecelThresholdMs2 = -1.25; // Rapid decel flag (m/s², 1 Hz delta)
+  static const double _brakeDropFraction = 0.22;       // ≥22% speed drop within window = brake
+  static const int _brakeWindowSeconds = 2;            // Window to evaluate braking
 
   // ────────────────────────────────────────────────────────────────────────────
   // MAIN ENTRY POINT
@@ -248,36 +255,57 @@ class CoastDownClusteringService {
     final speeds = <double>[]; // m/s
     final lats = <double>[];
     final lons = <double>[];
+    final powers = <double>[];
 
     for (final r in records) {
       altitudes.add((r['altitude'] as num?)?.toDouble() ?? 0.0);
       speeds.add(((r['speed_kmh'] as num?)?.toDouble() ?? 0.0) / 3.6);
       lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
       lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
+      powers.add((r['power'] as num?)?.toDouble() ?? 0.0);
     }
 
-    // ── Find descent START: N consecutive altitude drops while moving ──
-    int start = -1;
-    for (int i = 0; i < altitudes.length - _consecutiveDrops; i++) {
-      bool dropping = true;
-      for (int j = 0; j < _consecutiveDrops - 1; j++) {
-        if (altitudes[i + j] <= altitudes[i + j + 1]) {
-          dropping = false;
-          break;
-        }
+    // ── Find descent START: first moving sample, skip push-off wobble, avoid power spikes ──
+    int start = speeds.indexWhere((s) => s > _startSpeedThresholdMs);
+    if (start == -1) return null;
+
+    // Ignore first seconds to clear push-off instability
+    start = math.min(start + _pushOffIgnoreSeconds, speeds.length - 1);
+
+    // Slide start forward until local power spikes are gone
+    for (int i = start; i < speeds.length; i++) {
+      final windowStart = math.max(0, i - _powerSpikeLookahead);
+      final windowEnd = math.min(speeds.length - 1, i + _powerSpikeLookahead);
+      double maxPower = 0.0;
+      for (int j = windowStart; j <= windowEnd; j++) {
+        if (powers[j] > maxPower) maxPower = powers[j];
       }
-      if (dropping && speeds[i] > _minDescentSpeedMs) {
+      if (maxPower <= _powerSpikeThresholdW) {
         start = i;
         break;
       }
     }
-    if (start == -1) return null;
 
-    // ── Find descent END: altitude reverses, speed dies, or GPS turnaround ──
+    if (start >= altitudes.length - 3) return null; // not enough runway
+
+    // ── Find descent END: brake cue (rapid decel) takes priority; fallback to alt/GPS ──
     int end = start;
     int flatCount = 0;
 
     for (int i = start + 1; i < altitudes.length - 1; i++) {
+      final deltaV = speeds[i] - speeds[i - 1];
+      final windowStart = math.max(start, i - _brakeWindowSeconds);
+      final windowMax = speeds.sublist(windowStart, i + 1).reduce(math.max);
+      final dropFrac = windowMax > 0
+          ? (windowMax - speeds[i]) / windowMax
+          : 0.0;
+
+      final braking = deltaV <= _brakeDecelThresholdMs2 || dropFrac >= _brakeDropFraction;
+      if (braking) {
+        end = i;
+        break;
+      }
+
       if (altitudes[i] > altitudes[i + 1]) {
         flatCount = 0; // Still descending — reset counter
       } else {

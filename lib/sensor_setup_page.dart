@@ -6,7 +6,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'sensor_service.dart';
-import 'wheel_metrics_page.dart';
+import 'wheel_metrics_guide_page.dart';
 import 'ui/common_widgets.dart';
 
 class SensorSetupPage extends StatefulWidget {
@@ -16,7 +16,7 @@ class SensorSetupPage extends StatefulWidget {
   State<SensorSetupPage> createState() => _SensorSetupPageState();
 }
 
-class _SensorSetupPageState extends State<SensorSetupPage> {
+class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProviderStateMixin {
   String speedSensorName = "";
   String powerMeterName = "";
   String cadenceSensorName = "";
@@ -38,12 +38,32 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   StreamSubscription? _powerSub;
   StreamSubscription? _connectedNamesSub;
 
+  late AnimationController _swipeAnimationController;
+  late Animation<double> _swipeFadeAnimation;
+  late Animation<Offset> _swipeSlideAnimation;
+
   @override
   void initState() {
     super.initState();
     _loadSpeedUnit();
     _initInternalSensors();
     _initDataStreams();
+    
+    // Swipe animation setup
+    _swipeAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    
+    _swipeFadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _swipeAnimationController, curve: Curves.easeInOut),
+    );
+    
+    _swipeSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: const Offset(0, -0.1),
+    ).animate(CurvedAnimation(parent: _swipeAnimationController, curve: Curves.easeInOut));
+    
     // ensure any open keyboard is dismissed when entering this page
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).unfocus();
@@ -79,6 +99,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     _cadenceSub?.cancel();
     _powerSub?.cancel();
     _connectedNamesSub?.cancel();
+    _swipeAnimationController.dispose();
     super.dispose();
   }
 
@@ -246,41 +267,37 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     ).then((_) => FlutterBluePlus.stopScan());
   }
 
-  Widget sensorWindow(String title, String subtitle, bool isActive, IconData icon, VoidCallback? onConnect) {
-    const Color cardDark = Color(0xFFF2F2F2);
-    const Color geminiTeal = Color(0xFF47D1C1);
-    const Color borderGrey = Color(0xFFD8D8D8);
-
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      color: cardDark,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: isActive ? geminiTeal : borderGrey, width: 1.5),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        minLeadingWidth: 44,
-        horizontalTitleGap: 12,
-        leading: Icon(icon, color: isActive ? geminiTeal : Colors.grey, size: 30),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF222222))),
-        subtitle: Text(isActive ? subtitle : "Not Connected", style: TextStyle(color: isActive ? geminiTeal.withAlpha((0.9 * 255).round()) : Colors.grey)),
-        trailing: onConnect != null
-            ? IconButton(icon: const Icon(Icons.add_link, color: geminiTeal, size: 30), onPressed: onConnect)
-            : (isActive ? const Icon(Icons.check_circle, color: geminiTeal) : null),
-      ),
-    );
+  void _handleSwipeUp() {
+    if (speedSensorName.isNotEmpty && gpsGranted) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const WheelMetricsGuidePage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 1.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+            final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            final offsetAnimation = animation.drive(tween);
+            return SlideTransition(position: offsetAnimation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 400),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool canProceed = speedSensorName.isNotEmpty && gpsGranted;
+    
     // use light background and shared app card styles
     return Scaffold(
       backgroundColor: bgLight,
       appBar: AppBar(
         backgroundColor: bgLight,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'SENSOR SETUP',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
@@ -288,7 +305,13 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
       ),
-      body: Padding(
+      body: GestureDetector(
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -500 && canProceed) {
+            _handleSwipeUp();
+          }
+        },
+        child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
@@ -315,9 +338,11 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     minLeadingWidth: 44,
                     horizontalTitleGap: 12,
-                    leading: Icon(Icons.sensors, color: accelActive ? accentGemini : Colors.black54),
+                    leading: Icon(Icons.sensors, color: accelActive ? accentGemini : Colors.orangeAccent),
                     title: const Text('Phone Vibration', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: Text(accelActive ? 'Ready' : 'Shake phone', style: TextStyle(color: accelActive ? accentGemini : Colors.black54)),
+                    subtitle: accelActive 
+                        ? const Text('Ready', style: TextStyle(color: accentGemini, fontWeight: FontWeight.w600))
+                        : const Text('⚠️ SHAKE YOUR PHONE NOW', style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.w900)),
                   ),
                 ),
               ),
@@ -326,93 +351,135 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
             // main sensor cards (same height)
             Expanded(
-              child: AppCard(
-                child: Center(
-                    child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  minLeadingWidth: 44,
-                  horizontalTitleGap: 12,
-                  leading: Icon(Icons.speed, color: speedSensorName.isNotEmpty ? accentGemini : Colors.black54),
-                  title: const Text('Speed Sensor', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                  subtitle: speedSensorName.isNotEmpty
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(speedSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                        if (liveSpeedValue > 0.1) ...[
-                          const SizedBox(height: 4),
-                          Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
-                        ],
-                      ],
-                    )
-                  : const Text('add sensor', style: TextStyle(color: Colors.black54)),
-              trailing: IconButton(icon: const Icon(Icons.add_link, color: accentGemini), onPressed: () => _startSensorScan('speed')))))),
-            const SizedBox(height: 8),
-            Expanded(
-              child: AppCard(
-                child: Center(
-                    child: ListTile(
+              child: InkWell(
+                onTap: () => _startSensorScan('speed'),
+                borderRadius: BorderRadius.circular(12),
+                child: AppCard(
+                  child: Center(
+                      child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     minLeadingWidth: 44,
-                  horizontalTitleGap: 12,
-                  leading: Icon(Icons.bolt, color: powerMeterName.isNotEmpty ? accentGemini : Colors.black54),
-                  title: const Text('Power Meter', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                  subtitle: powerMeterName.isNotEmpty
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(powerMeterName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                        if (livePowerValue > 0) ...[
-                          const SizedBox(height: 4),
-                          Text(livePower, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
+                    horizontalTitleGap: 12,
+                    leading: Icon(Icons.speed, color: speedSensorName.isNotEmpty ? accentGemini : Colors.black54),
+                    title: const Text('Speed Sensor', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                    subtitle: speedSensorName.isNotEmpty
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(speedSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                          if (liveSpeedValue > 0.1) ...[
+                            const SizedBox(height: 4),
+                            Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
+                          ],
                         ],
-                      ],
-                    )
-                  : const Text('add sensor', style: TextStyle(color: Colors.black54)),
-              trailing: IconButton(icon: const Icon(Icons.add_link, color: accentGemini), onPressed: () => _startSensorScan('power')))))),
+                      )
+                    : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                trailing: Icon(
+                  speedSensorName.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: speedSensorName.isNotEmpty ? accentGemini : Colors.black38,
+                  size: 28,
+                ))),
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
             Expanded(
-              child: AppCard(
-                child: Center(
-                    child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  minLeadingWidth: 44,
-                  horizontalTitleGap: 12,
-                  leading: Icon(Icons.loop, color: cadenceSensorName.isNotEmpty ? accentGemini : Colors.black54),
-                  title: const Text('Cadence', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                  subtitle: cadenceSensorName.isNotEmpty
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(cadenceSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                        if (liveCadenceValue > 0) ...[
-                          const SizedBox(height: 4),
-                          Text(liveCadence, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
+              child: InkWell(
+                onTap: () => _startSensorScan('power'),
+                borderRadius: BorderRadius.circular(12),
+                child: AppCard(
+                  child: Center(
+                      child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      minLeadingWidth: 44,
+                    horizontalTitleGap: 12,
+                    leading: Icon(Icons.bolt, color: powerMeterName.isNotEmpty ? accentGemini : Colors.black54),
+                    title: const Text('Power Meter', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                    subtitle: powerMeterName.isNotEmpty
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(powerMeterName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                          if (livePowerValue > 0) ...[
+                            const SizedBox(height: 4),
+                            Text(livePower, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
+                          ],
                         ],
-                      ],
-                    )
-                  : const Text('add sensor', style: TextStyle(color: Colors.black54)),
-              trailing: IconButton(icon: const Icon(Icons.add_link, color: accentGemini), onPressed: () => _startSensorScan('cadence')))))),
+                      )
+                    : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                  trailing: Icon(
+                    powerMeterName.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: powerMeterName.isNotEmpty ? accentGemini : Colors.black38,
+                    size: 28,
+                  ))),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: InkWell(
+                onTap: () => _startSensorScan('cadence'),
+                borderRadius: BorderRadius.circular(12),
+                child: AppCard(
+                  child: Center(
+                      child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    minLeadingWidth: 44,
+                    horizontalTitleGap: 12,
+                    leading: Icon(Icons.loop, color: cadenceSensorName.isNotEmpty ? accentGemini : Colors.black54),
+                    title: const Text('Cadence', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                    subtitle: cadenceSensorName.isNotEmpty
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(cadenceSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                          if (liveCadenceValue > 0) ...[
+                            const SizedBox(height: 4),
+                            Text(liveCadence, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
+                          ],
+                        ],
+                      )
+                    : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                  trailing: Icon(
+                    cadenceSensorName.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: cadenceSensorName.isNotEmpty ? accentGemini : Colors.black38,
+                    size: 28,
+                  ))),
+                ),
+              ),
+            ),
 
             const SizedBox(height: 12),
-            // fixed action button - navigate to wheel metrics setup first
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: (speedSensorName != "Not Connected" && gpsGranted) ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WheelMetricsPage())) : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentGemini,
-                  foregroundColor: bgLight,
-                  disabledBackgroundColor: Colors.grey.shade400,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            // Swipe indicator
+            FadeTransition(
+              opacity: _swipeFadeAnimation,
+              child: SlideTransition(
+                position: _swipeSlideAnimation,
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_up,
+                      color: canProceed ? accentGemini : Colors.grey.shade400,
+                      size: 32,
+                    ),
+                    Text(
+                      canProceed ? 'SWIPE UP TO CONFIGURE WHEEL' : 'CONNECT SENSORS FIRST',
+                      style: TextStyle(
+                        color: canProceed ? accentGemini : Colors.grey.shade400,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Text("CONFIGURE WHEEL & TIRE", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            )
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
+    ),
     );
   }
 }

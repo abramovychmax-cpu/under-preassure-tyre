@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'sensor_service.dart';
-import 'home_page.dart';
+import 'welcome_page.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() async {
@@ -58,13 +58,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tyre Pressure App',
+      title: 'Perfect Pressure',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const WelcomePage(),
     );
   }
 }

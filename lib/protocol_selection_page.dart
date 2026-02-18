@@ -12,6 +12,7 @@ class ProtocolSelectionPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgLight,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(
           'SELECT PROTOCOL',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),

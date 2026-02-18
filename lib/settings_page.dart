@@ -163,6 +163,7 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         backgroundColor: bgLight,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'SETTINGS',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),

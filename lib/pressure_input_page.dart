@@ -93,6 +93,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
       appBar: AppBar(
         backgroundColor: bgLight,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           "PRESSURE INPUT", 
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16)

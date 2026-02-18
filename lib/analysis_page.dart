@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'ui/common_widgets.dart';
 import 'constant_power_clustering_service.dart';
 import 'circle_protocol_service.dart';
@@ -48,6 +50,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
   double? _powerConsistencyPercent;  // CV of power across laps (circle/constant-power)
   String? _dataQualityWarning;       // Warning message if data quality is poor
   String _confidenceLevel = '';       // HIGH/MEDIUM/LOW based on R² and power CV
+
+  // Tunable thresholds
+  static const double _powerCvWarnThreshold = 25.0; // percent
+  static const double _minQuadraticPoints = 3;
   
   // Silca front/rear pressure distribution ratios
   // Front = Rear × ratio (front_percent / rear_percent)
@@ -76,6 +82,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 
   double _psiToBar(double psi) => psi * 0.0689476;
+
+  List<MapEntry<double, double>> _trimOutliers(List<MapEntry<double, double>> points) {
+    if (points.length < 4) return List.of(points);
+    final sorted = List<MapEntry<double, double>>.from(points)
+      ..sort((a, b) => a.value.compareTo(b.value));
+    // Drop min and max efficiency points (light trim)
+    return sorted.sublist(1, sorted.length - 1);
+  }
 
   Future<void> _loadAndAnalyze() async {
     try {
@@ -143,8 +157,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
     final dataPoints =
         ConstantPowerClusteringService.buildRegressionPoints(matchedSegments);
 
-    if (dataPoints.length < 3) {
-      throw Exception('Need at least 3 data points for regression');
+    final trimmed = _trimOutliers(dataPoints);
+    if (trimmed.length < 2) {
+      throw Exception('Need at least 2 data points for regression');
     }
 
     // Calculate power consistency across matched segments
@@ -161,11 +176,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
     final powerCv = avgPower > 0 ? (powerVariance / (avgPower * avgPower)) : 0.0;
 
     setState(() {
-      _regressionDataPoints = dataPoints;
+      _regressionDataPoints = trimmed;
       _powerConsistencyPercent = powerCv * 100;
     });
 
-    _performRegression(dataPoints);
+    _performRegression(trimmed,
+        allowTwoPoint: true,
+        powerCvPercent: _powerConsistencyPercent,
+        extraWarning: trimmed.length < _minQuadraticPoints ? 'Only ${trimmed.length} data points; using observed best result (low confidence).' : null);
 
     setState(() {
       _isLoading = false;
@@ -178,9 +196,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
     List<CircleLapData> laps,
   ) async {
     final dataPoints = CircleProtocolService.buildRegressionPoints(laps);
-
-    if (dataPoints.length < 3) {
-      throw Exception('Need at least 3 data points for regression');
+    final trimmed = _trimOutliers(dataPoints);
+    if (trimmed.length < 2) {
+      throw Exception('Need at least 2 data points for regression');
     }
 
     // Calculate power consistency across all laps
@@ -197,10 +215,13 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
 
     setState(() {
-      _regressionDataPoints = dataPoints;
+      _regressionDataPoints = trimmed;
     });
 
-    _performRegression(dataPoints);
+    _performRegression(trimmed,
+        allowTwoPoint: true,
+        powerCvPercent: _powerConsistencyPercent,
+        extraWarning: trimmed.length < _minQuadraticPoints ? 'Only ${trimmed.length} data points; using observed best result (low confidence).' : null);
 
     setState(() {
       _isLoading = false;
@@ -221,15 +242,19 @@ class _AnalysisPageState extends State<AnalysisPage> {
       dataPoints.add(MapEntry(run.rearPressure, run.efficiency));
     }
 
-    if (dataPoints.length < 3) {
-      throw Exception('Need at least 3 data points for regression');
+    final trimmed = _trimOutliers(dataPoints);
+
+    if (trimmed.length < 2) {
+      throw Exception('Need at least 2 data points for regression');
     }
 
     setState(() {
-      _regressionDataPoints = dataPoints;
+      _regressionDataPoints = trimmed;
     });
 
-    _performRegression(dataPoints);
+    _performRegression(trimmed,
+        allowTwoPoint: true,
+        extraWarning: trimmed.length < _minQuadraticPoints ? 'Only ${trimmed.length} data points; using observed best result (low confidence).' : null);
 
     setState(() {
       _isLoading = false;
@@ -238,10 +263,33 @@ class _AnalysisPageState extends State<AnalysisPage> {
     _updateFeedback('✅ Analysis complete!');
   }
 
-  void _performRegression(List<MapEntry<double, double>> dataPoints) {
-    if (dataPoints.length < 3) {
+  void _performRegression(
+    List<MapEntry<double, double>> dataPoints, {
+    bool allowTwoPoint = false,
+    double? powerCvPercent,
+    String? extraWarning,
+  }) {
+    if (dataPoints.length < 2) {
       setState(() {
-        _errorMessage = 'Need at least 3 data points for regression';
+        _errorMessage = 'Need at least 2 data points for regression';
+      });
+      return;
+    }
+
+    // Two-point fallback: pick best observed point; mark low confidence
+    if (dataPoints.length < _minQuadraticPoints && allowTwoPoint) {
+      final best = dataPoints.reduce((a, b) => a.value >= b.value ? a : b);
+      setState(() {
+        _coeffA = null;
+        _coeffB = null;
+        _coeffC = null;
+        _optimalRearPressure = best.key;
+        final silcaRatio = _silcaRatios[widget.bikeType] ?? 0.923;
+        _optimalFrontPressure = best.key * silcaRatio;
+        _rSquared = 0.0;
+        _vibrationLossPercent = null;
+        _confidenceLevel = 'LOW';
+        _dataQualityWarning = extraWarning ?? 'Only ${dataPoints.length} data points; chose best observed.';
       });
       return;
     }
@@ -312,19 +360,20 @@ class _AnalysisPageState extends State<AnalysisPage> {
     final vibrationLoss = ((efficiencyAtOptimal - efficiencyAtMax) / efficiencyAtMax * 100).abs();
 
     // Validate data quality and set warnings
-    String? warning;
+    String? warning = extraWarning;
     String confidence = 'HIGH';
     
     if (rSquared < 0.7) {
       confidence = 'LOW';
-      warning = '⚠ Low R² (${rSquared.toStringAsFixed(2)}): Data is noisy, results may be unreliable.';
+      final rWarn = '⚠ Low R² (${rSquared.toStringAsFixed(2)}): Data is noisy, results may be unreliable.';
+      warning = warning == null ? rWarn : '$warning\n$rWarn';
     } else if (rSquared < 0.85) {
       confidence = 'MEDIUM';
     }
     
-    if (_powerConsistencyPercent != null && _powerConsistencyPercent! > 10.0) {
+    if (powerCvPercent != null && powerCvPercent > _powerCvWarnThreshold) {
       confidence = confidence == 'HIGH' ? 'MEDIUM' : 'LOW';
-      final powerWarning = '⚠ Power varied significantly between laps (${_powerConsistencyPercent!.toStringAsFixed(1)}%). Results may be less reliable.';
+      final powerWarning = '⚠ Power varied significantly between laps (${powerCvPercent.toStringAsFixed(1)}%). Results may be less reliable.';
       warning = warning == null ? powerWarning : '$warning\n$powerWarning';
     }
 
@@ -349,6 +398,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
       appBar: AppBar(
         backgroundColor: bgLight,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'ANALYSIS RESULTS',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
@@ -449,7 +499,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                          const Icon(Icons.info, color: Colors.orange, size: 18),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -481,7 +531,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _confidenceLevel == 'HIGH' ? Icons.verified : _confidenceLevel == 'MEDIUM' ? Icons.check_circle_outline : Icons.error_outline,
+                    _confidenceLevel == 'HIGH' ? Icons.verified : _confidenceLevel == 'MEDIUM' ? Icons.check_circle : Icons.error,
                     color: _confidenceLevel == 'HIGH' ? Colors.green : _confidenceLevel == 'MEDIUM' ? Colors.orange : Colors.red,
                     size: 18,
                   ),
@@ -674,6 +724,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
       final testsList = prefs.getStringList('test_keys') ?? [];
       testsList.add(testKey);
       await prefs.setStringList('test_keys', testsList);
+
+      // Append to durable history file (JSONL)
+      final file = await _historyFile();
+      await file.create(recursive: true);
+      await file.writeAsString('${jsonEncode(testData)}\n', mode: FileMode.append, flush: true);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -692,6 +747,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     }
+  }
+
+  Future<File> _historyFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File(p.join(dir.path, 'test_history.jsonl'));
   }
 
   void _startNewTest() {
@@ -725,7 +785,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+            const Icon(Icons.error, color: Colors.redAccent, size: 48),
             const SizedBox(height: 24),
             const Text('ANALYSIS FAILED', style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),

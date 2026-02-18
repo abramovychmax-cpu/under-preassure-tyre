@@ -97,6 +97,7 @@ class _FitInspectorPageState extends State<FitInspectorPage> {
     return Scaffold(
       backgroundColor: bgLight,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: bgLight,
         elevation: 0,
         title: const Text(
