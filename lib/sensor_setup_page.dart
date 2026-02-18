@@ -296,7 +296,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
       ),
       body: GestureDetector(
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -500 && canProceed) {
+          if (details.primaryVelocity != null && details.primaryVelocity! > 500 && canProceed) {
             _handleSwipeUp();
           }
         },

@@ -127,7 +127,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
           ? const Center(child: CircularProgressIndicator(color: accentGemini))
           : GestureDetector(
               onHorizontalDragEnd: (details) {
-                if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
+                if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
