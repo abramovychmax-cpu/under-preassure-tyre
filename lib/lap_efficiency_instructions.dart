@@ -18,6 +18,15 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
     super.dispose();
   }
 
+  void _goToPressure(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PressureInputPage(protocol: 'lap_efficiency'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,15 +43,9 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
         elevation: 0,
       ),
       body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const PressureInputPage(protocol: 'lap_efficiency'),
-              ),
-            );
+            _goToPressure(context);
           }
         },
         child: Padding(
@@ -59,62 +62,46 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
                       padding: const EdgeInsets.all(12.0),
                       children: [
                         const SizedBox(height: 6),
-                        _instructionStep("1", "Choose a closed loop with consistent surface and minimal traffic."),
-                        _instructionStep("2", "Ride the same line each lap and the same direction."),
-                        _instructionStep("3", "Hold steady power each lap (aim within ±5-10W). Avoid surges/coasting."),
-                        _instructionStep("4", "Use a power you can hold a long time (mid Zone 2)."),
-                        _instructionStep("5", "Keep cadence, gearing, and body position identical each lap."),
-                        _instructionStep("6", "For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency."),
-                        _instructionStep("7", "Record at least 3 laps at different pressures (one pressure per lap)."),
-                        _instructionStep("8", "If power is inconsistent, use Coast-Down instead."),
+                        _instructionStep('1', 'Choose a closed loop with consistent surface and minimal traffic.'),
+                        _instructionStep('2', 'Ride the same line each lap and the same direction.'),
+                        _instructionStep('3', 'Hold steady power each lap (aim within ±5-10W). Avoid surges/coasting.'),
+                        _instructionStep('4', 'Use a power you can hold a long time (mid Zone 2).'),
+                        _instructionStep('5', 'Keep cadence, gearing, and body position identical each lap.'),
+                        _instructionStep('6', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
+                        _instructionStep('7', 'Record at least 3 laps at different pressures (one pressure per lap).'),
+                        _instructionStep('8', 'If power is inconsistent, use Coast-Down instead.'),
+                        _instructionStep('9', 'Start Run 1 at HIGHEST recommended pressure (sidewall/rim max).'),
+                        _instructionStep('10', 'Start Run 2 at MINIMUM recommended pressure (sidewall min).'),
+                        _instructionStep('11', 'Start Run 3 at the MIDDLE point between Max and Min.'),
                         const SizedBox(height: 18),
-                        const SizedBox(height: 12),
-                        const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.keyboard_arrow_up,
-                                color: accentGemini,
-                                size: 28,
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'SWIPE UP OR TAP CONTINUE',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: accentGemini,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accentGemini,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(44),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PressureInputPage(protocol: 'lap_efficiency'),
-                              ),
-                            );
-                          },
-                          child: const Text('CONTINUE'),
-                        ),
-                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_right,
+                      color: accentGemini,
+                      size: 32,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'SWIPE RIGHT TO CONTINUE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: accentGemini,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

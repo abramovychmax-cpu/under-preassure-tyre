@@ -18,7 +18,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
     super.dispose();
   }
 
-  void _goToPressureInput() {
+  void _goToPressure(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const PressureInputPage(protocol: 'constant_power')),
@@ -41,10 +41,9 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
         elevation: 0,
       ),
       body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-            _goToPressureInput();
+            _goToPressure(context);
           }
         },
         child: Padding(
@@ -71,47 +70,38 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
                         _instructionStep('8', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
                         _instructionStep('9', 'Record at least 3 runs at different pressures.'),
                         _instructionStep('10', 'If you cannot keep power steady (gravel/traffic), use Coast-Down.'),
+                        _instructionStep('11', 'Start Run 1 at HIGHEST recommended pressure (sidewall/rim max).'),
+                        _instructionStep('12', 'Start Run 2 at MINIMUM recommended pressure (sidewall min).'),
+                        _instructionStep('13', 'Start Run 3 at the MIDDLE point between Max and Min.'),
                         const SizedBox(height: 18),
-                        const SizedBox(height: 12),
-                        const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.keyboard_arrow_up,
-                                color: accentGemini,
-                                size: 28,
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'SWIPE UP OR TAP CONTINUE',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: accentGemini,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accentGemini,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(44),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: _goToPressureInput,
-                          child: const Text('CONTINUE'),
-                        ),
-                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_right,
+                      color: accentGemini,
+                      size: 32,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'SWIPE RIGHT TO CONTINUE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: accentGemini,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

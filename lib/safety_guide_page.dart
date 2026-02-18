@@ -28,89 +28,77 @@ class SafetyGuidePage extends StatelessWidget {
         elevation: 0,
       ),
       body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
             _goToProtocols(context);
           }
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
-              const Text(
-                'UNIVERSAL RULES',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF222222),
-                  letterSpacing: 1.2,
-                ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 10),
+            const Text(
+              'UNIVERSAL RULES',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF222222),
+                letterSpacing: 1.2,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'These guidelines apply to all testing protocols.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF666666),
-                  height: 1.4,
-                ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'These guidelines apply to all testing protocols.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF666666),
+                height: 1.4,
               ),
-              const SizedBox(height: 32),
-              _sectionHeader('🛡️ Safety'),
-              _bulletPoint('Choose routes with minimal or no traffic.'),
-              _bulletPoint('Never exceed the max or minimum pressure for your tire/rim combo.'),
-              const SizedBox(height: 24),
-              _sectionHeader('🎯 Consistency'),
-              _bulletPoint('Ride manageable terrain and keep power and speed steady.'),
-              const SizedBox(height: 24),
-              _sectionHeader('📏 Position'),
-              _bulletPoint('Keep the same body position every run for reliable results.'),
-              const SizedBox(height: 24),
-              _sectionHeader('🔢 Runs'),
-              _bulletPoint('Perform at least three runs at different pressures.'),
-              const SizedBox(height: 40),
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.keyboard_arrow_up,
+            ),
+            const SizedBox(height: 32),
+            _sectionHeader('Safety'),
+            _bulletPoint('Choose routes with minimal or no traffic.'),
+            _bulletPoint('Never exceed the max or minimum pressure for your tire/rim combo.'),
+            const SizedBox(height: 24),
+            _sectionHeader('Consistency'),
+            _bulletPoint('Ride manageable terrain and keep power and speed steady.'),
+            const SizedBox(height: 24),
+            _sectionHeader('Position'),
+            _bulletPoint('Keep the same body position every run for reliable results.'),
+            const SizedBox(height: 24),
+            _sectionHeader('Runs'),
+            _bulletPoint('Perform at least three runs at different pressures.'),
+            const SizedBox(height: 40),
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.keyboard_arrow_right,
+                    color: accentGemini,
+                    size: 32,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'SWIPE RIGHT TO CONTINUE',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
                       color: accentGemini,
-                      size: 28,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'SWIPE UP OR TAP CONTINUE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: accentGemini,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentGemini,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () => _goToProtocols(context),
-                      child: const Text('CONTINUE'),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
+      ),
       ),
     );
   }

@@ -137,7 +137,29 @@ class _PressureInputPageState extends State<PressureInputPage> {
                         ],
                       ),
                       
+                      // Pressure selection guidance
+                      const SizedBox(height: 20),
+                      AppCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Pressure Selection',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF222222)),
+                            ),
+                            const SizedBox(height: 12),
+                            _pressureGuideStep('Run 1', 'HIGHEST recommended pressure (sidewall/rim max)'),
+                            const SizedBox(height: 10),
+                            _pressureGuideStep('Run 2', 'MINIMUM recommended pressure (sidewall min)'),
+                            const SizedBox(height: 10),
+                            _pressureGuideStep('Run 3', 'MIDDLE point between Max and Min'),
+                          ],
+                        ),
+                      ),
+                      
                       // Show previous run pressures if any
+                      const SizedBox(height: 20),
                       if (_previousPressures.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         SizedBox(
@@ -349,6 +371,25 @@ class _PressureInputPageState extends State<PressureInputPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _pressureGuideStep(String run, String guidance) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          run,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: accentGemini),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            guidance,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF666666), height: 1.4),
+          ),
+        ),
+      ],
     );
   }
 }

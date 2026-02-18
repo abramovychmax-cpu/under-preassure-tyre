@@ -18,10 +18,19 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
     super.dispose();
   }
 
+  void _goToPressure(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PressureInputPage(protocol: 'coast_down'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgLight,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -29,20 +38,14 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
         ),
         centerTitle: true,
-        backgroundColor: bgLight,
+        backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
       ),
       body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const PressureInputPage(protocol: 'coast_down'),
-              ),
-            );
+            _goToPressure(context);
           }
         },
         child: Padding(
@@ -59,67 +62,40 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                       padding: const EdgeInsets.all(12.0),
                       children: [
                         const SizedBox(height: 6),
-                        _instructionStep("1", "Find a hill without traffic and a safe run-out."),
-                        _instructionStep("2", "Avoid the steepest hill; choose a slope with a safe top speed."),
-                        _instructionStep("3", "Pick a Top Anchor (starting line). Use this exact spot for every run."),
-                        _instructionStep("4", "No pedaling or braking until the run is complete."),
-                        _instructionStep("4a", "Choose a descent that naturally rolls out — no brakes needed to stop."),
-                        _instructionStep("5", "Power consistency is not required. Coast only."),
-                        _instructionStep("6", "Keep your body position exactly the same every time."),
-                        _instructionStep("7", "For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency."),
-                        _instructionStep("8", "Start Run 1 at HIGHEST recommended pressure (sidewall/rim max)."),
-                        _instructionStep("9", "Start Run 2 at MINIMUM recommended pressure (sidewall min)."),
-                        _instructionStep("10", "Start Run 3 at the MIDDLE point between Max and Min."),
-                        _instructionStep("11", "At least 3 runs required. More runs = better accuracy."),
-                        _instructionStep("12", "BE CAREFUL. Safety is the priority. Abort if unstable."),
+                        _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
+                        _instructionStep('2', 'Start all runs from the same point.'),
+                        _instructionStep('3', 'No pedaling or braking until the run is complete.'),
+                        _instructionStep('4', 'Braking = end of testing segment.'),
+                        _instructionStep('5', 'Power consistency is not required. Coast only.'),
                         const SizedBox(height: 18),
-                        const SizedBox(height: 12),
-                        const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.keyboard_arrow_up,
-                                color: accentGemini,
-                                size: 28,
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'SWIPE UP OR TAP CONTINUE',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: accentGemini,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accentGemini,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(44),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PressureInputPage(protocol: 'coast_down'),
-                              ),
-                            );
-                          },
-                          child: const Text('CONTINUE'),
-                        ),
-                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_right,
+                      color: accentGemini,
+                      size: 32,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'SWIPE RIGHT TO CONTINUE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: accentGemini,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

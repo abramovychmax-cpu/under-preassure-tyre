@@ -23,23 +23,23 @@ class _WelcomePageState extends State<WelcomePage> {
     return Scaffold(
       backgroundColor: bgLight,
       body: GestureDetector(
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
             _navigateToSetup();
           }
         },
-        child: SafeArea(
+        child: const SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               children: [
-                const SizedBox(height: 40),
-                const Spacer(flex: 2),
+                SizedBox(height: 40),
+                Spacer(flex: 2),
                 Column(
                   children: [
-                    const CyclingWheelIcon(size: 160),
-                    const SizedBox(height: 48),
-                    const Text(
+                    CyclingWheelIcon(size: 160),
+                    SizedBox(height: 48),
+                    Text(
                       'PERFECT\nPRESSURE',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -50,8 +50,8 @@ class _WelcomePageState extends State<WelcomePage> {
                         height: 1.1,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const Padding(
+                    SizedBox(height: 24),
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'This app will help you find the fastest tire pressure for you and your bike setup.',
@@ -64,8 +64,8 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Padding(
+                    SizedBox(height: 16),
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'Get ready to set up the app.',
@@ -77,32 +77,9 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentGemini,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(46),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: _navigateToSetup,
-                      child: const Text('GET STARTED'),
-                    ),
-                  ],
-                ),
-                const Spacer(flex: 3),
-                const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_up,
-                      color: accentGemini,
-                      size: 28,
-                    ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 24),
                     Text(
-                      'SWIPE UP OR TAP CONTINUE',
+                      'SWIPE RIGHT TO CONTINUE',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: accentGemini,
@@ -113,7 +90,8 @@ class _WelcomePageState extends State<WelcomePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 40),
+                Spacer(flex: 3),
+                SizedBox(height: 40),
               ],
             ),
           ),

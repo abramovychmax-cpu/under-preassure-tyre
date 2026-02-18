@@ -60,8 +60,8 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
     );
     
     _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: const Offset(0, -0.1),
+      begin: const Offset(-0.1, 0),
+      end: const Offset(0.1, 0),
     ).animate(CurvedAnimation(parent: _swipeAnimationController, curve: Curves.easeInOut));
     
     // ensure any open keyboard is dismissed when entering this page
@@ -295,7 +295,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
         foregroundColor: const Color(0xFF222222),
       ),
       body: GestureDetector(
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500 && canProceed) {
             _handleSwipeUp();
           }
@@ -447,12 +447,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
                 child: Column(
                   children: [
                     Icon(
-                      Icons.keyboard_arrow_up,
+                      Icons.keyboard_arrow_right,
                       color: canProceed ? accentGemini : Colors.grey.shade400,
                       size: 32,
                     ),
                     Text(
-                      canProceed ? 'SWIPE UP TO CONFIGURE WHEEL' : 'CONNECT SENSORS FIRST',
+                      canProceed ? 'SWIPE RIGHT TO CONFIGURE WHEEL' : 'CONNECT SENSORS FIRST',
                       style: TextStyle(
                         color: canProceed ? accentGemini : Colors.grey.shade400,
                         fontSize: 12,

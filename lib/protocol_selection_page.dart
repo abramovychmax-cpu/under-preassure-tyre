@@ -26,74 +26,73 @@ class ProtocolSelectionPage extends StatelessWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final totalAvailableHeight = constraints.maxHeight - 64;
-          final cardHeight = totalAvailableHeight / 3;
+          final cardHeight = (totalAvailableHeight - 80) / 3; // Reduced from totalAvailableHeight / 3
 
-          return Center(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _protocolCard(
-                  cardHeight,
-                  'Coast-Down (Gravity)',
-                  'Action: Coast hill; no pedaling.\nRequirement: At least 3 runs.\nNote: No Power Meter required.',
-                  Icons.terrain,
-                  Colors.green,
-                  'No Power Meter',
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CoastDownInstructions()),
-                    );
-                  },
+          return ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              _protocolCard(
+                cardHeight,
+                'Coast-Down (Gravity)',
+                'Action: Coast hill; no pedaling.\nRequirement: At least 3 runs.\nNote: No Power Meter required.',
+                Icons.terrain,
+                Colors.green,
+                'No Power Meter',
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CoastDownInstructions()),
+                  );
+                },
+              ),
+              _protocolCard(
+                cardHeight,
+                'Constant Power / Speed',
+                'Action: Flat road; steady effort.\nRequirement: At least 3 runs.\nData: Speed vs. Wattage efficiency.',
+                Icons.bolt,
+                Colors.blue,
+                'Power Meter required',
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ConstantPowerInstructions()),
+                  );
+                },
+              ),
+              _protocolCard(
+                cardHeight,
+                'Lap Efficiency (Chung)',
+                'Action: Closed GPS loop.\nRequirement: At least 3 laps per pressure.\nData: Avg Power vs. Avg Speed.',
+                Icons.loop,
+                Colors.purple,
+                'Power Meter required',
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LapEfficiencyInstructions()),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentGemini,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                _protocolCard(
-                  cardHeight,
-                  'Constant Power / Speed',
-                  'Action: Flat road; steady effort.\nRequirement: At least 3 runs.\nData: Speed vs. Wattage efficiency.',
-                  Icons.bolt,
-                  Colors.blue,
-                  'Power Meter required',
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ConstantPowerInstructions()),
-                    );
-                  },
-                ),
-                _protocolCard(
-                  cardHeight,
-                  'Lap Efficiency (Chung)',
-                  'Action: Closed GPS loop.\nRequirement: At least 3 laps per pressure.\nData: Avg Power vs. Avg Speed.',
-                  Icons.loop,
-                  Colors.purple,
-                  'Power Meter required',
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LapEfficiencyInstructions()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accentGemini,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(44),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
-                    );
-                  },
-                  child: const Text('VIEW SAFETY GUIDE'),
-                ),
-              ],
-            ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
+                  );
+                },
+                child: const Text('VIEW SAFETY GUIDE'),
+              ),
+              const SizedBox(height: 12),
+            ],
           );
         },
       ),
@@ -137,7 +136,7 @@ class ProtocolSelectionPage extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            color.withOpacity(0.10),
+            color.withValues(alpha: 0.10),
             Colors.white,
           ],
         ),
@@ -154,7 +153,7 @@ class ProtocolSelectionPage extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: color.withOpacity(0.12),
+                    backgroundColor: color.withValues(alpha: 0.12),
                     radius: 20,
                     child: Icon(icon, color: color, size: 22),
                   ),
@@ -172,7 +171,7 @@ class ProtocolSelectionPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(

@@ -17,19 +17,19 @@ class WheelMetricsGuidePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgLight,
       body: GestureDetector(
-        onVerticalDragEnd: (details) {
+        onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
             _navigateToMetrics(context);
           }
         },
-        child: SafeArea(
+        child: const SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               children: [
-                const SizedBox(height: 60),
-                const Spacer(flex: 2),
-                const Column(
+                SizedBox(height: 60),
+                Spacer(flex: 2),
+                Column(
                   children: [
                     Icon(
                       Icons.settings,
@@ -76,19 +76,19 @@ class WheelMetricsGuidePage extends StatelessWidget {
                     ),
                   ],
                 ),
-                const Spacer(flex: 3),
+                Spacer(flex: 3),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.keyboard_arrow_up,
+                    Icon(
+                      Icons.keyboard_arrow_right,
                       color: accentGemini,
                       size: 28,
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'SWIPE UP TO CONTINUE',
+                    SizedBox(height: 4),
+                    Text(
+                      'SWIPE RIGHT TO CONTINUE',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: accentGemini,
@@ -97,20 +97,9 @@ class WheelMetricsGuidePage extends StatelessWidget {
                         letterSpacing: 1.1,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentGemini,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () => _navigateToMetrics(context),
-                      child: const Text('CONTINUE'),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 40),
+                SizedBox(height: 40),
               ],
             ),
           ),

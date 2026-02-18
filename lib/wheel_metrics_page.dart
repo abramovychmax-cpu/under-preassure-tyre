@@ -57,8 +57,8 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
     );
     
     _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: const Offset(0, -0.1),
+      begin: const Offset(-0.1, 0),
+      end: const Offset(0.1, 0),
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
   }
 
@@ -126,7 +126,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
         body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: accentGemini))
           : GestureDetector(
-              onVerticalDragEnd: (details) {
+              onHorizontalDragEnd: (details) {
                 if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
                   Navigator.push(
                     context,
@@ -396,7 +396,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
                   ),
                   const SizedBox(height: 32),
 
-                  // Swipe Up Indicator
+                  // Swipe Right Indicator
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: SlideTransition(
@@ -404,12 +404,12 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
                       child: const Column(
                         children: [
                           Icon(
-                            Icons.keyboard_arrow_up,
+                            Icons.keyboard_arrow_right,
                             color: accentGemini,
                             size: 32,
                           ),
                           Text(
-                            'SWIPE UP TO CONTINUE',
+                            'SWIPE RIGHT TO CONTINUE',
                             style: TextStyle(
                               color: accentGemini,
                               fontSize: 12,
