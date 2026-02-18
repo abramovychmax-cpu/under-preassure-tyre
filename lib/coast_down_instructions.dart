@@ -9,35 +9,12 @@ class CoastDownInstructions extends StatefulWidget {
   State<CoastDownInstructions> createState() => _CoastDownInstructionsState();
 }
 
-class _CoastDownInstructionsState extends State<CoastDownInstructions> with SingleTickerProviderStateMixin {
+class _CoastDownInstructionsState extends State<CoastDownInstructions> {
   final ScrollController _scrollController = ScrollController();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _swipeSlideAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: const Offset(0, -0.1),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-  }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -57,23 +34,13 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> with Sing
         elevation: 0,
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onVerticalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
             Navigator.push(
               context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const PressureInputPage(protocol: 'coast_down'),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(0.0, 1.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeInOut;
-                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  return SlideTransition(
-                    position: animation.drive(tween),
-                    child: child,
-                  );
-                },
-                transitionDuration: const Duration(milliseconds: 400),
+              MaterialPageRoute(
+                builder: (context) => const PressureInputPage(protocol: 'coast_down'),
               ),
             );
           }
@@ -106,31 +73,48 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> with Sing
                         _instructionStep("11", "At least 3 runs required. More runs = better accuracy."),
                         _instructionStep("12", "BE CAREFUL. Safety is the priority. Abort if unstable."),
                         const SizedBox(height: 18),
-                        Center(
-                          child: FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: SlideTransition(
-                              position: _swipeSlideAnimation,
-                              child: const Column(
-                                children: [
-                                  Icon(
-                                    Icons.keyboard_arrow_up,
-                                    color: accentGemini,
-                                    size: 32,
-                                  ),
-                                  Text(
-                                    'SWIPE UP TO CONTINUE',
-                                    style: TextStyle(
-                                      color: accentGemini,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ],
+                        const SizedBox(height: 12),
+                        const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.keyboard_arrow_up,
+                                color: accentGemini,
+                                size: 28,
                               ),
-                            ),
+                              SizedBox(height: 4),
+                              Text(
+                                'SWIPE UP OR TAP CONTINUE',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: accentGemini,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentGemini,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(44),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PressureInputPage(protocol: 'coast_down'),
+                              ),
+                            );
+                          },
+                          child: const Text('CONTINUE'),
                         ),
                         const SizedBox(height: 8),
                       ],

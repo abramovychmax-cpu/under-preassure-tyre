@@ -2,43 +2,14 @@ import 'package:flutter/material.dart';
 import 'protocol_selection_page.dart';
 import 'ui/common_widgets.dart';
 
-/// Safety & Testing Guidelines shown before protocol selection
-/// Displays common rules that apply to all three testing protocols
-class SafetyGuidePage extends StatefulWidget {
+class SafetyGuidePage extends StatelessWidget {
   const SafetyGuidePage({super.key});
 
-  @override
-  State<SafetyGuidePage> createState() => _SafetyGuidePageState();
-}
-
-class _SafetyGuidePageState extends State<SafetyGuidePage> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _swipeSlideAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+  void _goToProtocols(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProtocolSelectionPage()),
     );
-    
-    _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: const Offset(0, -0.1),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   @override
@@ -47,35 +18,20 @@ class _SafetyGuidePageState extends State<SafetyGuidePage> with SingleTickerProv
       backgroundColor: bgLight,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: bgLight,
-        elevation: 0,
         title: const Text(
           'SAFETY & TESTING',
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        backgroundColor: bgLight,
+        elevation: 0,
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onVerticalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const ProtocolSelectionPage(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(0.0, 1.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeInOut;
-                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  return SlideTransition(
-                    position: animation.drive(tween),
-                    child: child,
-                  );
-                },
-                transitionDuration: const Duration(milliseconds: 400),
-              ),
-            );
+            _goToProtocols(context);
           }
         },
         child: SingleChildScrollView(
@@ -103,53 +59,52 @@ class _SafetyGuidePageState extends State<SafetyGuidePage> with SingleTickerProv
                 ),
               ),
               const SizedBox(height: 32),
-
-              // Safety Section
               _sectionHeader('🛡️ Safety'),
               _bulletPoint('Choose routes with minimal or no traffic.'),
               _bulletPoint('Never exceed the max or minimum pressure for your tire/rim combo.'),
               const SizedBox(height: 24),
-
-              // Consistency Section
               _sectionHeader('🎯 Consistency'),
               _bulletPoint('Ride manageable terrain and keep power and speed steady.'),
               const SizedBox(height: 24),
-
-              // Position Section
               _sectionHeader('📏 Position'),
               _bulletPoint('Keep the same body position every run for reliable results.'),
               const SizedBox(height: 24),
-
-              // Runs Section
               _sectionHeader('🔢 Runs'),
               _bulletPoint('Perform at least three runs at different pressures.'),
               const SizedBox(height: 40),
-
-              // Swipe Up Indicator
               Center(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SlideTransition(
-                    position: _swipeSlideAnimation,
-                    child: const Column(
-                      children: [
-                        Icon(
-                          Icons.keyboard_arrow_up,
-                          color: accentGemini,
-                          size: 32,
-                        ),
-                        Text(
-                          'SWIPE UP TO CONTINUE',
-                          style: TextStyle(
-                            color: accentGemini,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.keyboard_arrow_up,
+                      color: accentGemini,
+                      size: 28,
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'SWIPE UP OR TAP CONTINUE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: accentGemini,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentGemini,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => _goToProtocols(context),
+                      child: const Text('CONTINUE'),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -160,7 +115,7 @@ class _SafetyGuidePageState extends State<SafetyGuidePage> with SingleTickerProv
     );
   }
 
-  Widget _sectionHeader(String title) {
+  static Widget _sectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Text(
@@ -175,7 +130,7 @@ class _SafetyGuidePageState extends State<SafetyGuidePage> with SingleTickerProv
     );
   }
 
-  Widget _bulletPoint(String text) {
+  static Widget _bulletPoint(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
       child: Row(

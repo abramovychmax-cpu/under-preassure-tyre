@@ -9,36 +9,20 @@ class ConstantPowerInstructions extends StatefulWidget {
   State<ConstantPowerInstructions> createState() => _ConstantPowerInstructionsState();
 }
 
-class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> with SingleTickerProviderStateMixin {
+class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
   final ScrollController _scrollController = ScrollController();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _swipeSlideAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: const Offset(0, -0.1),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-  }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _animationController.dispose();
     super.dispose();
+  }
+
+  void _goToPressureInput() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PressureInputPage(protocol: 'constant_power')),
+    );
   }
 
   @override
@@ -57,25 +41,10 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> w
         elevation: 0,
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onVerticalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const PressureInputPage(protocol: 'constant_power'),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(0.0, 1.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeInOut;
-                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  return SlideTransition(
-                    position: animation.drive(tween),
-                    child: child,
-                  );
-                },
-                transitionDuration: const Duration(milliseconds: 400),
-              ),
-            );
+            _goToPressureInput();
           }
         },
         child: Padding(
@@ -92,42 +61,52 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> w
                       padding: const EdgeInsets.all(12.0),
                       children: [
                         const SizedBox(height: 6),
-                        _instructionStep("1", "Use an out-and-back (A-B-A) route so you can pump only at A."),
-                        _instructionStep("2", "Pick a straight segment and use the same start/end markers each run."),
-                        _instructionStep("3", "Hold steady power each run (aim within ±5-10W). Avoid surges."),
-                        _instructionStep("4", "Use a power you can hold a long time (mid Zone 2)."),
-                        _instructionStep("5", "Keep cadence, gearing, and body position identical each run."),
-                        _instructionStep("6", "Avoid drafting and traffic interruptions."),
-                        _instructionStep("7", "Only repeatable segments with similar power (±10%) are used in analysis."),
-                        _instructionStep("8", "For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency."),
-                        _instructionStep("9", "Record at least 3 runs at different pressures."),
-                        _instructionStep("10", "If you cannot keep power steady (gravel/traffic), use Coast-Down."),
+                        _instructionStep('1', 'Use an out-and-back (A-B-A) route so you can pump only at A.'),
+                        _instructionStep('2', 'Pick a straight segment and use the same start/end markers each run.'),
+                        _instructionStep('3', 'Hold steady power each run (aim within ±5-10W). Avoid surges.'),
+                        _instructionStep('4', 'Use a power you can hold a long time (mid Zone 2).'),
+                        _instructionStep('5', 'Keep cadence, gearing, and body position identical each run.'),
+                        _instructionStep('6', 'Avoid drafting and traffic interruptions.'),
+                        _instructionStep('7', 'Only repeatable segments with similar power (±10%) are used in analysis.'),
+                        _instructionStep('8', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
+                        _instructionStep('9', 'Record at least 3 runs at different pressures.'),
+                        _instructionStep('10', 'If you cannot keep power steady (gravel/traffic), use Coast-Down.'),
                         const SizedBox(height: 18),
-                        Center(
-                          child: FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: SlideTransition(
-                              position: _swipeSlideAnimation,
-                              child: const Column(
-                                children: [
-                                  Icon(
-                                    Icons.keyboard_arrow_up,
-                                    color: accentGemini,
-                                    size: 32,
-                                  ),
-                                  Text(
-                                    'SWIPE UP TO CONTINUE',
-                                    style: TextStyle(
-                                      color: accentGemini,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ],
+                        const SizedBox(height: 12),
+                        const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.keyboard_arrow_up,
+                                color: accentGemini,
+                                size: 28,
                               ),
-                            ),
+                              SizedBox(height: 4),
+                              Text(
+                                'SWIPE UP OR TAP CONTINUE',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: accentGemini,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentGemini,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(44),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: _goToPressureInput,
+                          child: const Text('CONTINUE'),
                         ),
                         const SizedBox(height: 8),
                       ],
