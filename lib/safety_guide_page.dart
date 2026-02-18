@@ -28,6 +28,7 @@ class SafetyGuidePage extends StatelessWidget {
         elevation: 0,
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
             _goToProtocols(context);

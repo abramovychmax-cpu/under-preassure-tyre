@@ -295,6 +295,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
         foregroundColor: const Color(0xFF222222),
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! > 500 && canProceed) {
             _handleSwipeUp();

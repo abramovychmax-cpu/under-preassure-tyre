@@ -35,6 +35,7 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
         elevation: 0,
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
             _goToPressure(context);

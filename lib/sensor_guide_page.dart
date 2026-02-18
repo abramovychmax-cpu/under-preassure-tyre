@@ -17,6 +17,7 @@ class SensorGuidePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgLight,
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
             _navigateToSetup(context);

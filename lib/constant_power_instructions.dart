@@ -33,6 +33,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
         elevation: 0,
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
             _goToPressure(context);
