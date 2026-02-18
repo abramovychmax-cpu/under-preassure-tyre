@@ -128,7 +128,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
           : GestureDetector(
               behavior: HitTestBehavior.opaque,
               onHorizontalDragEnd: (details) {
-                if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
+                if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
@@ -397,7 +397,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
                   ),
                   const SizedBox(height: 32),
 
-                  // Swipe Right Indicator
+                  // Swipe Left Indicator
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: SlideTransition(
@@ -405,12 +405,12 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
                       child: const Column(
                         children: [
                           Icon(
-                            Icons.keyboard_arrow_right,
+                            Icons.keyboard_arrow_left,
                             color: accentGemini,
                             size: 32,
                           ),
                           Text(
-                            'SWIPE RIGHT TO CONTINUE',
+                            'SWIPE LEFT TO CONTINUE',
                             style: TextStyle(
                               color: accentGemini,
                               fontSize: 12,

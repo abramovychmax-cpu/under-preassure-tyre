@@ -297,7 +297,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! > 500 && canProceed) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -500 && canProceed) {
             _handleSwipeUp();
           }
         },
@@ -448,12 +448,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
                 child: Column(
                   children: [
                     Icon(
-                      Icons.keyboard_arrow_right,
+                      Icons.keyboard_arrow_left,
                       color: canProceed ? accentGemini : Colors.grey.shade400,
                       size: 32,
                     ),
                     Text(
-                      canProceed ? 'SWIPE RIGHT TO CONFIGURE WHEEL' : 'CONNECT SENSORS FIRST',
+                      canProceed ? 'SWIPE LEFT TO CONFIGURE WHEEL' : 'CONNECT SENSORS FIRST',
                       style: TextStyle(
                         color: canProceed ? accentGemini : Colors.grey.shade400,
                         fontSize: 12,

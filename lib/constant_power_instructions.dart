@@ -35,7 +35,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
             _goToPressure(context);
           }
         },
@@ -71,10 +71,10 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.keyboard_arrow_right, color: accentGemini, size: 28),
+                  Icon(Icons.keyboard_arrow_left, color: accentGemini, size: 28),
                   SizedBox(height: 4),
                   Text(
-                    'SWIPE RIGHT TO CONTINUE',
+                    'SWIPE LEFT TO CONTINUE',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.1),
                   ),
