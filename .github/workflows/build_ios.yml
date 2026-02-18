@@ -1,6 +1,12 @@
 name: Build iOS App
 
 on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to build"
+        required: false
+        default: "main"
   push:
     branches: [main, develop, dev_2]
   pull_request:
