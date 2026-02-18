@@ -10,14 +10,6 @@ class CoastDownInstructions extends StatefulWidget {
 }
 
 class _CoastDownInstructionsState extends State<CoastDownInstructions> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   void _goToPressure(BuildContext context) {
     Navigator.push(
       context,
@@ -48,56 +40,43 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
             _goToPressure(context);
           }
         },
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: AppCard(
-                  child: Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: true,
-                    child: ListView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(12.0),
-                      children: [
-                        const SizedBox(height: 6),
-                        _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
-                        _instructionStep('2', 'Start all runs from the same point.'),
-                        _instructionStep('3', 'No pedaling or braking until the run is complete.'),
-                        _instructionStep('4', 'Braking = end of testing segment.'),
-                        _instructionStep('5', 'Power consistency is not required. Coast only.'),
-                        const SizedBox(height: 18),
-                      ],
-                    ),
+              AppCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 6),
+                      _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
+                      _instructionStep('2', 'Start all runs from the same point.'),
+                      _instructionStep('3', 'No pedaling or braking until the run is complete.'),
+                      _instructionStep('4', 'Braking = end of testing segment.'),
+                      _instructionStep('5', 'Power consistency is not required. Coast only.'),
+                      const SizedBox(height: 6),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_right,
-                      color: accentGemini,
-                      size: 32,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'SWIPE RIGHT TO CONTINUE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: accentGemini,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
+              const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(Icons.keyboard_arrow_right, color: accentGemini, size: 28),
+                  SizedBox(height: 4),
+                  Text(
+                    'SWIPE RIGHT TO CONTINUE',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.1),
+                  ),
+                ],
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

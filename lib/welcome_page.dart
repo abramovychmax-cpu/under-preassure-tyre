@@ -77,7 +77,19 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 24),
+                  ],
+                ),
+                Spacer(flex: 3),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_right,
+                      color: accentGemini,
+                      size: 28,
+                    ),
+                    SizedBox(height: 4),
                     Text(
                       'SWIPE RIGHT TO CONTINUE',
                       textAlign: TextAlign.center,
@@ -90,7 +102,6 @@ class _WelcomePageState extends State<WelcomePage> {
                     ),
                   ],
                 ),
-                Spacer(flex: 3),
                 SizedBox(height: 40),
               ],
             ),

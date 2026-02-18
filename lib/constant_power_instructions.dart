@@ -10,14 +10,6 @@ class ConstantPowerInstructions extends StatefulWidget {
 }
 
 class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   void _goToPressure(BuildContext context) {
     Navigator.push(
       context,
@@ -28,7 +20,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgLight,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -36,7 +28,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
         ),
         centerTitle: true,
-        backgroundColor: bgLight,
+        backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
       ),
@@ -46,64 +38,48 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
             _goToPressure(context);
           }
         },
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: AppCard(
-                  child: Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: true,
-                    child: ListView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(12.0),
-                      children: [
-                        const SizedBox(height: 6),
-                        _instructionStep('1', 'Use an out-and-back (A-B-A) route so you can pump only at A.'),
-                        _instructionStep('2', 'Pick a straight segment and use the same start/end markers each run.'),
-                        _instructionStep('3', 'Hold steady power each run (aim within ±5-10W). Avoid surges.'),
-                        _instructionStep('4', 'Use a power you can hold a long time (mid Zone 2).'),
-                        _instructionStep('5', 'Keep cadence, gearing, and body position identical each run.'),
-                        _instructionStep('6', 'Avoid drafting and traffic interruptions.'),
-                        _instructionStep('7', 'Only repeatable segments with similar power (±10%) are used in analysis.'),
-                        _instructionStep('8', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
-                        _instructionStep('9', 'Record at least 3 runs at different pressures.'),
-                        _instructionStep('10', 'If you cannot keep power steady (gravel/traffic), use Coast-Down.'),
-                        _instructionStep('11', 'Start Run 1 at HIGHEST recommended pressure (sidewall/rim max).'),
-                        _instructionStep('12', 'Start Run 2 at MINIMUM recommended pressure (sidewall min).'),
-                        _instructionStep('13', 'Start Run 3 at the MIDDLE point between Max and Min.'),
-                        const SizedBox(height: 18),
-                      ],
-                    ),
+              AppCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 6),
+                      _instructionStep('1', 'Use an out-and-back (A-B-A) route so you can pump only at A.'),
+                      _instructionStep('2', 'Pick a straight segment and use the same start/end markers each run.'),
+                      _instructionStep('3', 'Hold steady power each run (aim within ±5-10W). Avoid surges.'),
+                      _instructionStep('4', 'Use a power you can hold a long time (mid Zone 2).'),
+                      _instructionStep('5', 'Keep cadence, gearing, and body position identical each run.'),
+                      _instructionStep('6', 'Avoid drafting and traffic interruptions.'),
+                      _instructionStep('7', 'Only repeatable segments with similar power (±10%) are used in analysis.'),
+                      _instructionStep('8', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
+                      _instructionStep('9', 'Record at least 3 runs at different pressures.'),
+                      _instructionStep('10', 'If you cannot keep power steady (gravel/traffic), use Coast-Down.'),
+                      const SizedBox(height: 6),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_right,
-                      color: accentGemini,
-                      size: 32,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'SWIPE RIGHT TO CONTINUE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: accentGemini,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
+              const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(Icons.keyboard_arrow_right, color: accentGemini, size: 28),
+                  SizedBox(height: 4),
+                  Text(
+                    'SWIPE RIGHT TO CONTINUE',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.1),
+                  ),
+                ],
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

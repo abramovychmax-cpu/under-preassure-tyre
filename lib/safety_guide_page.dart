@@ -71,17 +71,16 @@ class SafetyGuidePage extends StatelessWidget {
             _sectionHeader('Runs'),
             _bulletPoint('Perform at least three runs at different pressures.'),
             const SizedBox(height: 40),
-            const Center(
-              child: Column(
+            const Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.keyboard_arrow_right,
                     color: accentGemini,
-                    size: 32,
+                    size: 28,
                   ),
-                  SizedBox(height: 8),
+                  SizedBox(height: 4),
                   Text(
                     'SWIPE RIGHT TO CONTINUE',
                     textAlign: TextAlign.center,
@@ -93,7 +92,6 @@ class SafetyGuidePage extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
             ),
             const SizedBox(height: 20),
           ],
