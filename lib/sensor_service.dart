@@ -55,6 +55,22 @@ class SensorService {
   bool get isSpeedConnected =>
       _savedSpeedId != null && _connectedDevices.containsKey(_savedSpeedId);
 
+  /// Synchronous snapshot of currently connected slot names (for UI re-init).
+  Map<String, String> get currentConnectedNames => {
+    'speed':   _savedSpeedId   == null ? '' : (_deviceNames[_savedSpeedId]   ?? _savedSpeedId!),
+    'power':   _savedPowerId   == null ? '' : (_deviceNames[_savedPowerId]   ?? _savedPowerId!),
+    'cadence': _savedCadenceId == null ? '' : (_deviceNames[_savedCadenceId] ?? _savedCadenceId!),
+  };
+
+  /// Synchronous snapshot of which slots are currently connected.
+  Set<String> get currentConnectedSlots {
+    final slots = <String>{};
+    if (_savedSpeedId   != null && _connectedDevices.containsKey(_savedSpeedId))   slots.add('speed');
+    if (_savedPowerId   != null && _connectedDevices.containsKey(_savedPowerId))   slots.add('power');
+    if (_savedCadenceId != null && _connectedDevices.containsKey(_savedCadenceId)) slots.add('cadence');
+    return slots;
+  }
+
   /// When true, GPS is used as the primary speed & distance source.
   bool _useGpsAsSpeed = false;
   bool get useGpsAsSpeed => _useGpsAsSpeed;

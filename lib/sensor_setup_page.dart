@@ -57,9 +57,21 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     _loadSpeedUnit();
     _initInternalSensors();
     _initDataStreams();
+
+    // Seed UI immediately from current service state (handles page re-push)
+    final svc = SensorService();
+    final initNames = svc.currentConnectedNames;
+    final initSlots = svc.currentConnectedSlots;
+    speedSensorName   = initNames['speed']   ?? '';
+    powerMeterName    = initNames['power']    ?? '';
+    cadenceSensorName = initNames['cadence']  ?? '';
+    speedConnected    = initSlots.contains('speed');
+    powerConnected    = initSlots.contains('power');
+    cadenceConnected  = initSlots.contains('cadence');
+    _useGpsSpeed      = svc.useGpsAsSpeed;
     
     // Subscribe to per-slot connection status
-    _connectedSlotsSub = SensorService().connectedSlotsStream.listen((slots) {
+    _connectedSlotsSub = svc.connectedSlotsStream.listen((slots) {
       if (!mounted) return;
       setState(() {
         speedConnected   = slots.contains('speed');
@@ -73,7 +85,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
       FocusScope.of(context).unfocus();
     });
     // listen for automatic discovery/connection name updates
-    _connectedNamesSub = SensorService().connectedNamesStream.listen((map) {
+    _connectedNamesSub = svc.connectedNamesStream.listen((map) {
       if (!mounted) return;
       setState(() {
         speedSensorName = map['speed'] ?? '';
@@ -394,7 +406,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                           ],
                         ],
                       )
-                    : speedSensorName.isNotEmpty
+                    : speedConnected
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -405,7 +417,9 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                             ],
                           ],
                         )
-                      : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                      : speedSensorName.isNotEmpty
+                        ? const Text('Connecting...', style: TextStyle(color: Colors.orange))
+                        : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
                 trailing: Icon(
                   (_useGpsSpeed || speedConnected) ? Icons.check_circle : Icons.radio_button_unchecked,
                   color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black38,
