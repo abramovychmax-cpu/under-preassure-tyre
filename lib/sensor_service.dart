@@ -55,6 +55,17 @@ class SensorService {
   bool get isSpeedConnected =>
       _savedSpeedId != null && _connectedDevices.containsKey(_savedSpeedId);
 
+  /// When true, GPS is used as the primary speed & distance source.
+  bool _useGpsAsSpeed = false;
+  bool get useGpsAsSpeed => _useGpsAsSpeed;
+  // GPS-integrated distance accumulator (km) used when _useGpsAsSpeed is true
+  double _gpsDistance = 0.0;
+
+  void setUseGpsAsSpeed(bool value) {
+    _useGpsAsSpeed = value;
+    print('SensorService: useGpsAsSpeed=$value');
+  }
+
   // cache of discovered device display names by id
   final Map<String, String> _deviceNames = {};
 
@@ -185,6 +196,7 @@ class SensorService {
       _lapStartRevs = _lastWheelRevs;
     }
     _currentRunDistance = 0.0;
+    _gpsDistance = 0.0;
     _distanceController.add(0.0);
     // Don't reset _lastWheelRevs/_lastWheelTime - keep them for speed calculation continuity
     print("Distance Reset. Baseline Wheel Revs: $_lapStartRevs");
@@ -447,6 +459,14 @@ class SensorService {
         return;
       }
 
+      // Accumulate GPS-based distance when BT speed sensor is not in use
+      if (_useGpsAsSpeed && currentSpeedValue > 0.1) {
+        // speed is in km/h; integrate over 1 second -> km
+        _gpsDistance += currentSpeedValue / 3600.0;
+        currentDistanceValue = _gpsDistance;
+        _distanceController.add(currentDistanceValue);
+      }
+
       final now = DateTime.now().toUtc();
       
       // Filter out invalid GPS coordinates (0.0, 0.0) which cause Strava data rejection
@@ -645,9 +665,15 @@ class SensorService {
 
 
   void _decideWhichSpeedToPublish() {
-    double finalSpeed = _usingBt ? _btSpeed : _gpsSpeed;
+    double finalSpeed;
+    if (_useGpsAsSpeed) {
+      // Force GPS regardless of BT connection state
+      finalSpeed = _gpsSpeed;
+    } else {
+      finalSpeed = _usingBt ? _btSpeed : _gpsSpeed;
+    }
     currentSpeedValue = finalSpeed < 0.1 ? 0.0 : finalSpeed;
-    currentDistanceValue = _currentRunDistance;
+    currentDistanceValue = _useGpsAsSpeed ? _gpsDistance : _currentRunDistance;
     _speedController.add(currentSpeedValue);
     _distanceController.add(currentDistanceValue);
   }

@@ -33,7 +33,8 @@ class _RecordingPageState extends State<RecordingPage> {
   Duration _elapsed = Duration.zero;
   Timer? _elapsedTimer;
   String _speedUnit = 'km/h'; // Load from SharedPreferences
-  late String _pressureUnit; 
+  late String _pressureUnit;
+  bool _gpsSpeedMode = false;
 
   StreamSubscription? _speedSub;
   StreamSubscription? _distSub;
@@ -56,6 +57,9 @@ class _RecordingPageState extends State<RecordingPage> {
         SystemChannels.textInput.invokeMethod('TextInput.hide');
       } catch (_) {}
     });
+
+    // Capture GPS speed mode flag at start of run
+    _gpsSpeedMode = _sensorService.useGpsAsSpeed;
 
     // Initialize sensor session for this run
     _sensorService.resetDistance();
@@ -147,7 +151,7 @@ class _RecordingPageState extends State<RecordingPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    _buildDataRow('SPEED', _convertSpeed(currentSpeed).toStringAsFixed(1), _speedUnit, 'POWER', '$currentPower', 'watts'),
+                    _buildDataRow('SPEED${_gpsSpeedMode ? ' (GPS)' : ''}', _convertSpeed(currentSpeed).toStringAsFixed(1), _speedUnit, 'POWER', '$currentPower', 'watts'),
                     _buildDataRow('CADENCE', '$currentCadence', 'RPM', 'vibrations', currentVibration.toStringAsFixed(2), 'g'),
                     _buildDataRow('DISTANCE', currentDistance.toStringAsFixed(2), 'km', 'TIME LAPSED', _formatDuration(_elapsed), '_'),
                   ],

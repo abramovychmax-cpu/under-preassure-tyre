@@ -46,6 +46,11 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   /// True when user explicitly opts to use GPS as their speed source
   bool _useGpsSpeed = false;
 
+  void _toggleGpsSpeed(bool value) {
+    setState(() => _useGpsSpeed = value);
+    SensorService().setUseGpsAsSpeed(value);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -375,7 +380,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
             // GPS speed fallback toggle — visible only when no BT speed sensor connected
             if (!speedConnected)
               GestureDetector(
-                onTap: () => setState(() => _useGpsSpeed = !_useGpsSpeed),
+                onTap: () => _toggleGpsSpeed(!_useGpsSpeed),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
