@@ -207,59 +207,82 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                   builder: (context, snapshot) {
                     final results = snapshot.data ?? [];
 
-                    // CHANGE 1: Filtering the results based on the Slot
                     final filteredResults = results.where((data) {
                       final name = data.advertisementData.advName.toLowerCase();
                       final serviceUuids = data.advertisementData.serviceUuids.map((e) => e.toString().toLowerCase()).toList();
 
                       if (targetSlot == "speed") {
-                        // 1816 is Cycling Speed and Cadence Service
                         return serviceUuids.contains("1816") || name.contains("speed") || name.contains("cadence");
                       }
                       if (targetSlot == "cadence") {
-                        // 1816 is Cycling Speed and Cadence Service
-                        // 1818 is Cycling Power Service (most power meters provide cadence)
                         return serviceUuids.contains("1816") || serviceUuids.contains("1818") || 
                                name.contains("cadence") || name.contains("power") || name.contains("kickr");
                       }
                       if (targetSlot == "power") {
-                        // 1818 is Cycling Power Service
                         return serviceUuids.contains("1818") || name.contains("power") || name.contains("kickr");
                       }
                       return true;
                     }).toList();
 
-                    if (filteredResults.isEmpty) {
-                      return const Center(child: Text("Searching for compatible sensors...", style: TextStyle(color: Colors.grey)));
-                    }
-
-                    return ListView.builder(
-                      itemCount: filteredResults.length,
-                      itemBuilder: (context, index) {
-                        final data = filteredResults[index];
-                        final name = data.advertisementData.advName.isEmpty ? "Unknown Device" : data.advertisementData.advName;
-
-                        return ListTile(
-                          leading: const Icon(Icons.bluetooth, color: Color(0xFF47D1C1)),
-                          title: Text(name, style: const TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.bold)),
-                          subtitle: const Text("Tap to select", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                          onTap: () {
-                            // Cache the device name immediately before connecting
-                            SensorService().cacheDeviceName(data.device.remoteId.str, name);
-                            
-                            // CHANGE 2: Treating slots as independent connections
-                            // We set the sensor for the specific slot even if the ID is already in use elsewhere
-                            SensorService().setSavedSensor(targetSlot, data.device.remoteId.str);
-
-                            setState(() {
-                              if (targetSlot == "speed") speedSensorName = name;
-                              if (targetSlot == "power") powerMeterName = name;
-                              if (targetSlot == "cadence") cadenceSensorName = name;
-                            });
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
+                    return ListView(
+                      children: [
+                        // GPS speed option — only shown in the speed sensor picker
+                        if (targetSlot == "speed") ...[
+                          ListTile(
+                            leading: Icon(
+                              Icons.gps_fixed,
+                              color: _useGpsSpeed ? const Color(0xFF47D1C1) : Colors.black54,
+                            ),
+                            title: const Text(
+                              'Use GPS Speed',
+                              style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              _useGpsSpeed ? 'Currently active' : 'No Bluetooth sensor needed',
+                              style: TextStyle(
+                                color: _useGpsSpeed ? const Color(0xFF47D1C1) : Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: _useGpsSpeed
+                                ? const Icon(Icons.check_circle, color: Color(0xFF47D1C1))
+                                : null,
+                            onTap: () {
+                              _toggleGpsSpeed(true);
+                              Navigator.pop(context);
+                            },
+                          ),
+                          const Divider(height: 1),
+                        ],
+                        if (filteredResults.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 32),
+                            child: Center(
+                              child: Text("Searching for compatible sensors...", style: TextStyle(color: Colors.grey)),
+                            ),
+                          )
+                        else
+                          ...filteredResults.map((data) {
+                            final name = data.advertisementData.advName.isEmpty ? "Unknown Device" : data.advertisementData.advName;
+                            return ListTile(
+                              leading: const Icon(Icons.bluetooth, color: Color(0xFF47D1C1)),
+                              title: Text(name, style: const TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.bold)),
+                              subtitle: const Text("Tap to select", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              onTap: () {
+                                // Switching to BT sensor — disable GPS mode
+                                if (targetSlot == "speed") _toggleGpsSpeed(false);
+                                SensorService().cacheDeviceName(data.device.remoteId.str, name);
+                                SensorService().setSavedSensor(targetSlot, data.device.remoteId.str);
+                                setState(() {
+                                  if (targetSlot == "speed") speedSensorName = name;
+                                  if (targetSlot == "power") powerMeterName = name;
+                                  if (targetSlot == "cadence") cadenceSensorName = name;
+                                });
+                                Navigator.pop(context);
+                              },
+                            );
+                          }),
+                      ],
                     );
                   },
                 ),
@@ -355,61 +378,43 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     minLeadingWidth: 44,
                     horizontalTitleGap: 12,
-                    leading: Icon(Icons.speed, color: speedSensorName.isNotEmpty ? accentGemini : Colors.black54),
+                    leading: Icon(
+                      _useGpsSpeed ? Icons.gps_fixed : Icons.speed,
+                      color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black54,
+                    ),
                     title: const Text('Speed Sensor', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: speedSensorName.isNotEmpty
+                    subtitle: _useGpsSpeed
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(speedSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                          const Text('GPS Speed', style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
                           if (liveSpeedValue > 0.1) ...[
                             const SizedBox(height: 4),
                             Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
                           ],
                         ],
                       )
-                    : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                    : speedSensorName.isNotEmpty
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(speedSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
+                            if (liveSpeedValue > 0.1) ...[
+                              const SizedBox(height: 4),
+                              Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
+                            ],
+                          ],
+                        )
+                      : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
                 trailing: Icon(
-                  speedSensorName.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: speedSensorName.isNotEmpty ? accentGemini : Colors.black38,
+                  (_useGpsSpeed || speedConnected) ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black38,
                   size: 28,
                 ))),
                 ),
               ),
             ),
-            // GPS speed fallback toggle — visible only when no BT speed sensor connected
-            if (!speedConnected)
-              GestureDetector(
-                onTap: () => _toggleGpsSpeed(!_useGpsSpeed),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _useGpsSpeed ? Icons.gps_fixed : Icons.gps_not_fixed,
-                        size: 13,
-                        color: _useGpsSpeed ? accentGemini : Colors.grey.shade500,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _useGpsSpeed
-                            ? 'GPS SPEED ACTIVE — tap to switch to BT sensor'
-                            : 'No speed sensor? Tap to use GPS speed instead',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _useGpsSpeed ? accentGemini : Colors.grey.shade500,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              const SizedBox(height: 8),
+            const SizedBox(height: 8),
             Expanded(
               child: InkWell(
                 onTap: () => _startSensorScan('power'),
