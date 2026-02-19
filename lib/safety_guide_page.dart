@@ -82,23 +82,13 @@ class SafetyGuidePage extends StatelessWidget {
           const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.keyboard_arrow_left,
-                  color: accentGemini,
-                  size: 28,
-                ),
+                Icon(Icons.keyboard_arrow_left, color: accentGemini, size: 28),
                 SizedBox(height: 4),
                 Text(
-                  'SWIPE LEFT TO CONTINUE',
+                  'SWIPE TO CONTINUE',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: accentGemini,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
-                  ),
+                  style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.1),
                 ),
               ],
             ),

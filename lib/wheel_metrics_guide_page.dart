@@ -78,29 +78,30 @@ class WheelMetricsGuidePage extends StatelessWidget {
                   ],
                 ),
                 Spacer(flex: 3),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_left,
-                      color: accentGemini,
-                      size: 28,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'SWIPE LEFT TO CONTINUE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.keyboard_arrow_left,
                         color: accentGemini,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
+                        size: 28,
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                      Text(
+                        'SWIPE TO CONTINUE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: accentGemini,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 40),
+                SizedBox(height: 20),
               ],
             ),
           ),

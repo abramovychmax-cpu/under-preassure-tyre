@@ -542,31 +542,34 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
             const SizedBox(height: 12),
             // Swipe indicator
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.keyboard_arrow_left,
-                  color: canProceed ? accentGemini : Colors.grey.shade400,
-                  size: 28,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  canProceed
-                      ? 'SWIPE LEFT TO CONFIGURE WHEEL'
-                      : _useGpsSpeed
-                          ? 'ENABLE GPS FIRST'
-                          : 'CONNECT SPEED SENSOR FIRST',
-                  style: TextStyle(
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.keyboard_arrow_left,
                     color: canProceed ? accentGemini : Colors.grey.shade400,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
+                    size: 28,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    canProceed
+                        ? 'SWIPE TO CONFIGURE WHEEL'
+                        : _useGpsSpeed
+                            ? 'ENABLE GPS FIRST'
+                            : 'CONNECT SPEED SENSOR FIRST',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: canProceed ? accentGemini : Colors.grey.shade400,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
           ],
         ),
       ),
