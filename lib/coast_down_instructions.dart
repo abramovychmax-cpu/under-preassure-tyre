@@ -51,8 +51,8 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                   children: [
                     const SizedBox(height: 10),
                     const Text(
-                      'Follow these rules for every coast-down run.',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
+                      'Select a descent of your choice and coast down at least three times, each time with a different tire pressure. No pedalling — gravity does the work.',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.5),
                     ),
                     const SizedBox(height: 32),
                     _sectionHeader('Route'),
