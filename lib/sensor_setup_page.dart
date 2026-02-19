@@ -16,7 +16,7 @@ class SensorSetupPage extends StatefulWidget {
   State<SensorSetupPage> createState() => _SensorSetupPageState();
 }
 
-class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProviderStateMixin {
+class _SensorSetupPageState extends State<SensorSetupPage> {
   String speedSensorName = "";
   String powerMeterName = "";
   String cadenceSensorName = "";
@@ -37,10 +37,11 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
   StreamSubscription? _cadenceSub;
   StreamSubscription? _powerSub;
   StreamSubscription? _connectedNamesSub;
+  StreamSubscription? _connectedSlotsSub;
 
-  late AnimationController _swipeAnimationController;
-  late Animation<double> _swipeFadeAnimation;
-  late Animation<Offset> _swipeSlideAnimation;
+  bool speedConnected = false;
+  bool powerConnected = false;
+  bool cadenceConnected = false;
 
   @override
   void initState() {
@@ -49,21 +50,16 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
     _initInternalSensors();
     _initDataStreams();
     
-    // Swipe animation setup
-    _swipeAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
-    
-    _swipeFadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _swipeAnimationController, curve: Curves.easeInOut),
-    );
-    
-    _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(-0.1, 0),
-      end: const Offset(0.1, 0),
-    ).animate(CurvedAnimation(parent: _swipeAnimationController, curve: Curves.easeInOut));
-    
+    // Subscribe to per-slot connection status
+    _connectedSlotsSub = SensorService().connectedSlotsStream.listen((slots) {
+      if (!mounted) return;
+      setState(() {
+        speedConnected   = slots.contains('speed');
+        powerConnected   = slots.contains('power');
+        cadenceConnected = slots.contains('cadence');
+      });
+    });
+
     // ensure any open keyboard is dismissed when entering this page
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).unfocus();
@@ -99,7 +95,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
     _cadenceSub?.cancel();
     _powerSub?.cancel();
     _connectedNamesSub?.cancel();
-    _swipeAnimationController.dispose();
+    _connectedSlotsSub?.cancel();
     super.dispose();
   }
 
@@ -278,7 +274,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final bool canProceed = speedSensorName.isNotEmpty && gpsGranted;
+    final bool canProceed = speedConnected && gpsGranted;
     
     // use light background and shared app card styles
     return Scaffold(
@@ -383,23 +379,22 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       minLeadingWidth: 44,
                     horizontalTitleGap: 12,
-                    leading: Icon(Icons.bolt, color: powerMeterName.isNotEmpty ? accentGemini : Colors.black54),
+                    leading: Icon(Icons.bolt, color: powerConnected ? accentGemini : Colors.black54),
                     title: const Text('Power Meter', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: powerMeterName.isNotEmpty
+                    subtitle: powerConnected
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(powerMeterName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                          if (livePowerValue > 0) ...[
-                            const SizedBox(height: 4),
-                            Text(livePower, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
-                          ],
+                          if (livePowerValue > 0) ...[const SizedBox(height: 4), Text(livePower, style: const TextStyle(color: Color(0xFF888888), fontSize: 12))],
                         ],
                       )
-                    : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                    : powerMeterName.isNotEmpty
+                      ? const Text('Connecting...', style: TextStyle(color: Colors.orange))
+                      : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
                   trailing: Icon(
-                    powerMeterName.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: powerMeterName.isNotEmpty ? accentGemini : Colors.black38,
+                    powerConnected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: powerConnected ? accentGemini : Colors.black38,
                     size: 28,
                   ))),
                 ),
@@ -416,23 +411,22 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     minLeadingWidth: 44,
                     horizontalTitleGap: 12,
-                    leading: Icon(Icons.loop, color: cadenceSensorName.isNotEmpty ? accentGemini : Colors.black54),
+                    leading: Icon(Icons.loop, color: cadenceConnected ? accentGemini : Colors.black54),
                     title: const Text('Cadence', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: cadenceSensorName.isNotEmpty
+                    subtitle: cadenceConnected
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(cadenceSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                          if (liveCadenceValue > 0) ...[
-                            const SizedBox(height: 4),
-                            Text(liveCadence, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
-                          ],
+                          if (liveCadenceValue > 0) ...[const SizedBox(height: 4), Text(liveCadence, style: const TextStyle(color: Color(0xFF888888), fontSize: 12))],
                         ],
                       )
-                    : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
+                    : cadenceSensorName.isNotEmpty
+                      ? const Text('Connecting...', style: TextStyle(color: Colors.orange))
+                      : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
                   trailing: Icon(
-                    cadenceSensorName.isNotEmpty ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: cadenceSensorName.isNotEmpty ? accentGemini : Colors.black38,
+                    cadenceConnected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: cadenceConnected ? accentGemini : Colors.black38,
                     size: 28,
                   ))),
                 ),
@@ -441,29 +435,25 @@ class _SensorSetupPageState extends State<SensorSetupPage> with SingleTickerProv
 
             const SizedBox(height: 12),
             // Swipe indicator
-            FadeTransition(
-              opacity: _swipeFadeAnimation,
-              child: SlideTransition(
-                position: _swipeSlideAnimation,
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_left,
-                      color: canProceed ? accentGemini : Colors.grey.shade400,
-                      size: 32,
-                    ),
-                    Text(
-                      canProceed ? 'SWIPE LEFT TO CONFIGURE WHEEL' : 'CONNECT SENSORS FIRST',
-                      style: TextStyle(
-                        color: canProceed ? accentGemini : Colors.grey.shade400,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.keyboard_arrow_left,
+                  color: canProceed ? accentGemini : Colors.grey.shade400,
+                  size: 28,
                 ),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  canProceed ? 'SWIPE LEFT TO CONFIGURE WHEEL' : 'CONNECT SPEED SENSOR FIRST',
+                  style: TextStyle(
+                    color: canProceed ? accentGemini : Colors.grey.shade400,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
           ],

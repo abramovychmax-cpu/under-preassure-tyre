@@ -43,6 +43,10 @@ class SensorService {
   final _connectedNamesController = StreamController<Map<String, String>>.broadcast();
   Stream<Map<String, String>> get connectedNamesStream => _connectedNamesController.stream;
 
+  // emits the set of slot names ('speed','power','cadence') that are actively connected
+  final _connectedSlotsController = StreamController<Set<String>>.broadcast();
+  Stream<Set<String>> get connectedSlotsStream => _connectedSlotsController.stream;
+
   // cache of discovered device display names by id
   final Map<String, String> _deviceNames = {};
 
@@ -130,11 +134,20 @@ class SensorService {
 
   void _emitConnectedNames() {
     final Map<String, String> out = {
-      'speed': _savedSpeedId == null ? 'Not Connected' : (_deviceNames[_savedSpeedId] ?? _savedSpeedId!),
-      'power': _savedPowerId == null ? 'Not Connected' : (_deviceNames[_savedPowerId] ?? _savedPowerId!),
-      'cadence': _savedCadenceId == null ? 'Not Connected' : (_deviceNames[_savedCadenceId] ?? _savedCadenceId!),
+      'speed':   _savedSpeedId   == null ? '' : (_deviceNames[_savedSpeedId]   ?? _savedSpeedId!),
+      'power':   _savedPowerId   == null ? '' : (_deviceNames[_savedPowerId]   ?? _savedPowerId!),
+      'cadence': _savedCadenceId == null ? '' : (_deviceNames[_savedCadenceId] ?? _savedCadenceId!),
     };
     _connectedNamesController.add(out);
+    _emitConnectedSlots();
+  }
+
+  void _emitConnectedSlots() {
+    final slots = <String>{};
+    if (_savedSpeedId   != null && _connectedDevices.containsKey(_savedSpeedId))   slots.add('speed');
+    if (_savedPowerId   != null && _connectedDevices.containsKey(_savedPowerId))   slots.add('power');
+    if (_savedCadenceId != null && _connectedDevices.containsKey(_savedCadenceId)) slots.add('cadence');
+    _connectedSlotsController.add(slots);
   }
 
   // Cache a device name before connecting to prevent showing ID temporarily
@@ -397,6 +410,7 @@ class SensorService {
     _cadenceController.close();
     _scanResultsController.close();
     _connectedNamesController.close();
+    _connectedSlotsController.close();
     _uiPublisherTimer?.cancel();
     _stopTimer?.cancel();
     _crankStopTimer?.cancel();
