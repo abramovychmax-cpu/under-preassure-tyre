@@ -208,7 +208,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
           child: Column(
             children: [
               Text("Select ${targetSlot.toUpperCase()} Sensor",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF222222))),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF222222))),
               const SizedBox(height: 8),
               const LinearProgressIndicator(backgroundColor: Color(0xFFE0E0E0), color: Color(0xFF47D1C1)),
               const SizedBox(height: 16),
@@ -345,17 +345,29 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            // top small status cards (match styling of the main sensor cards)
+            // top small status cards
             Expanded(
               child: AppCard(
                 child: Center(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    minLeadingWidth: 44,
-                    horizontalTitleGap: 12,
-                    leading: Icon(Icons.gps_fixed, color: gpsGranted ? accentGemini : Colors.black54),
-                    title: const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: Text(gpsGranted ? 'Locked' : 'Waiting...', style: TextStyle(color: gpsGranted ? accentGemini : Colors.black54)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(Icons.gps_fixed, color: gpsGranted ? accentGemini : Colors.black54, size: 24),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222))),
+                              const SizedBox(height: 2),
+                              Text(gpsGranted ? 'Locked' : 'Waiting...', style: TextStyle(fontSize: 12, color: gpsGranted ? accentGemini : Colors.black54)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -364,67 +376,80 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
             Expanded(
               child: AppCard(
                 child: Center(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    minLeadingWidth: 44,
-                    horizontalTitleGap: 12,
-                    leading: Icon(Icons.sensors, color: accelActive ? accentGemini : Colors.orangeAccent),
-                    title: const Text('Phone Vibration', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: accelActive 
-                        ? const Text('Ready', style: TextStyle(color: accentGemini, fontWeight: FontWeight.w600))
-                        : const Text('⚠️ SHAKE YOUR PHONE NOW', style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.w900)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(Icons.sensors, color: accelActive ? accentGemini : Colors.orangeAccent, size: 24),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Phone Vibration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222))),
+                              const SizedBox(height: 2),
+                              accelActive
+                                  ? const Text('Ready', style: TextStyle(fontSize: 12, color: accentGemini, fontWeight: FontWeight.w600))
+                                  : const Text('SHAKE YOUR PHONE NOW', style: TextStyle(fontSize: 12, color: Colors.orangeAccent, fontWeight: FontWeight.w900)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
 
-            // main sensor cards (same height)
+            // main sensor cards
             Expanded(
               child: InkWell(
                 onTap: () => _startSensorScan('speed'),
                 borderRadius: BorderRadius.circular(12),
                 child: AppCard(
                   child: Center(
-                      child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    minLeadingWidth: 44,
-                    horizontalTitleGap: 12,
-                    leading: Icon(
-                      _useGpsSpeed ? Icons.gps_fixed : Icons.speed,
-                      color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black54,
-                    ),
-                    title: const Text('Speed Sensor', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: _useGpsSpeed
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
                         children: [
-                          const Text('GPS Speed', style: TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                          if (liveSpeedValue > 0.1) ...[
-                            const SizedBox(height: 4),
-                            Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
-                          ],
+                          Icon(
+                            _useGpsSpeed ? Icons.gps_fixed : Icons.speed,
+                            color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black54,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Speed Sensor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222))),
+                                const SizedBox(height: 2),
+                                if (_useGpsSpeed) ...[                                  
+                                  const Text('GPS Speed', style: TextStyle(fontSize: 12, color: accentGemini, fontWeight: FontWeight.bold)),
+                                  if (liveSpeedValue > 0.1) Text(liveSpeed, style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                ] else if (speedConnected) ...[                                  
+                                  Text(speedSensorName, style: const TextStyle(fontSize: 12, color: accentGemini, fontWeight: FontWeight.bold)),
+                                  if (liveSpeedValue > 0.1) Text(liveSpeed, style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                ] else if (speedSensorName.isNotEmpty)
+                                  const Text('Connecting...', style: TextStyle(fontSize: 12, color: Colors.orange))
+                                else
+                                  const Text('Tap to add sensor', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            (_useGpsSpeed || speedConnected) ? Icons.check_circle : Icons.radio_button_unchecked,
+                            color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black26,
+                            size: 24,
+                          ),
                         ],
-                      )
-                    : speedConnected
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(speedSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                            if (liveSpeedValue > 0.1) ...[
-                              const SizedBox(height: 4),
-                              Text(liveSpeed, style: const TextStyle(color: Color(0xFF888888), fontSize: 12)),
-                            ],
-                          ],
-                        )
-                      : speedSensorName.isNotEmpty
-                        ? const Text('Connecting...', style: TextStyle(color: Colors.orange))
-                        : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
-                trailing: Icon(
-                  (_useGpsSpeed || speedConnected) ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: (_useGpsSpeed || speedConnected) ? accentGemini : Colors.black38,
-                  size: 28,
-                ))),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -435,28 +460,39 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                 borderRadius: BorderRadius.circular(12),
                 child: AppCard(
                   child: Center(
-                      child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      minLeadingWidth: 44,
-                    horizontalTitleGap: 12,
-                    leading: Icon(Icons.bolt, color: powerConnected ? accentGemini : Colors.black54),
-                    title: const Text('Power Meter', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: powerConnected
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
                         children: [
-                          Text(powerMeterName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                          if (livePowerValue > 0) ...[const SizedBox(height: 4), Text(livePower, style: const TextStyle(color: Color(0xFF888888), fontSize: 12))],
+                          Icon(Icons.bolt, color: powerConnected ? accentGemini : Colors.black54, size: 24),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Power Meter', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222))),
+                                const SizedBox(height: 2),
+                                if (powerConnected) ...[                                  
+                                  Text(powerMeterName, style: const TextStyle(fontSize: 12, color: accentGemini, fontWeight: FontWeight.bold)),
+                                  if (livePowerValue > 0) Text(livePower, style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                ] else if (powerMeterName.isNotEmpty)
+                                  const Text('Connecting...', style: TextStyle(fontSize: 12, color: Colors.orange))
+                                else
+                                  const Text('Tap to add sensor', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            powerConnected ? Icons.check_circle : Icons.radio_button_unchecked,
+                            color: powerConnected ? accentGemini : Colors.black26,
+                            size: 24,
+                          ),
                         ],
-                      )
-                    : powerMeterName.isNotEmpty
-                      ? const Text('Connecting...', style: TextStyle(color: Colors.orange))
-                      : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
-                  trailing: Icon(
-                    powerConnected ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: powerConnected ? accentGemini : Colors.black38,
-                    size: 28,
-                  ))),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -467,28 +503,39 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                 borderRadius: BorderRadius.circular(12),
                 child: AppCard(
                   child: Center(
-                      child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    minLeadingWidth: 44,
-                    horizontalTitleGap: 12,
-                    leading: Icon(Icons.loop, color: cadenceConnected ? accentGemini : Colors.black54),
-                    title: const Text('Cadence', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF222222))),
-                    subtitle: cadenceConnected
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
                         children: [
-                          Text(cadenceSensorName, style: const TextStyle(color: accentGemini, fontWeight: FontWeight.bold)),
-                          if (liveCadenceValue > 0) ...[const SizedBox(height: 4), Text(liveCadence, style: const TextStyle(color: Color(0xFF888888), fontSize: 12))],
+                          Icon(Icons.loop, color: cadenceConnected ? accentGemini : Colors.black54, size: 24),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Cadence', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222))),
+                                const SizedBox(height: 2),
+                                if (cadenceConnected) ...[                                  
+                                  Text(cadenceSensorName, style: const TextStyle(fontSize: 12, color: accentGemini, fontWeight: FontWeight.bold)),
+                                  if (liveCadenceValue > 0) Text(liveCadence, style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                ] else if (cadenceSensorName.isNotEmpty)
+                                  const Text('Connecting...', style: TextStyle(fontSize: 12, color: Colors.orange))
+                                else
+                                  const Text('Tap to add sensor', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            cadenceConnected ? Icons.check_circle : Icons.radio_button_unchecked,
+                            color: cadenceConnected ? accentGemini : Colors.black26,
+                            size: 24,
+                          ),
                         ],
-                      )
-                    : cadenceSensorName.isNotEmpty
-                      ? const Text('Connecting...', style: TextStyle(color: Colors.orange))
-                      : const Text('tap to add sensor', style: TextStyle(color: Colors.black54)),
-                  trailing: Icon(
-                    cadenceConnected ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: cadenceConnected ? accentGemini : Colors.black38,
-                    size: 28,
-                  ))),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

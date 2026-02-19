@@ -138,7 +138,7 @@ class _RecordingPageState extends State<RecordingPage> {
             const SizedBox(height: 40),
             const Text(
               'RECORDING RUN',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5),
             ),
             Text(
               'LAP METADATA: ${widget.frontPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)}/${widget.rearPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',

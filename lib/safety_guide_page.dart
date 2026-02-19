@@ -46,7 +46,7 @@ class SafetyGuidePage extends StatelessWidget {
             const Text(
               'SAFETY GUIDE',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: FontWeight.w900,
                 color: Color(0xFF222222),
                 letterSpacing: 1.2,
@@ -116,10 +116,10 @@ class SafetyGuidePage extends StatelessWidget {
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 16,
+          fontSize: 14,
           fontWeight: FontWeight.w900,
           color: Color(0xFF222222),
-          letterSpacing: 0.8,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -143,7 +143,7 @@ class SafetyGuidePage extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14,
                 height: 1.5,
                 color: Color(0xFF333333),
               ),

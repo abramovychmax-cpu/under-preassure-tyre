@@ -100,7 +100,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 16, height: 1.45, color: Color(0xFF222222)),
+              style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFF222222)),
             ),
           ),
         ],

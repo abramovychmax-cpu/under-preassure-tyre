@@ -146,7 +146,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                           children: [
                             const Text(
                               'Pressure Selection',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF222222)),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF222222)),
                             ),
                             const SizedBox(height: 8),
                             _pressureGuideStep('Run 1', 'HIGHEST  (sidewall/rim max)'),
@@ -173,7 +173,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                               children: [
                                 const Text(
                                   'Previous Runs',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF666666)),
                                 ),
                                 const SizedBox(height: 8),
                                 ..._previousPressures.asMap().entries.map((entry) {
@@ -183,7 +183,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                                     padding: const EdgeInsets.only(bottom: 4),
                                     child: Text(
                                       'Run ${idx + 1}: Front ${pressure['front']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit  |  Rear ${pressure['rear']!.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
-                                      style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
                                     ),
                                   );
                                 }).toList(),

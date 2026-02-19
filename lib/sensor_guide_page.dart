@@ -56,7 +56,7 @@ class SensorGuidePage extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF666666),
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w400,
                           height: 1.6,
                         ),
@@ -70,7 +70,7 @@ class SensorGuidePage extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF888888),
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

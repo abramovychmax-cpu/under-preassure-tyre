@@ -183,7 +183,7 @@ class ProtocolSelectionPage extends StatelessWidget {
                     child: Text(
                       title,
                       textAlign: TextAlign.left,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF222222)),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222)),
                     ),
                   ),
                 ],

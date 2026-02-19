@@ -142,7 +142,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                       value: _selectedBikeType,
                       isExpanded: true,
                       underline: const SizedBox(),
-                      style: const TextStyle(color: Color(0xFF222222), fontSize: 16, fontWeight: FontWeight.w500),
+                      style: const TextStyle(color: Color(0xFF222222), fontSize: 14, fontWeight: FontWeight.w500),
                       dropdownColor: Colors.white,
                       items: ['Road', 'Mountain', 'Gravel']
                           .map((type) => DropdownMenuItem(
@@ -191,7 +191,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                       value: _selectedWheelSize,
                       isExpanded: true,
                       underline: const SizedBox(),
-                      style: const TextStyle(color: Color(0xFF222222), fontSize: 16, fontWeight: FontWeight.w500),
+                      style: const TextStyle(color: Color(0xFF222222), fontSize: 14, fontWeight: FontWeight.w500),
                       dropdownColor: Colors.white,
                       items: wheelSizes
                           .map((wheel) => DropdownMenuItem(
@@ -272,7 +272,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                         Text(
                           '${_calculatedCircumference.toStringAsFixed(3)} m',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF222222),
                           ),
