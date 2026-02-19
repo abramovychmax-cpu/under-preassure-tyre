@@ -43,6 +43,9 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   bool powerConnected = false;
   bool cadenceConnected = false;
 
+  /// True when user explicitly opts to use GPS as their speed source
+  bool _useGpsSpeed = false;
+
   @override
   void initState() {
     super.initState();
@@ -264,7 +267,8 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   }
 
   void _handleSwipeUp() {
-    if (speedSensorName.isNotEmpty && gpsGranted) {
+    final bool canProceed = (_useGpsSpeed || speedConnected) && gpsGranted;
+    if (canProceed) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const WheelMetricsGuidePage()),
@@ -274,7 +278,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool canProceed = speedConnected && gpsGranted;
+    final bool canProceed = (_useGpsSpeed || speedConnected) && gpsGranted;
     
     // use light background and shared app card styles
     return Scaffold(
@@ -368,7 +372,39 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            // GPS speed fallback toggle — visible only when no BT speed sensor connected
+            if (!speedConnected)
+              GestureDetector(
+                onTap: () => setState(() => _useGpsSpeed = !_useGpsSpeed),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _useGpsSpeed ? Icons.gps_fixed : Icons.gps_not_fixed,
+                        size: 13,
+                        color: _useGpsSpeed ? accentGemini : Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _useGpsSpeed
+                            ? 'GPS SPEED ACTIVE — tap to switch to BT sensor'
+                            : 'No speed sensor? Tap to use GPS speed instead',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _useGpsSpeed ? accentGemini : Colors.grey.shade500,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              const SizedBox(height: 8),
             Expanded(
               child: InkWell(
                 onTap: () => _startSensorScan('power'),
@@ -445,7 +481,11 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  canProceed ? 'SWIPE LEFT TO CONFIGURE WHEEL' : 'CONNECT SPEED SENSOR FIRST',
+                  canProceed
+                      ? 'SWIPE LEFT TO CONFIGURE WHEEL'
+                      : _useGpsSpeed
+                          ? 'ENABLE GPS FIRST'
+                          : 'CONNECT SPEED SENSOR FIRST',
                   style: TextStyle(
                     color: canProceed ? accentGemini : Colors.grey.shade400,
                     fontSize: 12,

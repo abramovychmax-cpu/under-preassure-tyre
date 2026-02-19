@@ -47,6 +47,14 @@ class SensorService {
   final _connectedSlotsController = StreamController<Set<String>>.broadcast();
   Stream<Set<String>> get connectedSlotsStream => _connectedSlotsController.stream;
 
+  /// Synchronous check — true when a power meter is saved AND currently connected.
+  bool get isPowerConnected =>
+      _savedPowerId != null && _connectedDevices.containsKey(_savedPowerId);
+
+  /// Synchronous check — true when a speed sensor is saved AND currently connected.
+  bool get isSpeedConnected =>
+      _savedSpeedId != null && _connectedDevices.containsKey(_savedSpeedId);
+
   // cache of discovered device display names by id
   final Map<String, String> _deviceNames = {};
 

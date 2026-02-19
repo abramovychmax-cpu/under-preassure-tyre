@@ -3,6 +3,7 @@ import 'coast_down_instructions.dart';
 import 'constant_power_instructions.dart';
 import 'lap_efficiency_instructions.dart';
 import 'safety_guide_page.dart';
+import 'sensor_service.dart';
 import 'ui/common_widgets.dart';
 
 class ProtocolSelectionPage extends StatelessWidget {
@@ -55,6 +56,10 @@ class ProtocolSelectionPage extends StatelessWidget {
                 Colors.blue,
                 'Power Meter required',
                 () {
+                  if (!SensorService().isPowerConnected) {
+                    _showPowerMeterAlert(context);
+                    return;
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const ConstantPowerInstructions()),
@@ -69,6 +74,10 @@ class ProtocolSelectionPage extends StatelessWidget {
                 Colors.purple,
                 'Power Meter required',
                 () {
+                  if (!SensorService().isPowerConnected) {
+                    _showPowerMeterAlert(context);
+                    return;
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const LapEfficiencyInstructions()),
@@ -95,6 +104,27 @@ class ProtocolSelectionPage extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showPowerMeterAlert(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Power Meter Required',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'This protocol requires a connected power meter.\n\nPlease go back to Sensor Setup and pair your power meter, or choose the Coast-Down protocol which works without one.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK', style: TextStyle(color: Color(0xFF47D1C1))),
+          ),
+        ],
       ),
     );
   }
