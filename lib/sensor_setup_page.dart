@@ -337,7 +337,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -500 && canProceed) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && canProceed) {
             _handleSwipeUp();
           }
         },

@@ -37,7 +37,7 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
             _goToPressure(context);
           }
         },

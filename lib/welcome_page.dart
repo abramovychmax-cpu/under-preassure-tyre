@@ -25,7 +25,7 @@ class _WelcomePageState extends State<WelcomePage> {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
             _navigateToSetup();
           }
         },
