@@ -20,7 +20,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgLight,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -28,7 +28,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: bgLight,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
       ),
@@ -43,23 +43,23 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20.0),
-                child: AppCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 6),
-                        _instructionStep('1', 'Use an out-and-back or circle route with straight lines.'),
-                        _instructionStep('2', 'Hold steady power on straights.'),
-                        _instructionStep('3', 'Hold steady power each run (aim within ±15W). Avoid surges.'),
-                        _instructionStep('4', 'Avoid drafting and traffic interruptions.'),
-                        _instructionStep('5', 'Only repeatable segments with similar power (±10%) are used in analysis.'),
-                        const SizedBox(height: 6),
-                      ],
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Follow these rules for every constant-power run.',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
                     ),
-                  ),
+                    const SizedBox(height: 32),
+                    _instructionStep('1', 'Use an out-and-back or circle route with straight lines.'),
+                    _instructionStep('2', 'Hold steady power on straights.'),
+                    _instructionStep('3', 'Hold steady power each run (aim within ±15W). Avoid surges.'),
+                    _instructionStep('4', 'Avoid drafting and traffic interruptions.'),
+                    _instructionStep('5', 'Only repeatable segments with similar power (±10%) are used in analysis.'),
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
             ),

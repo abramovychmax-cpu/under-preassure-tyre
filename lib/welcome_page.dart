@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'sensor_guide_page.dart';
+import 'how_it_works_page.dart';
 import 'ui/common_widgets.dart';
 
 class WelcomePage extends StatefulWidget {
@@ -14,7 +14,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void _navigateToSetup() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SensorGuidePage()),
+      MaterialPageRoute(builder: (context) => const HowItWorksPage()),
     );
   }
 

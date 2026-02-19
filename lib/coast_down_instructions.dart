@@ -22,7 +22,7 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgLight,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -30,7 +30,7 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
           style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: bgLight,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
       ),
@@ -45,23 +45,23 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20.0),
-                child: AppCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 6),
-                        _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
-                        _instructionStep('2', 'Start all runs from the same point.'),
-                        _instructionStep('3', 'No pedaling or braking until the run is complete.'),
-                        _instructionStep('4', 'Braking = end of testing segment.'),
-                        _instructionStep('5', 'Power consistency is not required. Coast only.'),
-                        const SizedBox(height: 6),
-                      ],
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Follow these rules for every coast-down run.',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
                     ),
-                  ),
+                    const SizedBox(height: 32),
+                    _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
+                    _instructionStep('2', 'Start all runs from the same point.'),
+                    _instructionStep('3', 'No pedaling or braking until the run is complete.'),
+                    _instructionStep('4', 'Braking = end of testing segment.'),
+                    _instructionStep('5', 'Power consistency is not required. Coast only.'),
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
             ),
