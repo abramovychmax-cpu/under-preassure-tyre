@@ -238,7 +238,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
                           ),
                         ],
                       ),
-                      const Spacer(),
+                      const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         height: 55,
