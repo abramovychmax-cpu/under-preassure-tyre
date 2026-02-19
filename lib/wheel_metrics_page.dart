@@ -13,11 +13,7 @@ class WheelMetricsPage extends StatefulWidget {
   State<WheelMetricsPage> createState() => _WheelMetricsPageState();
 }
 
-class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _swipeSlideAnimation;
-
+class _WheelMetricsPageState extends State<WheelMetricsPage> {
   static const List<Map<String, dynamic>> wheelSizes = [
     // Road bike wheels (metric sizes)
     {'name': '700c', 'diameterMm': 622},
@@ -46,25 +42,10 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
   void initState() {
     super.initState();
     _loadSettings();
-    
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    
-    _swipeSlideAnimation = Tween<Offset>(
-      begin: const Offset(-0.1, 0),
-      end: const Offset(0.1, 0),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -398,29 +379,24 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> with SingleTickerPr
                   const SizedBox(height: 32),
 
                   // Swipe Left Indicator
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SlideTransition(
-                      position: _swipeSlideAnimation,
-                      child: const Column(
-                        children: [
-                          Icon(
-                            Icons.keyboard_arrow_left,
-                            color: accentGemini,
-                            size: 32,
-                          ),
-                          Text(
-                            'SWIPE LEFT TO CONTINUE',
-                            style: TextStyle(
-                              color: accentGemini,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
+                  const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.keyboard_arrow_left,
+                        color: accentGemini,
+                        size: 32,
                       ),
-                    ),
+                      Text(
+                        'SWIPE LEFT TO CONTINUE',
+                        style: TextStyle(
+                          color: accentGemini,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                 ],
