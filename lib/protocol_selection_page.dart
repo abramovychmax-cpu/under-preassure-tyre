@@ -39,7 +39,6 @@ class ProtocolSelectionPage extends StatelessWidget {
                 'Coast-Down (Gravity)',
                 'Action: Coast hill; no pedaling.\nRequirement: At least 3 runs.\nNote: No Power Meter required.',
                 Icons.terrain,
-                Colors.green,
                 'No Power Meter',
                 () {
                   Navigator.push(
@@ -53,7 +52,6 @@ class ProtocolSelectionPage extends StatelessWidget {
                 'Constant Power / Speed',
                 'Action: Flat road; steady effort.\nRequirement: At least 3 runs.\nData: Speed vs. Wattage efficiency.',
                 Icons.bolt,
-                Colors.blue,
                 'Power Meter required',
                 () {
                   if (!SensorService().isPowerConnected) {
@@ -71,7 +69,6 @@ class ProtocolSelectionPage extends StatelessWidget {
                 'Lap Efficiency (Chung)',
                 'Action: Closed GPS loop.\nRequirement: At least 3 laps per pressure.\nData: Avg Power vs. Avg Speed.',
                 Icons.loop,
-                Colors.purple,
                 'Power Meter required',
                 () {
                   if (!SensorService().isPowerConnected) {
@@ -129,7 +126,7 @@ class ProtocolSelectionPage extends StatelessWidget {
     );
   }
 
-  Widget _protocolCard(double height, String title, String desc, IconData icon, MaterialColor color, String pillLabel, VoidCallback onTap) {
+  Widget _protocolCard(double height, String title, String desc, IconData icon, String pillLabel, VoidCallback onTap) {
     final List<Widget> descWidgets = desc.split('\n').map((line) {
       final splitIdx = line.indexOf(':');
       if (splitIdx > 0) {
@@ -158,18 +155,12 @@ class ProtocolSelectionPage extends StatelessWidget {
       height: height - 16,
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cardBorder, width: 1),
         boxShadow: const [
           BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2)),
         ],
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withAlpha(26),
-            Colors.white,
-          ],
-        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -183,9 +174,9 @@ class ProtocolSelectionPage extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: color.withAlpha(31),
+                    backgroundColor: accentGemini.withAlpha(31),
                     radius: 20,
-                    child: Icon(icon, color: color, size: 22),
+                    child: Icon(icon, color: accentGemini, size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -201,13 +192,13 @@ class ProtocolSelectionPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: color.withAlpha(31),
+                  color: accentGemini.withAlpha(31),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   pillLabel,
-                  style: TextStyle(
-                    color: color.shade700,
+                  style: const TextStyle(
+                    color: Color(0xFF1F9D8F),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.4,
