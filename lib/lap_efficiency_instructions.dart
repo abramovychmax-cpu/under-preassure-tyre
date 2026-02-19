@@ -55,10 +55,15 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
                       style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
                     ),
                     const SizedBox(height: 32),
-                    _instructionStep('1', 'Choose a closed loop with minimal or no traffic.'),
-                    _instructionStep('2', 'Hold steady power each lap (aim within ±15W). Avoid surges/coasting.'),
-                    _instructionStep('3', 'Complete the same number of laps at each pressure.'),
-                    _instructionStep('4', 'Keep body position identical across all laps.'),
+                    _sectionHeader('Route'),
+                    _bulletPoint('Choose a closed loop with minimal or no traffic.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Power'),
+                    _bulletPoint('Hold steady power each lap (aim within ±15W). Avoid surges/coasting.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Consistency'),
+                    _bulletPoint('Complete the same number of laps at each pressure.'),
+                    _bulletPoint('Keep body position identical across all laps.'),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -85,22 +90,35 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
     );
   }
 
-  Widget _instructionStep(String leading, String text) {
+  static Widget _sectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF222222),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  static Widget _bulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: accentGemini,
-            child: Text(leading, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          const Padding(
+            padding: EdgeInsets.only(top: 6.0, right: 10.0),
+            child: Icon(Icons.fiber_manual_record, size: 8, color: accentGemini),
           ),
-          const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFF222222)),
+              style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
             ),
           ),
         ],

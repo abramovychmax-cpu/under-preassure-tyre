@@ -55,11 +55,18 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                       style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
                     ),
                     const SizedBox(height: 32),
-                    _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
-                    _instructionStep('2', 'Start all runs from the same point.'),
-                    _instructionStep('3', 'No pedaling or braking until the run is complete.'),
-                    _instructionStep('4', 'Braking = end of testing segment.'),
-                    _instructionStep('5', 'Power consistency is not required. Coast only.'),
+                    _sectionHeader('Route'),
+                    _bulletPoint('Avoid the steepest hill; choose a slope with a safe top speed.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Consistency'),
+                    _bulletPoint('Start all runs from the same point.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('During the run'),
+                    _bulletPoint('No pedaling or braking until the run is complete.'),
+                    _bulletPoint('Braking = end of testing segment.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Power'),
+                    _bulletPoint('Power consistency is not required. Coast only.'),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -86,22 +93,35 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
     );
   }
 
-  Widget _instructionStep(String leading, String text) {
+  static Widget _sectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF222222),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  static Widget _bulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: accentGemini,
-            child: Text(leading, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          const Padding(
+            padding: EdgeInsets.only(top: 6.0, right: 10.0),
+            child: Icon(Icons.fiber_manual_record, size: 8, color: accentGemini),
           ),
-          const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFF222222)),
+              style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
             ),
           ),
         ],

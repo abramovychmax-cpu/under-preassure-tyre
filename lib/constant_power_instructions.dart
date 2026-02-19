@@ -53,11 +53,14 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
                       style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
                     ),
                     const SizedBox(height: 32),
-                    _instructionStep('1', 'Use an out-and-back or circle route with straight lines.'),
-                    _instructionStep('2', 'Hold steady power on straights.'),
-                    _instructionStep('3', 'Hold steady power each run (aim within ±15W). Avoid surges.'),
-                    _instructionStep('4', 'Avoid drafting and traffic interruptions.'),
-                    _instructionStep('5', 'Only repeatable segments with similar power (±10%) are used in analysis.'),
+                    _sectionHeader('Route'),
+                    _bulletPoint('Use an out-and-back or circle route with straight lines.'),
+                    _bulletPoint('Avoid drafting and traffic interruptions.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Power'),
+                    _bulletPoint('Hold steady power on straights.'),
+                    _bulletPoint('Hold steady power each run (aim within ±15W). Avoid surges.'),
+                    _bulletPoint('Only repeatable segments with similar power (±10%) are used in analysis.'),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -84,22 +87,35 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
     );
   }
 
-  Widget _instructionStep(String leading, String text) {
+  static Widget _sectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF222222),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  static Widget _bulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: accentGemini,
-            child: Text(leading, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          const Padding(
+            padding: EdgeInsets.only(top: 6.0, right: 10.0),
+            child: Icon(Icons.fiber_manual_record, size: 8, color: accentGemini),
           ),
-          const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFF222222)),
+              style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
             ),
           ),
         ],
