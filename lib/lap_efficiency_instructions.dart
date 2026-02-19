@@ -41,33 +41,35 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
             _goToPressure(context);
           }
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AppCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 6),
-                      _instructionStep('1', 'Choose a closed loop with consistent surface and minimal traffic.'),
-                      _instructionStep('2', 'Ride the same line each lap and the same direction.'),
-                      _instructionStep('3', 'Hold steady power each lap (aim within ±5-10W). Avoid surges/coasting.'),
-                      _instructionStep('4', 'Use a power you can hold a long time (mid Zone 2).'),
-                      _instructionStep('5', 'Keep cadence, gearing, and body position identical each lap.'),
-                      _instructionStep('6', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
-                      _instructionStep('7', 'Record at least 3 laps at different pressures (one pressure per lap).'),
-                      _instructionStep('8', 'If power is inconsistent, use Coast-Down instead.'),
-                      const SizedBox(height: 6),
-                    ],
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20.0),
+                child: AppCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        _instructionStep('1', 'Choose a closed loop with consistent surface and minimal traffic.'),
+                        _instructionStep('2', 'Ride the same line each lap and the same direction.'),
+                        _instructionStep('3', 'Hold steady power each lap (aim within ±5-10W). Avoid surges/coasting.'),
+                        _instructionStep('4', 'Use a power you can hold a long time (mid Zone 2).'),
+                        _instructionStep('5', 'Keep cadence, gearing, and body position identical each lap.'),
+                        _instructionStep('6', 'For accurate vibration data, mount the phone on the bars. Pocket placement reduces vibration accuracy but does not affect efficiency.'),
+                        _instructionStep('7', 'Record at least 3 laps at different pressures (one pressure per lap).'),
+                        _instructionStep('8', 'If power is inconsistent, use Coast-Down instead.'),
+                        const SizedBox(height: 6),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Column(
+            ),
+            const Center(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -80,9 +82,9 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );

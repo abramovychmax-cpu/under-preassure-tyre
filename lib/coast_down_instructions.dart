@@ -41,30 +41,32 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
             _goToPressure(context);
           }
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AppCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 6),
-                      _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
-                      _instructionStep('2', 'Start all runs from the same point.'),
-                      _instructionStep('3', 'No pedaling or braking until the run is complete.'),
-                      _instructionStep('4', 'Braking = end of testing segment.'),
-                      _instructionStep('5', 'Power consistency is not required. Coast only.'),
-                      const SizedBox(height: 6),
-                    ],
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20.0),
+                child: AppCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        _instructionStep('1', 'Avoid the steepest hill; choose a slope with a safe top speed.'),
+                        _instructionStep('2', 'Start all runs from the same point.'),
+                        _instructionStep('3', 'No pedaling or braking until the run is complete.'),
+                        _instructionStep('4', 'Braking = end of testing segment.'),
+                        _instructionStep('5', 'Power consistency is not required. Coast only.'),
+                        const SizedBox(height: 6),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Column(
+            ),
+            const Center(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -77,9 +79,9 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );

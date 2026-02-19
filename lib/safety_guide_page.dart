@@ -34,14 +34,17 @@ class SafetyGuidePage extends StatelessWidget {
             _goToProtocols(context);
           }
         },
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Column(
+          children: [
+          Expanded(
+          child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
             const Text(
-              'UNIVERSAL RULES',
+              'SAFETY GUIDE',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -71,33 +74,38 @@ class SafetyGuidePage extends StatelessWidget {
             const SizedBox(height: 24),
             _sectionHeader('Runs'),
             _bulletPoint('Perform at least three runs at different pressures.'),
-            const SizedBox(height: 40),
-            const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.keyboard_arrow_left,
-                    color: accentGemini,
-                    size: 28,
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'SWIPE LEFT TO CONTINUE',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: accentGemini,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ],
-            ),
             const SizedBox(height: 20),
           ],
         ),
       ),
+      ),
+          const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.keyboard_arrow_left,
+                  color: accentGemini,
+                  size: 28,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'SWIPE LEFT TO CONTINUE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: accentGemini,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
