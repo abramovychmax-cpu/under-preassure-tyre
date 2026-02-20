@@ -14,8 +14,7 @@ class ConstantPowerSegment {
   final double avgSpeed;         // Average speed (km/h)
   final double distance;         // Distance traveled (meters)
   final double duration;         // Duration (seconds)
-  final double efficiency;       // (speed / power) / (1 + vibration) — vibration-penalised
-  final double avgVibration;     // Mean vibration magnitude (g) during segment
+  final double efficiency;       // speed / power (km/h per watt)
   final int numRecords;          // Number of data points
   final DateTime startTime;
   final DateTime endTime;
@@ -32,7 +31,6 @@ class ConstantPowerSegment {
     required this.distance,
     required this.duration,
     required this.efficiency,
-    required this.avgVibration,
     required this.numRecords,
     required this.startTime,
     required this.endTime,
@@ -259,14 +257,7 @@ class ConstantPowerClusteringService {
       final duration  = window.length.toDouble(); // seconds at 1 Hz
       // Fix: avgSpeed is km/h → convert to m/s before multiplying by seconds
       final distance  = (avgSpeed / 3.6) * duration;
-      final avgVib = vibrations.isEmpty
-          ? 0.0
-          : vibrations.fold(0.0, (a, b) => a + b) / vibrations.length;
-      // Efficiency: speed/power baseline, penalised by vibration.
-      // Higher vibration → more surface impedance → worse efficiency score.
-      final efficiency = avgPower > 0
-          ? (avgSpeed / avgPower) / (1.0 + avgVib)
-          : 0.0;
+      final efficiency = avgPower > 0 ? avgSpeed / avgPower : 0.0;
 
       segments.add(ConstantPowerSegment(
         segmentIndex: segmentId,
@@ -280,7 +271,6 @@ class ConstantPowerClusteringService {
         distance: distance,
         duration: duration,
         efficiency: efficiency,
-        avgVibration: avgVib,
         numRecords: window.length,
         startTime: startTime ?? DateTime.now(),
         endTime: endTime ?? DateTime.now(),
