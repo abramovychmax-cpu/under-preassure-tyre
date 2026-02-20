@@ -149,7 +149,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
     List<List<ConstantPowerSegment>> allSegments,
   ) async {
     final matchedSegments =
-        ConstantPowerClusteringService.matchSegmentsAcrossLaps(allSegments);
+        ConstantPowerClusteringService.aggregateByGpsZone(allSegments);
 
     if (matchedSegments.isEmpty) {
       throw Exception('No matching segments found across laps');

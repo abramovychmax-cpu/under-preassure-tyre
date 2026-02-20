@@ -36,43 +36,6 @@ class ConstantPowerSegment {
     required this.endTime,
   });
 
-  /// Check if this segment matches another by GPS proximity, power, and duration
-  /// Tolerances: GPS ±50m (realistic), Power ±10%, Duration ±15%
-  bool matchesWith(ConstantPowerSegment other, {
-    double gpsToleranceM = 50.0,      // Relaxed from 10m (GPS noise tolerance)
-    double powerTolerancePercent = 10.0,
-    double durationTolerancePercent = 15.0,
-  }) {
-    // GPS check: within ±50m (realistic GPS variance)
-    final gpsDist = _haversineDistance(avgLat, avgLon, other.avgLat, other.avgLon);
-    if (gpsDist > gpsToleranceM) return false;
-
-    // Power check: within ±10%
-    final powerDiff = (avgPower - other.avgPower).abs();
-    final maxPower = math.max(avgPower, other.avgPower);
-    final powerPercent = (powerDiff / maxPower) * 100.0;
-    if (powerPercent > powerTolerancePercent) return false;
-
-    // Duration check: within ±15% (rider consistency)
-    final durDiff = (duration - other.duration).abs();
-    final durPercent = (durDiff / math.max(duration, other.duration)) * 100.0;
-    if (durPercent > durationTolerancePercent) return false;
-
-    return true;
-  }
-
-  /// Calculate matching score for preferred segment selection
-  /// Higher score = better match. Prefers: index match, GPS proximity, duration match
-  double matchScore(ConstantPowerSegment other) {
-    final gpsDist = _haversineDistance(avgLat, avgLon, other.avgLat, other.avgLon);
-    final powerDiff = (avgPower - other.avgPower).abs() / math.max(avgPower, 1.0);
-    final durDiff = (duration - other.duration).abs() / math.max(duration, 1.0);
-    
-    // Score: lower distances/diffs are better (negative to maximize)
-    // Index match is handled separately in matchSegmentsAcrossLaps
-    return -(gpsDist / 50.0 + powerDiff * 100.0 + durDiff * 100.0);
-  }
-
   /// Haversine distance in meters
   static double _haversineDistance(
     double lat1,
@@ -283,144 +246,119 @@ class ConstantPowerClusteringService {
     return segments;
   }
 
-  /// Match segments across all laps with improved strategy:
-  /// 1. Prefer segments at same index + within GPS ±50m / Power ±10% / Duration ±15%
-  /// 2. Score optimally by GPS proximity + power/duration consistency
-  /// 3. Only include if found in ALL laps (complete match)
-  static List<MatchedSegment> matchSegmentsAcrossLaps(
+  // ── Zone-aggregation constants ──────────────────────────────────────────
+  /// GPS radius for grouping segments from the same road section.
+  static const double _gpsZoneRadiusM = 50.0;
+  /// Loose power gate for zone membership — same effort level.
+  static const double _zonePowerTolerancePct = 20.0;
+  /// Minimum segment distance; filters accidental short blips.
+  static const double _minSegmentDistanceM = 150.0;
+
+  /// Group all detected segments by GPS zone, then compute per-lap
+  /// distance-weighted average efficiency for each zone.
+  ///
+  /// A **zone** is a cluster of segment start-points within [_gpsZoneRadiusM].
+  /// Duration is NOT used as a gate — one lap may contribute many short segments
+  /// to a zone while another contributes one long segment; both are welcome.
+  /// Each zone present in ALL laps produces one (pressure, efficiency) point
+  /// per lap for the quadratic regression.
+  static List<MatchedSegment> aggregateByGpsZone(
     List<List<ConstantPowerSegment>> allLaps,
   ) {
     if (allLaps.isEmpty) return [];
-
-    final matchedSegments = <MatchedSegment>[];
     final numLaps = allLaps.length;
 
-    // Use first lap as reference for segment discovery
-    final referenceSegments = allLaps.first;
+    // ── Flatten and filter short blips ────────────────────────────────────────
+    final all = <ConstantPowerSegment>[
+      for (final lap in allLaps)
+        ...lap.where((s) => s.distance >= _minSegmentDistanceM),
+    ];
 
-    for (int refSegIdx = 0; refSegIdx < referenceSegments.length; refSegIdx++) {
-      final refSeg = referenceSegments[refSegIdx];
-      final matchedMap = <int, ConstantPowerSegment>{};
-      final pressures = <double>[];
+    if (all.isEmpty) {
+      print('⚠ No segments ≥ ${_minSegmentDistanceM.toStringAsFixed(0)} m found across $numLaps laps');
+      return [];
+    }
+
+    // ── GPS zone clustering (greedy, start-point only) ─────────────────────────
+    final zones = <List<ConstantPowerSegment>>[];
+    final used = <int>{};
+
+    for (int i = 0; i < all.length; i++) {
+      if (used.contains(i)) continue;
+      final zone = [all[i]];
+      used.add(i);
+      for (int j = i + 1; j < all.length; j++) {
+        if (used.contains(j)) continue;
+        final d = ConstantPowerSegment._haversineDistance(
+          all[i].avgLat, all[i].avgLon,
+          all[j].avgLat, all[j].avgLon,
+        );
+        if (d > _gpsZoneRadiusM) continue;
+        // Loose power gate — same effort level
+        final maxP = math.max(all[i].avgPower, all[j].avgPower);
+        if (maxP > 0) {
+          final pct = (all[i].avgPower - all[j].avgPower).abs() / maxP * 100.0;
+          if (pct > _zonePowerTolerancePct) continue;
+        }
+        zone.add(all[j]);
+        used.add(j);
+      }
+      zones.add(zone);
+    }
+
+    print('📍 GPS zones found: ${zones.length} (${all.length} segments, $numLaps laps)');
+
+    // ── Aggregate per zone ────────────────────────────────────────────────────
+    final matched = <MatchedSegment>[];
+    int zoneId = 0;
+
+    for (final zone in zones) {
+      // Group by lap
+      final byLap = <int, List<ConstantPowerSegment>>{};
+      for (final seg in zone) {
+        byLap.putIfAbsent(seg.lapIndex, () => []).add(seg);
+      }
+
+      // Require representation in ALL laps
+      if (byLap.length < numLaps) {
+        print('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
+        zoneId++;
+        continue;
+      }
+
+      final pressures    = <double>[];
       final efficiencies = <double>[];
-      final durationVariations = <double>[];
-      final powerVariations = <double>[];
+      final repByLap     = <int, ConstantPowerSegment>{};
 
-      bool isComplete = true;
-
-      // Try to find matching segment in each lap
-      for (int lapIdx = 0; lapIdx < numLaps; lapIdx++) {
-        final lapSegments = allLaps[lapIdx];
-
-        ConstantPowerSegment? bestMatch;
-        double bestScore = double.negativeInfinity;
-
-        // Strategy 1: Prefer segments at same index (stable numbering)
-        for (final seg in lapSegments) {
-          if (seg.segmentIndex == refSeg.segmentIndex) {
-            if (refSeg.matchesWith(seg)) {
-              bestMatch = seg;
-              bestScore = 1000.0; // High priority for index match
-              break;
-            }
-          }
-        }
-
-        // Strategy 2: If no index match, find best by GPS + power + duration score
-        if (bestMatch == null) {
-          for (final seg in lapSegments) {
-            if (refSeg.matchesWith(seg)) {
-              final score = refSeg.matchScore(seg);
-              if (score > bestScore) {
-                bestMatch = seg;
-                bestScore = score;
-              }
-            }
-          }
-        }
-
-        if (bestMatch != null) {
-          matchedMap[lapIdx] = bestMatch;
-          pressures.add(bestMatch.pressure);
-          efficiencies.add(bestMatch.efficiency);
-          powerVariations.add((bestMatch.avgPower - refSeg.avgPower).abs());
-          durationVariations.add((bestMatch.duration - refSeg.duration).abs());
-        } else {
-          isComplete = false;
-        }
+      for (final lapIdx in byLap.keys.toList()..sort()) {
+        final lapSegs = byLap[lapIdx]!;
+        // Distance-weighted average efficiency for this lap in this zone
+        final totalDist = lapSegs.fold(0.0, (s, seg) => s + seg.distance);
+        final wavgEff = totalDist > 0
+            ? lapSegs.fold(0.0, (s, seg) => s + seg.efficiency * seg.distance) / totalDist
+            : lapSegs.fold(0.0, (s, seg) => s + seg.efficiency) / lapSegs.length;
+        // Representative = longest segment
+        final rep = lapSegs.reduce((a, b) => a.distance > b.distance ? a : b);
+        pressures.add(rep.pressure);
+        efficiencies.add(wavgEff);
+        repByLap[lapIdx] = rep;
+        print('  ↳ Zone $zoneId lap $lapIdx: ${lapSegs.length} seg(s) | '
+            'pressure=${rep.pressure.toStringAsFixed(1)} psi | '
+            'wavgEff=${wavgEff.toStringAsFixed(4)}');
       }
 
-      // Only include if we found matches in ALL laps
-      if (isComplete && matchedMap.length == numLaps) {
-        // Calculate quality metrics before adding
-        final quality = _calculateSegmentClusterQuality(
-          refSeg,
-          matchedMap,
-          powerVariations,
-          durationVariations,
-        );
-
-        final matched = MatchedSegment(
-          segmentId: refSegIdx,
-          segmentsByLap: matchedMap,
-          pressures: pressures,
-          efficiencies: efficiencies,
-        );
-
-        // Log quality score
-        final powerCv = (quality['powerCv'] as num?)?.toDouble();
-        final durationCv = (quality['durationCv'] as num?)?.toDouble();
-        final score = (quality['score'] as num?)?.toDouble();
-        print('✓ Segment $refSegIdx matched: power stability=${powerCv?.toStringAsFixed(2) ?? 'n/a'}, '
-          'duration stability=${durationCv?.toStringAsFixed(2) ?? 'n/a'}, '
-          'quality_score=${score?.toStringAsFixed(3) ?? 'n/a'}');
-
-        matchedSegments.add(matched);
-      } else if (!isComplete) {
-        print('✗ Segment $refSegIdx rejected: missing from ${numLaps - matchedMap.length} laps');
-      }
+      print('✓ Zone $zoneId → ${pressures.length} regression points');
+      matched.add(MatchedSegment(
+        segmentId: zoneId,
+        segmentsByLap: repByLap,
+        pressures: pressures,
+        efficiencies: efficiencies,
+      ));
+      zoneId++;
     }
 
-    return matchedSegments;
-  }
-
-  /// Calculate quality score for a matched segment cluster
-  /// Score = N × power_consistency × duration_consistency
-  /// Higher = better
-  static Map<String, double> _calculateSegmentClusterQuality(
-    ConstantPowerSegment refSeg,
-    Map<int, ConstantPowerSegment> matchedMap,
-    List<double> powerVariations,
-    List<double> durationVariations,
-  ) {
-    final n = matchedMap.length.toDouble();
-
-    // Power consistency: CV of power across laps
-    double powerCv = 0.0;
-    if (powerVariations.isNotEmpty && refSeg.avgPower > 0) {
-      final meanVar = powerVariations.fold(0.0, (a, b) => a + b) / powerVariations.length;
-      powerCv = meanVar / refSeg.avgPower;
-    }
-
-    // Duration consistency: CV of duration across laps
-    double durationCv = 0.0;
-    if (durationVariations.isNotEmpty && refSeg.duration > 0) {
-      final meanVar = durationVariations.fold(0.0, (a, b) => a + b) / durationVariations.length;
-      durationCv = meanVar / refSeg.duration;
-    }
-
-    // Final score = N × (quality factors)
-    final powerFactor = 1.0 / (1.0 + powerCv); // Max 1.0 at CV=0
-    final durationFactor = 1.0 / (1.0 + durationCv);
-    final qualityScore = n * powerFactor * durationFactor;
-
-    return {
-      'powerCv': powerCv,
-      'durationCv': durationCv,
-      'powerFactor': powerFactor,
-      'durationFactor': durationFactor,
-      'score': qualityScore,
-    };
+    print('💾 Total zones for regression: ${matched.length}');
+    return matched;
   }
 
   /// Build regression data points: collect all (pressure, efficiency) pairs
