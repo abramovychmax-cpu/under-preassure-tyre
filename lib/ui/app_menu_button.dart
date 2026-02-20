@@ -4,6 +4,57 @@ import '../sensor_setup_page.dart';
 import '../wheel_metrics_page.dart';
 import 'common_widgets.dart';
 
+/// Opens [page] as a modal overlay that slides up from the bottom.
+/// A floating × button lets the user dismiss and return to wherever they came from.
+void openMenuOverlay(BuildContext context, Widget page) {
+  Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: true,
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (ctx, anim, _) {
+        return Stack(
+          children: [
+            page,
+            // Floating close button — sits above the page's own AppBar
+            Positioned(
+              top: MediaQuery.of(ctx).padding.top + 4,
+              left: 4,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(40),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.close, size: 20, color: Color(0xFF222222)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      transitionsBuilder: (ctx, anim, _, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    ),
+  );
+}
+
 /// Three-dot menu button giving quick access to setup pages from anywhere in the app.
 class AppMenuButton extends StatelessWidget {
   const AppMenuButton({super.key});
@@ -18,11 +69,11 @@ class AppMenuButton extends StatelessWidget {
       onSelected: (value) {
         switch (value) {
           case 'wheel':
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const WheelMetricsPage()));
+            openMenuOverlay(context, const WheelMetricsPage());
           case 'safety':
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const SafetyGuidePage()));
+            openMenuOverlay(context, const SafetyGuidePage());
           case 'sensors':
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const SensorSetupPage()));
+            openMenuOverlay(context, const SensorSetupPage());
         }
       },
       itemBuilder: (_) => const [
@@ -39,7 +90,7 @@ class AppMenuButton extends StatelessWidget {
           child: Row(children: [
             Icon(Icons.shield_outlined, color: accentGemini, size: 20),
             SizedBox(width: 12),
-            Text('Safety Guide', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('Safety & Guidelines', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           ]),
         ),
         PopupMenuItem(
