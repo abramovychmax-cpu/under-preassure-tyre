@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'how_it_works_page.dart';
-import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 

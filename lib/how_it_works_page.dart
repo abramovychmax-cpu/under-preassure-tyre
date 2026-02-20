@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'sensor_service.dart';
 import 'sensor_guide_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';

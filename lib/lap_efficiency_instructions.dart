@@ -54,7 +54,7 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
                   children: [
                     const SizedBox(height: 10),
                     const Text(
-                      'Follow these rules for every lap efficiency run.',
+                      'Each full lap is averaged as one data point — average power in, average speed out. Ride the same closed loop at each pressure and the app finds where speed is highest for the same effort.',
                       style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.4),
                     ),
                     const SizedBox(height: 32),
