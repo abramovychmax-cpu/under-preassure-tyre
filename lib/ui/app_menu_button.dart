@@ -82,7 +82,7 @@ class AppMenuButton extends StatelessWidget {
           child: Row(children: [
             Icon(Icons.tune, color: accentGemini, size: 20),
             SizedBox(width: 12),
-            Text('Wheel Setup', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('Metrics Setup', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           ]),
         ),
         PopupMenuItem(

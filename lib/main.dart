@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'sensor_service.dart';
 import 'welcome_page.dart';
+import 'sensor_setup_page.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() async {
@@ -19,11 +20,16 @@ void main() async {
   final sensorService = SensorService();
   await sensorService.loadSavedSensors();
 
-  runApp(const MyApp());
+  // Returning users (have saved sensors) skip onboarding and land on SensorSetupPage.
+  // The scan started inside loadSavedSensors() will auto-reconnect saved devices.
+  final bool returningUser = sensorService.hasSavedSensors;
+
+  runApp(MyApp(returningUser: returningUser));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final bool returningUser;
+  const MyApp({super.key, this.returningUser = false});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -64,7 +70,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         brightness: Brightness.light,
         useMaterial3: true,
       ),
-      home: const WelcomePage(),
+      home: widget.returningUser ? const SensorSetupPage() : const WelcomePage(),
     );
   }
 }

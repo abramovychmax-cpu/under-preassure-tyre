@@ -80,6 +80,24 @@ class _PressureInputPageState extends State<PressureInputPage> {
     }
   }
 
+  /// Clamps the rear pressure field to valid range and updates front.
+  void _clampRear() {
+    String cleanText = _rearController.text.replaceAll(',', '.');
+    double? val = double.tryParse(cleanText);
+    if (val == null) return;
+    double clamped;
+    if (_pressureUnit == 'Bar') {
+      clamped = val.clamp(0.1, 12.0);
+    } else {
+      clamped = val < 13.0 ? 13.0 : val;
+    }
+    if (clamped != val) {
+      _rearController.text = clamped.toStringAsFixed(_pressureUnit == 'Bar' ? 1 : 1);
+      _rearController.selection = TextSelection.collapsed(offset: _rearController.text.length);
+    }
+    _updateFrontPressure();
+  }
+
   @override
   void dispose() {
     _rearController.removeListener(_updateFrontPressure);
@@ -340,6 +358,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
   }
 
   Widget _buildPressureField(String label, TextEditingController controller) {
+    final String hint = _pressureUnit == 'Bar' ? 'max 12 Bar' : 'min 13 PSI';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -358,9 +377,18 @@ class _PressureInputPageState extends State<PressureInputPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            label, 
-            style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)
+          Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: accentGemini, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              ),
+              const Spacer(),
+              Text(
+                hint,
+                style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 10, fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           TextField(
@@ -372,6 +400,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
+            onEditingComplete: _clampRear,
           ),
         ],
       ),

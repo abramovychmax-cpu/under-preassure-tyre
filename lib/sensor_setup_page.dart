@@ -549,6 +549,12 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
               onForward: (widget.isOverlay || SensorService().isSessionActive)
                   ? null
                   : (canProceed ? _handleSwipeUp : null),
+              statusText: canProceed
+                  ? null
+                  : _useGpsSpeed
+                      ? 'ENABLE GPS FIRST'
+                      : 'SELECT SPEED SENSOR',
+              statusColor: const Color(0xFFE6A817),
             ),
           ],
         ),

@@ -746,6 +746,9 @@ class SensorService {
   /// True while a FIT recording session is in progress (first run started, not yet finished).
   bool get isSessionActive => _fitWriter != null;
 
+  /// True when at least one sensor ID has been saved (i.e. user has completed initial setup).
+  bool get hasSavedSensors => _savedSpeedId != null || _savedPowerId != null || _savedCadenceId != null;
+
   /// Get the current FIT writer instance (for background flush)
   FitWriter? getFitWriter() => _fitWriter;
   
