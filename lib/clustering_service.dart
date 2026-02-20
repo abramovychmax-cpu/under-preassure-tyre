@@ -136,13 +136,49 @@ class RouteSignature {
 // Stage 6: Output validated segments for quadratic regression
 //
 
+/// Internal holder for raw per-sample arrays and the detected coasting window.
+/// Used between Stage 1 (extraction) and the trimming step so we can do
+/// distance-based interpolation before building the final [DescentSegment].
+class _RawDescent {
+  final int runIdx;
+  final double frontPressure;
+  final double rearPressure;
+  // Full-run parallel arrays (1 entry per recorded second)
+  final List<double> altitudes;
+  final List<double> speeds;      // m/s
+  final List<double> distances;   // per-lap cumulative wheel distance (m)
+  final List<double> lats;
+  final List<double> lons;
+  // Detected coasting window indices into the arrays above
+  final int start;
+  final int end;
+
+  _RawDescent({
+    required this.runIdx,
+    required this.frontPressure,
+    required this.rearPressure,
+    required this.altitudes,
+    required this.speeds,
+    required this.distances,
+    required this.lats,
+    required this.lons,
+    required this.start,
+    required this.end,
+  });
+
+  /// Wheel-sensor distance covered during the coasting window (meters).
+  double get coastingDistance => distances[end] - distances[start];
+  double get startLat => lats[start];
+  double get startLon => lons[start];
+}
+
 class CoastDownClusteringService {
   // ── Pipeline constants ──
-  static const double _gpsClusterRadiusM = 100.0;
-  static const double _durationTolerancePct = 10.0;
+  /// GPS radius used to confirm all runs started at the same physical point.
+  /// Start-point only — end-point no longer used (trimming makes it irrelevant).
+  static const double _startGpsRadiusM = 50.0;
   static const double _minAltitudeDropM = 5.0;
   static const double _maxAltitudeErrorRate = 0.20; // 20% erratic points allowed
-  static const double _speedThresholdPct = 95.0;    // 95% of slowest max_speed
   static const double _signatureMatchRadiusM = 1000.0;
   static const int _flatOrUpTolerance = 3;          // Points before descent end declared
   static const String _signatureKey = 'route_signatures_v2';
@@ -160,89 +196,90 @@ class CoastDownClusteringService {
   // MAIN ENTRY POINT
   // ────────────────────────────────────────────────────────────────────────────
 
-  /// Run the full 6-stage pipeline on parsed JSONL data.
-  /// [recordsByRun] — sensor records grouped by lapIndex
-  /// [runMetadata]  — pressure metadata per lapIndex
-  /// Returns validated [DescentSegment]s ready for quadratic regression.
+  /// Run the revised coast-down analysis pipeline on parsed JSONL data.
+  ///
+  /// New approach (distance-based trimming):
+  ///   Stage 1 — Extract coasting window from each run (cadence=0 + altitude drop)
+  ///   Stage 2 — GPS start-point clustering (±50 m) — confirm same hill only
+  ///   Stage 3 — Trim all runs to median wheel distance; interpolate vEnd + altDrop
+  ///   Stage 4 — Learn and store route signature
+  ///   Stage 5 — Quality rank clusters; pick best ≥3 runs
+  ///   Stage 6 — Return validated [DescentSegment]s for quadratic regression
   static Future<List<DescentSegment>> analyzeDescents(
     Map<int, List<Map<String, dynamic>>> recordsByRun,
     Map<int, Map<String, dynamic>> runMetadata,
   ) async {
-    // ── Stage 1: Extract pure descent from each run ──
-    final segments = <DescentSegment>[];
+    // ── Stage 1: Extract raw coasting window from each run ──
+    final rawDescents = <_RawDescent>[];
     for (final runIdx in recordsByRun.keys) {
       final records = recordsByRun[runIdx]!;
       final meta = runMetadata[runIdx] ?? {};
       final front = (meta['frontPressure'] as num?)?.toDouble() ?? 0.0;
-      final rear = (meta['rearPressure'] as num?)?.toDouble() ?? 0.0;
+      final rear  = (meta['rearPressure']  as num?)?.toDouble() ?? 0.0;
 
-      final segment = _extractDescent(records, runIdx, front, rear);
-      if (segment != null) {
-        segments.add(segment);
+      final raw = _extractRawDescent(records, runIdx, front, rear);
+      if (raw != null) {
+        rawDescents.add(raw);
         print('✓ Stage 1 | Run $runIdx: '
-            '${segment.durationSeconds.toStringAsFixed(0)}s, '
-            '${segment.altitudeDrop.toStringAsFixed(1)}m drop, '
-            '${segment.maxSpeed.toStringAsFixed(1)}m/s max');
+            '${raw.coastingDistance.toStringAsFixed(0)} m wheel-dist, '
+            '${(raw.end - raw.start)}s window');
       } else {
-        print('✗ Stage 1 | Run $runIdx: no valid descent extracted');
+        print('✗ Stage 1 | Run $runIdx: no valid coasting window');
       }
     }
 
+    if (rawDescents.length < 3) {
+      throw Exception('Stage 1: Only ${rawDescents.length} valid descents found (need 3+)');
+    }
+
+    // ── Stage 2: GPS start-point clustering (±${_startGpsRadiusM}m) ──
+    final gpsGroups = _clusterByStartGPS(rawDescents);
+    print('✓ Stage 2 | ${gpsGroups.length} GPS start cluster(s)');
+
+    if (gpsGroups.isEmpty) {
+      throw Exception('Stage 2: No GPS start clusters formed — runs started too far apart');
+    }
+
+    // Pick the largest group with ≥3 runs
+    gpsGroups.sort((a, b) => b.length.compareTo(a.length));
+    final bestGroup = gpsGroups.first;
+    if (bestGroup.length < 3) {
+      throw Exception('Stage 2: Largest cluster has only ${bestGroup.length} runs (need 3+)');
+    }
+    print('✓ Stage 2 | Best cluster: ${bestGroup.length} runs within ${_startGpsRadiusM}m start radius');
+
+    // ── Stage 3: Trim to median wheel distance; recalculate vEnd + altDrop ──
+    final segments = _trimToMedianDistance(bestGroup);
+    print('✓ Stage 3 | Trimmed ${segments.length} runs to median wheel distance');
+
     if (segments.length < 3) {
-      throw Exception(
-          'Stage 1: Only ${segments.length} valid descents found (need 3+)');
-    }
-
-    // ── Stage 2: Adaptive baseline validation ──
-    final validated = _validateAgainstBaseline(segments);
-    print('✓ Stage 2 | ${validated.length}/${segments.length} passed baseline');
-
-    if (validated.length < 3) {
-      throw Exception(
-          'Stage 2: Only ${validated.length} runs passed validation (need 3+)');
-    }
-
-    // ── Stage 3: GPS route clustering (start AND end) ──
-    final clusters = _clusterByGPS(validated);
-    print('✓ Stage 3 | ${clusters.length} GPS cluster(s) formed');
-
-    if (clusters.isEmpty) {
-      throw Exception('Stage 3: No GPS clusters formed');
-    }
-
-    // ── Stage 5: Quality ranking (before 4 so we pick best first) ──
-    clusters.sort((a, b) =>
-        _clusterQualityScore(b).compareTo(_clusterQualityScore(a)));
-    final best = clusters.first;
-    print('✓ Stage 5 | Best cluster: ${best.length} runs, '
-        'quality=${_clusterQualityScore(best).toStringAsFixed(3)}');
-
-    if (best.length < 3) {
-      throw Exception(
-          'Stage 5: Best cluster has ${best.length} runs (need 3+)');
+      throw Exception('Stage 3: Only ${segments.length} runs survived trimming (need 3+)');
     }
 
     // ── Stage 4: Learn and store route signature ──
     try {
-      await _learnAndStoreSignature(best);
+      await _learnAndStoreSignature(segments);
     } catch (e) {
       print('⚠ Stage 4 | Signature storage failed: $e');
     }
 
-    // ── Stage 6: Return validated descent segments ──
-    print('✓ Pipeline complete: ${best.length}/${recordsByRun.length} runs → regression');
-    return best;
+    // ── Stage 5: Quality rank (duration consistency within trimmed set) ──
+    // All runs are now the same distance — just return all ≥3; rank by CRR spread
+    segments.sort((a, b) => a.rearPressure.compareTo(b.rearPressure));
+    print('✓ Pipeline complete: ${segments.length}/${recordsByRun.length} runs → regression');
+
+    return segments;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Stage 1: Extract pure descent from a single recording run
+  // Stage 1: Extract raw coasting window from a single recording run
   // ────────────────────────────────────────────────────────────────────────────
   //
-  // Scans altitude profile for consistent downhill movement.
-  // Discards: walk-back, standing at top, flat run-out at bottom.
-  // Validates: altitude consistency ≤ 20% erratic, drop ≥ 5m.
+  // Returns a [_RawDescent] with full per-sample arrays and detected
+  // start/end indices. End is set at braking / GPS turnaround / flat run-out.
+  // The arrays are NOT trimmed here — distance-based trimming happens in Stage 3.
 
-  static DescentSegment? _extractDescent(
+  static _RawDescent? _extractRawDescent(
     List<Map<String, dynamic>> records,
     int runIdx,
     double frontPressure,
@@ -250,138 +287,74 @@ class CoastDownClusteringService {
   ) {
     if (records.length < 5) return null;
 
-    // Build parallel arrays from JSONL records
-    final altitudes = <double>[];
-    final speeds = <double>[]; // m/s
-    final lats = <double>[];
-    final lons = <double>[];
-    final powers = <double>[];
+    final altitudes  = <double>[];
+    final speeds     = <double>[]; // m/s
+    final distances  = <double>[]; // per-lap cumulative wheel distance (m)
+    final lats       = <double>[];
+    final lons       = <double>[];
+    final powers     = <double>[];
 
     for (final r in records) {
-      altitudes.add((r['altitude'] as num?)?.toDouble() ?? 0.0);
-      speeds.add(((r['speed_kmh'] as num?)?.toDouble() ?? 0.0) / 3.6);
-      lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
-      lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
-      powers.add((r['power'] as num?)?.toDouble() ?? 0.0);
+      altitudes.add((r['altitude']  as num?)?.toDouble() ?? 0.0);
+      speeds.add(((r['speed_kmh']   as num?)?.toDouble() ?? 0.0) / 3.6);
+      distances.add((r['distance']  as num?)?.toDouble() ?? 0.0);
+      lats.add((r['lat']            as num?)?.toDouble() ?? 0.0);
+      lons.add((r['lon']            as num?)?.toDouble() ?? 0.0);
+      powers.add((r['power']        as num?)?.toDouble() ?? 0.0);
     }
 
-    // ── Find descent START: first moving sample, skip push-off wobble, avoid power spikes ──
+    // ── Find coasting START ──
     int start = speeds.indexWhere((s) => s > _startSpeedThresholdMs);
     if (start == -1) return null;
-
-    // Ignore first seconds to clear push-off instability
     start = math.min(start + _pushOffIgnoreSeconds, speeds.length - 1);
-
-    // Slide start forward until local power spikes are gone
     for (int i = start; i < speeds.length; i++) {
-      final windowStart = math.max(0, i - _powerSpikeLookahead);
-      final windowEnd = math.min(speeds.length - 1, i + _powerSpikeLookahead);
-      double maxPower = 0.0;
-      for (int j = windowStart; j <= windowEnd; j++) {
-        if (powers[j] > maxPower) maxPower = powers[j];
-      }
-      if (maxPower <= _powerSpikeThresholdW) {
-        start = i;
-        break;
-      }
+      final w0 = math.max(0, i - _powerSpikeLookahead);
+      final w1 = math.min(speeds.length - 1, i + _powerSpikeLookahead);
+      double maxPow = 0;
+      for (int j = w0; j <= w1; j++) { if (powers[j] > maxPow) maxPow = powers[j]; }
+      if (maxPow <= _powerSpikeThresholdW) { start = i; break; }
     }
+    if (start >= altitudes.length - 3) return null;
 
-    if (start >= altitudes.length - 3) return null; // not enough runway
-
-    // ── Find descent END: brake cue (rapid decel) takes priority; fallback to alt/GPS ──
+    // ── Find coasting END: brake → GPS turnaround → flat run-out ──
     int end = start;
     int flatCount = 0;
-
     for (int i = start + 1; i < altitudes.length - 1; i++) {
       final deltaV = speeds[i] - speeds[i - 1];
-      final windowStart = math.max(start, i - _brakeWindowSeconds);
-      final windowMax = speeds.sublist(windowStart, i + 1).reduce(math.max);
-      final dropFrac = windowMax > 0
-          ? (windowMax - speeds[i]) / windowMax
-          : 0.0;
+      final wStart = math.max(start, i - _brakeWindowSeconds);
+      final wMax   = speeds.sublist(wStart, i + 1).reduce(math.max);
+      final drop   = wMax > 0 ? (wMax - speeds[i]) / wMax : 0.0;
 
-      final braking = deltaV <= _brakeDecelThresholdMs2 || dropFrac >= _brakeDropFraction;
-      if (braking) {
+      if (deltaV <= _brakeDecelThresholdMs2 || drop >= _brakeDropFraction) {
         end = i;
         break;
       }
-
-      if (altitudes[i] > altitudes[i + 1]) {
-        flatCount = 0; // Still descending — reset counter
-      } else {
-        flatCount++;
-      }
-
-      // Speed died
+      if (altitudes[i] > altitudes[i + 1]) { flatCount = 0; } else { flatCount++; }
       if (speeds[i] < 1.0) flatCount++;
-
-      // GPS turnaround (moving back toward descent start)
-      if (_isGpsTurnaround(lats, lons, start, i)) {
-        end = i;
-        break;
-      }
-
-      // Too many non-descending points
-      if (flatCount >= _flatOrUpTolerance) {
-        end = i;
-        break;
-      }
-
+      if (_isGpsTurnaround(lats, lons, start, i)) { end = i; break; }
+      if (flatCount >= _flatOrUpTolerance) { end = i; break; }
       end = i;
     }
-
-    if (end <= start + 3) return null; // Too short
+    if (end <= start + 3) return null;
 
     // ── Validate altitude profile ──
     final dAlt = altitudes.sublist(start, end + 1);
-    final dSpd = speeds.sublist(start, end + 1);
-
-    // Count erratic points (altitude goes up during supposed descent)
     int errors = 0;
-    for (int i = 0; i < dAlt.length - 1; i++) {
-      if (dAlt[i] <= dAlt[i + 1]) errors++;
-    }
-    final errorRate = errors / dAlt.length;
-    if (errorRate > _maxAltitudeErrorRate) {
-      print('  ✗ Run $runIdx: altitude error rate '
-          '${(errorRate * 100).toStringAsFixed(0)}% > '
-          '${(_maxAltitudeErrorRate * 100).toStringAsFixed(0)}%');
-      return null;
-    }
+    for (int i = 0; i < dAlt.length - 1; i++) { if (dAlt[i] <= dAlt[i + 1]) errors++; }
+    if (errors / dAlt.length > _maxAltitudeErrorRate) return null;
+    if (dAlt.first - dAlt.last < _minAltitudeDropM) return null;
 
-    final altDrop = dAlt.first - dAlt.last;
-    if (altDrop < _minAltitudeDropM) {
-      print('  ✗ Run $runIdx: altitude drop '
-          '${altDrop.toStringAsFixed(1)}m < ${_minAltitudeDropM}m');
-      return null;
-    }
-
-    // ── Compute metrics ──
-    final duration = dAlt.length.toDouble(); // 1 record ≈ 1 second
-    final avgSpd = dSpd.reduce((a, b) => a + b) / dSpd.length;
-    final maxSpd = dSpd.reduce((a, b) => a > b ? a : b);
-    final vStart = dSpd.first;
-    final vEnd = dSpd.last;
-    final dist = avgSpd * duration;
-    final crr = _calculateCRR(altDrop, dist, vStart, vEnd);
-    final efficiency = dist / math.max(maxSpd, 0.1);
-
-    return DescentSegment(
-      runIndex: runIdx,
+    return _RawDescent(
+      runIdx: runIdx,
       frontPressure: frontPressure,
       rearPressure: rearPressure,
-      altitudeDrop: altDrop,
-      durationSeconds: duration,
-      avgSpeed: avgSpd,
-      maxSpeed: maxSpd,
-      distance: dist,
-      startLat: lats[start],
-      startLon: lons[start],
-      endLat: lats[end],
-      endLon: lons[end],
-      crr: crr,
-      efficiency: efficiency,
-      numRecords: dAlt.length,
+      altitudes: altitudes,
+      speeds: speeds,
+      distances: distances,
+      lats: lats,
+      lons: lons,
+      start: start,
+      end: end,
     );
   }
 
@@ -411,95 +384,126 @@ class CoastDownClusteringService {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Stage 2: Adaptive baseline validation
+  // Stage 2: GPS start-point clustering (start only, ±50 m)
   // ────────────────────────────────────────────────────────────────────────────
   //
-  // First valid descent = baseline reference.
-  // Duration: ±10% of baseline.
-  // Max speed: ≥ 95% of the slowest max_speed across ALL runs.
-  // Altitude drop: ≥ 5m minimum.
+  // Groups runs whose coasting start points are within [_startGpsRadiusM].
+  // End-point is no longer matched — trimming in Stage 3 handles that.
 
-  static List<DescentSegment> _validateAgainstBaseline(
-    List<DescentSegment> segments,
+  static List<List<_RawDescent>> _clusterByStartGPS(
+    List<_RawDescent> raws,
   ) {
-    if (segments.isEmpty) return [];
-
-    final baseline = segments.first;
-    final durTol = baseline.durationSeconds * (_durationTolerancePct / 100.0);
-
-    // Speed threshold: 95% of the slowest max_speed
-    final slowestMax = segments.map((s) => s.maxSpeed).reduce(math.min);
-    final minSpd = slowestMax * (_speedThresholdPct / 100.0);
-
-    final passed = <DescentSegment>[];
-
-    for (final s in segments) {
-      final durOk =
-          (s.durationSeconds - baseline.durationSeconds).abs() <= durTol;
-      final spdOk = s.maxSpeed >= minSpd;
-      final altOk = s.altitudeDrop >= _minAltitudeDropM;
-
-      if (durOk && spdOk && altOk) {
-        passed.add(s);
-      } else {
-        print('  ✗ Run ${s.runIndex} rejected: '
-            'dur=${durOk ? "✓" : "✗"}(${s.durationSeconds.toStringAsFixed(0)}s) '
-            'spd=${spdOk ? "✓" : "✗"}(${s.maxSpeed.toStringAsFixed(1)}m/s) '
-            'alt=${altOk ? "✓" : "✗"}(${s.altitudeDrop.toStringAsFixed(1)}m)');
-      }
-    }
-
-    return passed;
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Stage 3: GPS route clustering (start AND end within radius)
-  // ────────────────────────────────────────────────────────────────────────────
-  //
-  // Both conditions required: same hilltop start AND same bottom end.
-  // Prevents merging two different hills that share a starting area.
-
-  static List<List<DescentSegment>> _clusterByGPS(
-    List<DescentSegment> segments,
-  ) {
-    final clusters = <List<DescentSegment>>[];
+    final clusters = <List<_RawDescent>>[];
     final used = <int>{};
 
-    for (int i = 0; i < segments.length; i++) {
+    for (int i = 0; i < raws.length; i++) {
       if (used.contains(i)) continue;
-
-      final cluster = [segments[i]];
+      final cluster = [raws[i]];
       used.add(i);
-      final ref = segments[i];
-
-      for (int j = i + 1; j < segments.length; j++) {
+      for (int j = i + 1; j < raws.length; j++) {
         if (used.contains(j)) continue;
-
-        final test = segments[j];
-
-        // Start-to-start proximity
-        final startDist = _haversine(
-          ref.startLat, ref.startLon,
-          test.startLat, test.startLon,
+        final d = _haversine(
+          raws[i].startLat, raws[i].startLon,
+          raws[j].startLat, raws[j].startLon,
         );
-
-        // End-to-end proximity
-        final endDist = _haversine(
-          ref.endLat, ref.endLon,
-          test.endLat, test.endLon,
-        );
-
-        if (startDist <= _gpsClusterRadiusM &&
-            endDist <= _gpsClusterRadiusM) {
-          cluster.add(test);
+        if (d <= _startGpsRadiusM) {
+          cluster.add(raws[j]);
           used.add(j);
         }
       }
-
       clusters.add(cluster);
     }
-
     return clusters;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Stage 3: Trim all runs to median wheel distance; build DescentSegments
+  // ────────────────────────────────────────────────────────────────────────────
+  //
+  // 1. Compute coasting distance (wheel revs) for each run.
+  // 2. Reference = median distance (avoids outlier short/long runs).
+  // 3. For each run, interpolate speed and altitude at the reference distance.
+  // 4. Calculate CRR using the trimmed vEnd and altDrop.
+
+  static List<DescentSegment> _trimToMedianDistance(
+    List<_RawDescent> raws,
+  ) {
+    // Compute per-run coasting distances and find median
+    final dists = raws.map((r) => r.coastingDistance).toList()..sort();
+    final medianDist = dists[dists.length ~/ 2];
+    print('  ↳ Coasting distances: ${dists.map((d) => d.toStringAsFixed(0)).join(', ')} m  |  median = ${medianDist.toStringAsFixed(0)} m');
+
+    final segments = <DescentSegment>[];
+
+    for (final raw in raws) {
+      final s = raw.start;
+      final e = raw.end;
+
+      // Wheel distance at coasting start (per-lap cumulative, starts near 0)
+      final distAtStart = raw.distances[s];
+      final targetDist  = distAtStart + medianDist;
+
+      // Linear interpolation helper
+      double interpolate(List<double> arr, int i, double frac) =>
+          arr[i] + (arr[i + 1] - arr[i]) * frac;
+
+      // Find the sample pair that straddles targetDist
+      int trimIdx = e; // fallback = natural end
+      double frac = 0.0;
+      for (int i = s; i < e; i++) {
+        if (raw.distances[i + 1] >= targetDist) {
+          final span = raw.distances[i + 1] - raw.distances[i];
+          frac = span > 0 ? (targetDist - raw.distances[i]) / span : 0.0;
+          trimIdx = i;
+          break;
+        }
+      }
+
+      // Interpolated values at trim point
+      final vEnd    = interpolate(raw.speeds,    trimIdx, frac);
+      final altEnd  = interpolate(raw.altitudes, trimIdx, frac);
+      final altDrop = raw.altitudes[s] - altEnd;
+
+      if (altDrop < _minAltitudeDropM) {
+        print('  ✗ Run ${raw.runIdx}: after trimming altDrop=${altDrop.toStringAsFixed(1)}m < ${_minAltitudeDropM}m, skipping');
+        continue;
+      }
+
+      // Rebuild speed slice for avg/max
+      final dSpd = raw.speeds.sublist(s, trimIdx + 1);
+      final avgSpd = dSpd.reduce((a, b) => a + b) / dSpd.length;
+      final maxSpd = dSpd.reduce((a, b) => a > b ? a : b);
+      final vStart = raw.speeds[s];
+      final duration = (trimIdx - s).toDouble();
+
+      final crr = _calculateCRR(altDrop, medianDist, vStart, vEnd);
+      final efficiency = medianDist / math.max(maxSpd, 0.1);
+
+      print('  ✓ Run ${raw.runIdx}: trimmed to ${medianDist.toStringAsFixed(0)}m | '
+          'altDrop=${altDrop.toStringAsFixed(1)}m | '
+          'vStart=${vStart.toStringAsFixed(1)}→vEnd=${vEnd.toStringAsFixed(1)} m/s | '
+          'CRR=${crr.toStringAsFixed(5)}');
+
+      segments.add(DescentSegment(
+        runIndex: raw.runIdx,
+        frontPressure: raw.frontPressure,
+        rearPressure: raw.rearPressure,
+        altitudeDrop: altDrop,
+        durationSeconds: duration,
+        avgSpeed: avgSpd,
+        maxSpeed: maxSpd,
+        distance: medianDist,
+        startLat: raw.startLat,
+        startLon: raw.startLon,
+        endLat: interpolate(raw.lats, trimIdx, frac),
+        endLon: interpolate(raw.lons, trimIdx, frac),
+        crr: crr,
+        efficiency: efficiency,
+        numRecords: trimIdx - s + 1,
+      ));
+    }
+
+    return segments;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -603,47 +607,6 @@ class CoastDownClusteringService {
       print('⚠ Failed to load route signature: $e');
     }
     return null;
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Stage 5: Cluster quality scoring
-  // ────────────────────────────────────────────────────────────────────────────
-  //
-  // Score = N × duration_consistency × GPS_tightness
-  //   N                    = number of runs (more = better)
-  //   duration_consistency = 1 / (1 + CV_duration)  (lower CV = better)
-  //   GPS_tightness        = 1 / (1 + maxSpread/50) (smaller spread = better)
-
-  static double _clusterQualityScore(List<DescentSegment> cluster) {
-    if (cluster.isEmpty) return 0.0;
-    final n = cluster.length.toDouble();
-
-    // Duration consistency
-    double durFactor = 1.0;
-    if (cluster.length >= 2) {
-      final durs = cluster.map((s) => s.durationSeconds).toList();
-      final mean = durs.reduce((a, b) => a + b) / durs.length;
-      final variance =
-          durs.map((d) => (d - mean) * (d - mean)).reduce((a, b) => a + b) /
-              durs.length;
-      final cv = mean > 0 ? math.sqrt(variance) / mean : 0.0;
-      durFactor = 1.0 / (1.0 + cv);
-    }
-
-    // GPS tightness (max pairwise start-point spread)
-    double gpsFactor = 1.0;
-    if (cluster.length >= 2) {
-      double maxSpread = 0;
-      for (final a in cluster) {
-        for (final b in cluster) {
-          final d = _haversine(a.startLat, a.startLon, b.startLat, b.startLon);
-          if (d > maxSpread) maxSpread = d;
-        }
-      }
-      gpsFactor = 1.0 / (1.0 + maxSpread / 50.0);
-    }
-
-    return n * durFactor * gpsFactor;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
