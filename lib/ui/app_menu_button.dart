@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../analysis_page.dart';
 import '../safety_guide_page.dart';
 import '../sensor_setup_page.dart';
 import '../wheel_metrics_page.dart';
@@ -55,6 +58,45 @@ void openMenuOverlay(BuildContext context, Widget page) {
   );
 }
 
+/// Opens the most recently saved AnalysisPage result from SharedPreferences.
+Future<void> _openLastAnalysis(BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  final keys = prefs.getStringList('test_keys') ?? [];
+  if (keys.isEmpty) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No past results found. Complete a session first.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+  final lastKey = keys.last;
+  final raw = prefs.getString(lastKey);
+  if (raw == null) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not load last result.'), behavior: SnackBarBehavior.floating),
+    );
+    return;
+  }
+  final data = jsonDecode(raw) as Map<String, dynamic>;
+  final fitPath  = data['fitFilePath'] as String? ?? '';
+  final protocol = data['protocol']    as String? ?? 'coast_down';
+  final bikeType = data['bikeType']    as String? ?? 'road';
+  if (!context.mounted) return;
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => AnalysisPage(
+        fitFilePath: fitPath,
+        protocol: protocol,
+        bikeType: bikeType,
+      ),
+    ),
+  );
+}
+
 /// Three-dot menu button giving quick access to setup pages from anywhere in the app.
 class AppMenuButton extends StatelessWidget {
   const AppMenuButton({super.key});
@@ -74,9 +116,19 @@ class AppMenuButton extends StatelessWidget {
             openMenuOverlay(context, const SafetyGuidePage(isOverlay: true));
           case 'sensors':
             openMenuOverlay(context, const SensorSetupPage(isOverlay: true));
+          case 'results':
+            _openLastAnalysis(context);
         }
       },
       itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'results',
+          child: Row(children: [
+            Icon(Icons.bar_chart, color: accentGemini, size: 20),
+            SizedBox(width: 12),
+            Text('Past Results', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ]),
+        ),
         PopupMenuItem(
           value: 'wheel',
           child: Row(children: [
