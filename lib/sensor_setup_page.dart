@@ -337,7 +337,11 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         foregroundColor: const Color(0xFF222222),
         actions: const [AppMenuButton()],
       ),
-      body: Padding(
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: (widget.isOverlay || SensorService().isSessionActive)
+            ? null
+            : (canProceed ? _handleSwipeUp : null),
+        child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
@@ -552,6 +556,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }

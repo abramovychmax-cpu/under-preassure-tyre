@@ -108,9 +108,13 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
         foregroundColor: const Color(0xFF222222),
         actions: const [AppMenuButton()],
       ),
-        body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: accentGemini))
-          : Column(
+        body: RightEdgeSwipeDetector(
+          onSwipeForward: widget.isOverlay || SensorService().isSessionActive
+              ? null
+              : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SafetyGuidePage())),
+          child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: accentGemini))
+            : Column(
               children: [
                 Expanded(
                   child: SingleChildScrollView(
@@ -387,6 +391,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
             ),
           ),
       ],
+    ),
     ),
     );
   }

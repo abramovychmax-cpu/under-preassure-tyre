@@ -31,7 +31,9 @@ class SafetyGuidePage extends StatelessWidget {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: Column(
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: (isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
+        child: Column(
           children: [
           Expanded(
           child: SingleChildScrollView(
@@ -82,6 +84,7 @@ class SafetyGuidePage extends StatelessWidget {
           ),
           ],
         ),
+      ),
     );
   }
 

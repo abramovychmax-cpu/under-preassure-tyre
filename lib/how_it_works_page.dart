@@ -30,7 +30,9 @@ class HowItWorksPage extends StatelessWidget {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: Column(
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: () => _navigateNext(context),
+        child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -44,7 +46,7 @@ class HowItWorksPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'To find your fastest pressure, perform at least three runs at different pressures and let the app calculate the optimum.',
+                      'To find your fastest pressure, perform at least three runs with selected protocol at different pressures and let the app calculate the optimum.',
                       style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.5),
                     ),
                     const SizedBox(height: 32),
@@ -52,11 +54,11 @@ class HowItWorksPage extends StatelessWidget {
                     const SizedBox(height: 24),
                     _sectionHeader('Step 2 — Perform 3+ runs'),
                     const SizedBox(height: 24),
-                    _sectionHeader('Step 3 — Get your perfect pressure'),
+                    _sectionHeader('Step 3 — Get your optimal pressure'),
                     const SizedBox(height: 24),
                     _sectionHeader('Before you start'),
-                    _bulletPoint('Set up your metrics.'),
                     _bulletPoint('Pair your speed and power sensors.'),
+                    _bulletPoint('Set up your metrics.'),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -68,6 +70,7 @@ class HowItWorksPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
     );
   }
 

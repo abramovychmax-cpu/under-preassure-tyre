@@ -18,7 +18,9 @@ class SensorGuidePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      body: AppMenuOverlay(
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: () => _navigateToSetup(context),
+        child: AppMenuOverlay(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -86,6 +88,7 @@ class SensorGuidePage extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
