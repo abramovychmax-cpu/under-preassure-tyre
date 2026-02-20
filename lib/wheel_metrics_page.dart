@@ -389,13 +389,14 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
             ),
           ),
         ),
-        OnboardingNavBar(
-          onBack: () => Navigator.pop(context),
-          onForward: (widget.isOverlay || SensorService().isSessionActive) ? null : () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
+        if (!widget.isOverlay)
+          OnboardingNavBar(
+            onBack: () => Navigator.pop(context),
+            onForward: SensorService().isSessionActive ? null : () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
+            ),
           ),
-        ),
       ],
     ),
     );

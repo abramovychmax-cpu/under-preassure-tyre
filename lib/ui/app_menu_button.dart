@@ -58,6 +58,80 @@ void openMenuOverlay(BuildContext context, Widget page) {
   );
 }
 
+/// Opens [page] as a 90 % height partial overlay with slide-up animation.
+/// A semi-transparent scrim fills the top 10 %; tapping it dismisses the overlay.
+void openPartialOverlay(BuildContext context, Widget page) {
+  Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (ctx, anim, _) {
+        final screenHeight = MediaQuery.of(ctx).size.height;
+        return Stack(
+          children: [
+            // Semi-transparent scrim — tapping closes the overlay
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(color: Colors.black.withValues(alpha: 0.5)),
+              ),
+            ),
+            // 90 % content panel
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: screenHeight * 0.9,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: page,
+                  ),
+                  // Floating close button at top-left of panel
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => Navigator.of(ctx).pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(40),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.close, size: 20, color: Color(0xFF222222)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+      transitionsBuilder: (ctx, anim, _, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    ),
+  );
+}
+
 /// Opens the most recently saved AnalysisPage result from SharedPreferences.
 Future<void> _openLastAnalysis(BuildContext context) async {
   final prefs = await SharedPreferences.getInstance();
@@ -111,7 +185,7 @@ class AppMenuButton extends StatelessWidget {
       onSelected: (value) {
         switch (value) {
           case 'wheel':
-            openMenuOverlay(context, const WheelMetricsPage(isOverlay: true));
+            openPartialOverlay(context, const WheelMetricsPage(isOverlay: true));
           case 'safety':
             openMenuOverlay(context, const SafetyGuidePage(isOverlay: true));
           case 'sensors':
