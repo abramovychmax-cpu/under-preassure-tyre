@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'sensor_guide_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class HowItWorksPage extends StatelessWidget {
@@ -16,7 +17,8 @@ class HowItWorksPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      body: GestureDetector(
+      body: AppMenuOverlay(
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
@@ -104,6 +106,7 @@ class HowItWorksPage extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

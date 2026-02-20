@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 import 'constant_power_clustering_service.dart';
 import 'circle_protocol_service.dart';
@@ -405,6 +406,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: _isLoading
           ? _buildLoadingScreen()

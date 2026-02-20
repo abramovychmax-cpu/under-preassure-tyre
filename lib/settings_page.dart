@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 /// Settings page for wheel size, tire width, and unit preferences.
@@ -170,6 +171,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

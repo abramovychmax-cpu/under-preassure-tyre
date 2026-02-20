@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pressure_input_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class ConstantPowerInstructions extends StatefulWidget {
@@ -31,6 +32,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
         backgroundColor: bgLight,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
+        actions: const [AppMenuButton()],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -54,7 +56,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
                     ),
                     const SizedBox(height: 32),
                     _sectionHeader('Route'),
-                    _bulletPoint('Use an out-and-back or circle route with straight lines.'),
+                    _bulletPoint('Use an out-and-back or circle route with straight lines, run it at least three times, each on different pressure.'),
                     _bulletPoint('Avoid drafting and traffic interruptions.'),
                     const SizedBox(height: 24),
                     _sectionHeader('Power'),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 /// Previous Tests Page: Display list of past optimal tire pressures
@@ -100,6 +101,7 @@ class _PreviousTestsPageState extends State<PreviousTestsPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: accentGemini))

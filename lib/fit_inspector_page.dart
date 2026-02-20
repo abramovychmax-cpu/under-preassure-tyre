@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class FitInspectorPage extends StatefulWidget {
@@ -106,6 +107,7 @@ class _FitInspectorPageState extends State<FitInspectorPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _loadLatestFit(),

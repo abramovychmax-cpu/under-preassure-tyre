@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'how_it_works_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class WelcomePage extends StatefulWidget {
@@ -22,7 +23,8 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      body: GestureDetector(
+      body: AppMenuOverlay(
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
@@ -109,6 +111,7 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

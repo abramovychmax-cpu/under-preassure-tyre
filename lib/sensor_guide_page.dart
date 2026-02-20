@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'sensor_setup_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class SensorGuidePage extends StatelessWidget {
@@ -16,7 +17,8 @@ class SensorGuidePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      body: GestureDetector(
+      body: AppMenuOverlay(
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
@@ -66,11 +68,11 @@ class SensorGuidePage extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
                       child: Text(
-                        'Turn on your Bluetooth sensors and keep them nearby.',
+                        'Activate your Bluetooth sensors and keep them nearby.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF888888),
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -106,6 +108,7 @@ class SensorGuidePage extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

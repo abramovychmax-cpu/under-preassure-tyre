@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'protocol_selection_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class SafetyGuidePage extends StatelessWidget {
@@ -26,6 +27,7 @@ class SafetyGuidePage extends StatelessWidget {
         foregroundColor: const Color(0xFF222222),
         backgroundColor: bgLight,
         elevation: 0,
+        actions: const [AppMenuButton()],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -44,7 +46,7 @@ class SafetyGuidePage extends StatelessWidget {
           children: [
             const SizedBox(height: 10),
             const Text(
-              'SAFETY GUIDE',
+              '',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
@@ -56,7 +58,7 @@ class SafetyGuidePage extends StatelessWidget {
             const Text(
               'These guidelines apply to all testing protocols.',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 color: Color(0xFF666666),
                 height: 1.4,
               ),

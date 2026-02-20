@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pressure_input_page.dart'; // We will create this next
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class CoastDownInstructions extends StatefulWidget {
@@ -33,6 +34,7 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
         backgroundColor: bgLight,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
+        actions: const [AppMenuButton()],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'sensor_service.dart';
 import 'wheel_metrics_guide_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class SensorSetupPage extends StatefulWidget {
@@ -333,6 +334,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,

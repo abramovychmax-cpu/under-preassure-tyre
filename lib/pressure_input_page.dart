@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'recording_page.dart';
 import 'analysis_page.dart';
 import 'sensor_service.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class PressureInputPage extends StatefulWidget {
@@ -100,6 +101,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -149,11 +151,11 @@ class _PressureInputPageState extends State<PressureInputPage> {
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF222222)),
                             ),
                             const SizedBox(height: 8),
-                            _pressureGuideStep('Run 1', 'HIGHEST  (sidewall/rim max)'),
+                            _pressureGuideStep('Run 1', 'HIGHEST PRSSURE  (sidewall/rim max)'),
                             const SizedBox(height: 6),
-                            _pressureGuideStep('Run 2', 'MINIMUM  (sidewall min)'),
+                            _pressureGuideStep('Run 2', 'MINIMUM PRESSURE (sidewall min)'),
                             const SizedBox(height: 6),
-                            _pressureGuideStep('Run 3', 'MIDDLE  between Max & Min'),
+                            _pressureGuideStep('Run 3', 'MIDDLE PRESSURE between Max & Min'),
                             const SizedBox(height: 6),
                             _pressureGuideStep('Run 4+', 'Any pressure between Max & Min'),
                           ],

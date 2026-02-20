@@ -3,6 +3,7 @@ import 'coast_down_instructions.dart';
 import 'constant_power_instructions.dart';
 import 'lap_efficiency_instructions.dart';
 import 'safety_guide_page.dart';
+import 'ui/app_menu_button.dart';
 import 'sensor_service.dart';
 import 'ui/common_widgets.dart';
 
@@ -23,6 +24,7 @@ class ProtocolSelectionPage extends StatelessWidget {
         elevation: 0,
         backgroundColor: bgLight,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {

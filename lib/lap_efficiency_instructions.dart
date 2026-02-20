@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pressure_input_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class LapEfficiencyInstructions extends StatefulWidget {
@@ -33,6 +34,7 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
         backgroundColor: bgLight,
         foregroundColor: const Color(0xFF222222),
         elevation: 0,
+        actions: const [AppMenuButton()],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,

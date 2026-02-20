@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'safety_guide_page.dart';
+import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 /// Wheel Metrics configuration page: wheel size, tire width, and unit preferences.
@@ -103,6 +104,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
+        actions: const [AppMenuButton()],
       ),
         body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: accentGemini))
