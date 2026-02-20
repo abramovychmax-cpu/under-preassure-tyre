@@ -76,6 +76,42 @@ class MatchedSegment {
   });
 }
 
+/// Internal holder for per-sample arrays within a confirmed constant-power window.
+/// Used between detection and gate-based zone trimming so all laps can be compared
+/// over identical road length (Strava-style fixed exit gate).
+class _RawPowerSegment {
+  final int lapIndex;
+  final int segmentIndex;
+  final double pressure;
+  final List<double> powers;      // watts per 1-Hz sample
+  final List<double> speeds;      // km/h per 1-Hz sample
+  final List<double> distances;   // per-lap cumulative wheel distance (m)
+  final List<double> lats;
+  final List<double> lons;
+  final DateTime startTime;
+  final DateTime endTime;
+
+  _RawPowerSegment({
+    required this.lapIndex,
+    required this.segmentIndex,
+    required this.pressure,
+    required this.powers,
+    required this.speeds,
+    required this.distances,
+    required this.lats,
+    required this.lons,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  /// Total wheel distance covered in this segment (meters).
+  double get segmentDistance =>
+      distances.length < 2 ? 0.0 : distances.last - distances.first;
+
+  double get startLat => lats.firstWhere((v) => v != 0.0, orElse: () => 0.0);
+  double get startLon => lons.firstWhere((v) => v != 0.0, orElse: () => 0.0);
+}
+
 class ConstantPowerClusteringService {
   /// Detect constant-power segments from FIT+JSONL data
   /// Returns List<List<ConstantPowerSegment>> where outer list is laps, inner list is segments
@@ -246,13 +282,92 @@ class ConstantPowerClusteringService {
     return segments;
   }
 
-  // ── Zone-aggregation constants ──────────────────────────────────────────
+  /// Detect constant-power windows and return raw per-sample arrays.
+  /// Same growing-window CV logic as [_detectConstantPowerSegmentsFromJsonl]
+  /// but retains per-sample speeds/distances/lats/lons for gate trimming.
+  static List<_RawPowerSegment> _detectRawSegments(
+    List<Map<String, dynamic>> records,
+    int lapIdx,
+    double pressure,
+  ) {
+    if (records.isEmpty) return [];
+
+    final segments = <_RawPowerSegment>[];
+    const segmentThreshold = 0.10;
+    const minWindow = 10;
+
+    int i = 0;
+    int segmentId = 0;
+
+    while (i + minWindow <= records.length) {
+      List<double> powers = records
+          .sublist(i, i + minWindow)
+          .map((r) => (r['power'] as num?)?.toDouble() ?? 0.0)
+          .where((p) => p > 0)
+          .toList();
+
+      if (powers.length < minWindow ~/ 2 || _cv(powers) >= segmentThreshold) {
+        i++;
+        continue;
+      }
+
+      int end = i + minWindow;
+      while (end < records.length) {
+        final p = (records[end]['power'] as num?)?.toDouble() ?? 0.0;
+        if (p <= 0) break;
+        final extended = [...powers, p];
+        if (_cv(extended) >= segmentThreshold) break;
+        powers = extended;
+        end++;
+      }
+
+      final window    = records.sublist(i, end);
+      final speeds    = <double>[];
+      final distances = <double>[];
+      final lats      = <double>[];
+      final lons      = <double>[];
+      DateTime? startTime, endTime;
+
+      for (final r in window) {
+        speeds.add((r['speed_kmh'] as num?)?.toDouble() ?? 0.0);
+        distances.add((r['distance'] as num?)?.toDouble() ?? 0.0);
+        lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
+        lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
+        final ts = r['ts'] as String?;
+        if (ts != null) {
+          final dt = DateTime.tryParse(ts);
+          if (dt != null) { startTime ??= dt; endTime = dt; }
+        }
+      }
+
+      segments.add(_RawPowerSegment(
+        lapIndex: lapIdx,
+        segmentIndex: segmentId,
+        pressure: pressure,
+        powers: powers,
+        speeds: speeds,
+        distances: distances,
+        lats: lats,
+        lons: lons,
+        startTime: startTime ?? DateTime.now(),
+        endTime: endTime ?? DateTime.now(),
+      ));
+
+      segmentId++;
+      i = end;
+    }
+
+    return segments;
+  }
   /// GPS radius for grouping segments from the same road section.
   static const double _gpsZoneRadiusM = 50.0;
   /// Loose power gate for zone membership — same effort level.
   static const double _zonePowerTolerancePct = 20.0;
   /// Minimum segment distance; filters accidental short blips.
   static const double _minSegmentDistanceM = 150.0;
+  /// Minimum ratio of shortest-to-longest gate distance within a zone.
+  /// Zones below this are dropped — road sections differ too much to compare.
+  static const double _distanceRatioGate   = 0.50;
 
   /// Group all detected segments by GPS zone, then compute per-lap
   /// distance-weighted average efficiency for each zone.
@@ -359,6 +474,250 @@ class ConstantPowerClusteringService {
 
     print('💾 Total zones for regression: ${matched.length}');
     return matched;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Gate-trimmed analysis pipeline (preferred entry point)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /// Full constant-power analysis with Strava-style gate trimming.
+  ///
+  /// 1. Parse JSONL → raw per-sample segments per lap
+  /// 2. GPS zone clustering (start ±50 m, power ±20%)
+  /// 3. Per zone: exit gate = minimum segment distance; ratio gate ≥ 0.5
+  /// 4. Trim every segment to the gate via linear interpolation
+  /// 5. Distance-weighted efficiency per lap → [MatchedSegment] list
+  static Future<List<MatchedSegment>> analyzeConstantPower(
+    List<int> fitBytes,
+    String jsonlPath,
+  ) async {
+    final jsonlFile  = File(jsonlPath);
+    final jsonlLines = await jsonlFile.readAsLines();
+
+    final Map<int, List<Map<String, dynamic>>> recordsByLap = {};
+    final Map<int, Map<String, dynamic>> lapMetadata = {};
+
+    for (final line in jsonlLines) {
+      if (line.trim().isEmpty) continue;
+      try {
+        final json   = jsonDecode(line) as Map<String, dynamic>;
+        final lapIdx = json['lapIndex'] as int?;
+        if (lapIdx == null) continue;
+        if (json.containsKey('frontPressure')) lapMetadata[lapIdx] = json;
+        if (json.containsKey('ts') || json.containsKey('power')) {
+          recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
+        }
+      } catch (e) {
+        print('ERROR: Failed to parse JSONL line: $e');
+      }
+    }
+
+    final rawLaps = <List<_RawPowerSegment>>[];
+    for (int lapIdx = 0; lapIdx < recordsByLap.length; lapIdx++) {
+      final records  = recordsByLap[lapIdx] ?? [];
+      final metadata = lapMetadata[lapIdx]  ?? {};
+      final pressure = (metadata['rearPressure'] as num?)?.toDouble() ?? 0.0;
+      rawLaps.add(_detectRawSegments(records, lapIdx, pressure));
+    }
+
+    return _aggregateRawByGpsZone(rawLaps, rawLaps.length);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Internal: GPS zone aggregation with gate trimming
+  // ────────────────────────────────────────────────────────────────────────────
+
+  static List<MatchedSegment> _aggregateRawByGpsZone(
+    List<List<_RawPowerSegment>> rawLaps,
+    int numLaps,
+  ) {
+    // Flatten and filter short blips
+    final all = <_RawPowerSegment>[
+      for (final lap in rawLaps)
+        ...lap.where((s) => s.segmentDistance >= _minSegmentDistanceM),
+    ];
+
+    if (all.isEmpty) {
+      print('⚠ No raw segments ≥ ${_minSegmentDistanceM.toStringAsFixed(0)} m found across $numLaps laps');
+      return [];
+    }
+
+    // GPS zone clustering (greedy, start-point + power gate)
+    final zones = <List<_RawPowerSegment>>[];
+    final used  = <int>{};
+
+    for (int i = 0; i < all.length; i++) {
+      if (used.contains(i)) continue;
+      final zone = [all[i]];
+      used.add(i);
+      final avgPowI = all[i].powers.fold(0.0, (a, b) => a + b) / all[i].powers.length;
+
+      for (int j = i + 1; j < all.length; j++) {
+        if (used.contains(j)) continue;
+        final d = ConstantPowerSegment._haversineDistance(
+          all[i].startLat, all[i].startLon,
+          all[j].startLat, all[j].startLon,
+        );
+        if (d > _gpsZoneRadiusM) continue;
+        final avgPowJ  = all[j].powers.fold(0.0, (a, b) => a + b) / all[j].powers.length;
+        final maxP     = math.max(avgPowI, avgPowJ);
+        if (maxP > 0 && (avgPowI - avgPowJ).abs() / maxP * 100.0 > _zonePowerTolerancePct) continue;
+        zone.add(all[j]);
+        used.add(j);
+      }
+      zones.add(zone);
+    }
+
+    print('📍 GPS zones (raw): ${zones.length} (${all.length} segments, $numLaps laps)');
+
+    final matched = <MatchedSegment>[];
+    int zoneId = 0;
+
+    for (final zone in zones) {
+      // Group by lap
+      final byLap = <int, List<_RawPowerSegment>>{};
+      for (final seg in zone) { byLap.putIfAbsent(seg.lapIndex, () => []).add(seg); }
+
+      if (byLap.length < numLaps) {
+        print('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
+        zoneId++;
+        continue;
+      }
+
+      // Gate distance = minimum across all laps' longest segment
+      double gateDist  = double.infinity;
+      double maxDist   = 0.0;
+      for (final segs in byLap.values) {
+        final lapMax = segs.map((s) => s.segmentDistance).fold(0.0, math.max);
+        if (lapMax < gateDist) gateDist = lapMax;
+        if (lapMax > maxDist) maxDist = lapMax;
+      }
+
+      // Ratio gate
+      if (maxDist > 0 && gateDist / maxDist < _distanceRatioGate) {
+        print('✗ Zone $zoneId: dist ratio=${gateDist.toStringAsFixed(0)}/'
+            '${maxDist.toStringAsFixed(0)}'
+            '=${(gateDist / maxDist).toStringAsFixed(2)} < $_distanceRatioGate — skipping');
+        zoneId++;
+        continue;
+      }
+
+      print('  ↳ Zone $zoneId gate=${gateDist.toStringAsFixed(0)} m '
+          '(min/max=${(gateDist / maxDist).toStringAsFixed(2)})');
+
+      final pressures    = <double>[];
+      final efficiencies = <double>[];
+      final repByLap     = <int, ConstantPowerSegment>{};
+
+      for (final lapIdx in byLap.keys.toList()..sort()) {
+        final lapSegs    = byLap[lapIdx]!;
+        double totalDist = 0.0;
+        double wEff      = 0.0;
+        ConstantPowerSegment? rep;
+
+        for (final raw in lapSegs) {
+          final trimmed = _trimRawSegmentToGate(raw, gateDist);
+          if (trimmed == null) continue;
+          wEff      += trimmed.efficiency * trimmed.distance;
+          totalDist += trimmed.distance;
+          rep ??= trimmed;
+        }
+
+        if (totalDist == 0.0 || rep == null) continue;
+        final wavgEff = wEff / totalDist;
+
+        pressures.add(rep.pressure);
+        efficiencies.add(wavgEff);
+        repByLap[lapIdx] = ConstantPowerSegment(
+          segmentIndex: rep.segmentIndex,
+          lapIndex:     rep.lapIndex,
+          pressure:     rep.pressure,
+          avgLat:       rep.avgLat,
+          avgLon:       rep.avgLon,
+          avgPower:     rep.avgPower,
+          cvPower:      rep.cvPower,
+          avgSpeed:     rep.avgSpeed,
+          distance:     totalDist,
+          duration:     rep.duration,
+          efficiency:   wavgEff,
+          numRecords:   rep.numRecords,
+          startTime:    rep.startTime,
+          endTime:      rep.endTime,
+        );
+        print('  ↳ Zone $zoneId lap $lapIdx: ${lapSegs.length} seg(s) gate-trimmed | '
+            'pressure=${rep.pressure.toStringAsFixed(1)} psi | '
+            'wavgEff=${wavgEff.toStringAsFixed(4)}');
+      }
+
+      if (pressures.length < numLaps) {
+        print('✗ Zone $zoneId: only ${pressures.length}/$numLaps laps after trim — skipping');
+        zoneId++;
+        continue;
+      }
+
+      print('✓ Zone $zoneId → ${pressures.length} regression points');
+      matched.add(MatchedSegment(
+        segmentId:     zoneId,
+        segmentsByLap: repByLap,
+        pressures:     pressures,
+        efficiencies:  efficiencies,
+      ));
+      zoneId++;
+    }
+
+    print('💾 Total zones after gate trimming: ${matched.length}');
+    return matched;
+  }
+
+  /// Trim a [_RawPowerSegment] to exactly [gateDist] meters from its start
+  /// via linear interpolation. Returns null if shorter than [gateDist].
+  static ConstantPowerSegment? _trimRawSegmentToGate(
+    _RawPowerSegment raw,
+    double gateDist,
+  ) {
+    if (raw.distances.isEmpty || raw.segmentDistance < gateDist) return null;
+
+    final d0      = raw.distances.first;
+    final target  = d0 + gateDist;
+    int    trimIdx = raw.distances.length - 1;
+    double frac    = 0.0;
+
+    for (int i = 0; i < raw.distances.length - 1; i++) {
+      if (raw.distances[i + 1] >= target) {
+        final span = raw.distances[i + 1] - raw.distances[i];
+        frac    = span > 0 ? (target - raw.distances[i]) / span : 0.0;
+        trimIdx = i;
+        break;
+      }
+    }
+
+    final slicePow = raw.powers.sublist(0, math.min(trimIdx + 1, raw.powers.length));
+    final sliceSpd = raw.speeds.sublist(0, math.min(trimIdx + 1, raw.speeds.length));
+    if (slicePow.isEmpty) return null;
+
+    final avgPower = slicePow.fold(0.0, (a, b) => a + b) / slicePow.length;
+    final avgSpeed = sliceSpd.isEmpty ? 0.0
+        : sliceSpd.fold(0.0, (a, b) => a + b) / sliceSpd.length;
+    final cv       = _cv(slicePow);
+    final duration = trimIdx + frac;
+    final efficiency = avgPower > 0 ? avgSpeed / avgPower : 0.0;
+
+    return ConstantPowerSegment(
+      segmentIndex: raw.segmentIndex,
+      lapIndex:     raw.lapIndex,
+      pressure:     raw.pressure,
+      avgLat:       raw.startLat,
+      avgLon:       raw.startLon,
+      avgPower:     avgPower,
+      cvPower:      cv,
+      avgSpeed:     avgSpeed,
+      distance:     gateDist,
+      duration:     duration,
+      efficiency:   efficiency,
+      numRecords:   trimIdx + 1,
+      startTime:    raw.startTime,
+      endTime:      raw.endTime,
+    );
   }
 
   /// Build regression data points: collect all (pressure, efficiency) pairs

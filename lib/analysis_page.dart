@@ -117,12 +117,12 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       if (widget.protocol == 'constant_power') {
         _updateFeedback('🔍 Detecting constant-power segments...');
-        final allSegments =
-            await ConstantPowerClusteringService.detectSegmentsFromFitAndJsonl(
+        final matchedSegments =
+            await ConstantPowerClusteringService.analyzeConstantPower(
           fitBytes,
           jsonlPath,
         );
-        await _analyzeConstantPowerProtocol(allSegments);
+        await _analyzeConstantPowerProtocol(matchedSegments);
       } else if (widget.protocol == 'lap_efficiency') {
         _updateFeedback('🔄 Analyzing lap efficiency data...');
         final laps = await CircleProtocolService.analyzeLapsFromJsonl(jsonlPath);
@@ -146,11 +146,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 
   Future<void> _analyzeConstantPowerProtocol(
-    List<List<ConstantPowerSegment>> allSegments,
+    List<MatchedSegment> matchedSegments,
   ) async {
-    final matchedSegments =
-        ConstantPowerClusteringService.aggregateByGpsZone(allSegments);
-
+    // matchedSegments already gate-trimmed and zone-aggregated by analyzeConstantPower
     if (matchedSegments.isEmpty) {
       throw Exception('No matching segments found across laps');
     }

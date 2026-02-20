@@ -248,9 +248,9 @@ class CoastDownClusteringService {
     }
     print('✓ Stage 2 | Best cluster: ${bestGroup.length} runs within ${_startGpsRadiusM}m start radius');
 
-    // ── Stage 3: Trim to median wheel distance; recalculate vEnd + altDrop ──
-    final segments = _trimToMedianDistance(bestGroup);
-    print('✓ Stage 3 | Trimmed ${segments.length} runs to median wheel distance');
+    // ── Stage 3: Trim to gate distance (minimum run length); recalculate vEnd + altDrop ──
+    final segments = _trimToGateDistance(bestGroup);
+    print('✓ Stage 3 | Trimmed ${segments.length} runs to gate distance');
 
     if (segments.length < 3) {
       throw Exception('Stage 3: Only ${segments.length} runs survived trimming (need 3+)');
@@ -425,13 +425,28 @@ class CoastDownClusteringService {
   // 3. For each run, interpolate speed and altitude at the reference distance.
   // 4. Calculate CRR using the trimmed vEnd and altDrop.
 
-  static List<DescentSegment> _trimToMedianDistance(
+  // ────────────────────────────────────────────────────────────────────────────
+  // Stage 3: Gate-based distance trim (Strava-style fixed exit gate)
+  // ────────────────────────────────────────────────────────────────────────────
+  //
+  // The exit gate is placed at minDist meters from the shared start point.
+  // Every run is trimmed to that gate via linear interpolation so all CRR
+  // calculations use identical road length.
+  //
+  // Ratio log: if min/max < 0.5 one run braked very early — worth investigating,
+  // but we still proceed with the minimum gate rather than discarding runs.
+
+  static List<DescentSegment> _trimToGateDistance(
     List<_RawDescent> raws,
   ) {
-    // Compute per-run coasting distances and find median
+    // Compute per-run coasting distances; minimum = exit gate reference
     final dists = raws.map((r) => r.coastingDistance).toList()..sort();
-    final medianDist = dists[dists.length ~/ 2];
-    print('  ↳ Coasting distances: ${dists.map((d) => d.toStringAsFixed(0)).join(', ')} m  |  median = ${medianDist.toStringAsFixed(0)} m');
+    final gateDist     = dists.first;  // minimum
+    final ratioMinMax  = dists.last > 0 ? gateDist / dists.last : 1.0;
+    print('  ↳ Coasting distances: ${dists.map((d) => d.toStringAsFixed(0)).join(', ')} m'
+        '  |  gate = ${gateDist.toStringAsFixed(0)} m'
+        '  |  min/max ratio = ${ratioMinMax.toStringAsFixed(2)}'
+        '${ratioMinMax < 0.5 ? '  ⚠ one run is very short vs others' : ''}');
 
     final segments = <DescentSegment>[];
 
@@ -441,7 +456,7 @@ class CoastDownClusteringService {
 
       // Wheel distance at coasting start (per-lap cumulative, starts near 0)
       final distAtStart = raw.distances[s];
-      final targetDist  = distAtStart + medianDist;
+      final targetDist  = distAtStart + gateDist;
 
       // Linear interpolation helper
       double interpolate(List<double> arr, int i, double frac) =>
@@ -476,10 +491,10 @@ class CoastDownClusteringService {
       final vStart = raw.speeds[s];
       final duration = (trimIdx - s).toDouble();
 
-      final crr = _calculateCRR(altDrop, medianDist, vStart, vEnd);
-      final efficiency = medianDist / math.max(maxSpd, 0.1);
+      final crr = _calculateCRR(altDrop, gateDist, vStart, vEnd);
+      final efficiency = gateDist / math.max(maxSpd, 0.1);
 
-      print('  ✓ Run ${raw.runIdx}: trimmed to ${medianDist.toStringAsFixed(0)}m | '
+      print('  ✓ Run ${raw.runIdx}: gate-trimmed to ${gateDist.toStringAsFixed(0)}m | '
           'altDrop=${altDrop.toStringAsFixed(1)}m | '
           'vStart=${vStart.toStringAsFixed(1)}→vEnd=${vEnd.toStringAsFixed(1)} m/s | '
           'CRR=${crr.toStringAsFixed(5)}');
@@ -492,7 +507,7 @@ class CoastDownClusteringService {
         durationSeconds: duration,
         avgSpeed: avgSpd,
         maxSpeed: maxSpd,
-        distance: medianDist,
+        distance: gateDist,
         startLat: raw.startLat,
         startLon: raw.startLon,
         endLat: interpolate(raw.lats, trimIdx, frac),
