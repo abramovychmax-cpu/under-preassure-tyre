@@ -58,8 +58,8 @@ void openMenuOverlay(BuildContext context, Widget page) {
   );
 }
 
-/// Opens [page] as a 90 % height partial overlay with slide-up animation.
-/// A semi-transparent scrim fills the top 10 %; tapping it dismisses the overlay.
+/// Opens [page] as a 90 % height partial overlay with slide-down animation.
+/// A semi-transparent scrim fills the bottom 10 %; tapping it dismisses the overlay.
 void openPartialOverlay(BuildContext context, Widget page) {
   Navigator.of(context).push(
     PageRouteBuilder(
@@ -78,16 +78,16 @@ void openPartialOverlay(BuildContext context, Widget page) {
                 child: Container(color: Colors.black.withOpacity(0.5)),
               ),
             ),
-            // 90 % content panel
+            // 90 % content panel — anchored at top, drops down
             Positioned(
-              bottom: 0,
+              top: 0,
               left: 0,
               right: 0,
               height: screenHeight * 0.9,
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                     child: page,
                   ),
                   // Floating close button at top-right of panel
@@ -124,7 +124,7 @@ void openPartialOverlay(BuildContext context, Widget page) {
         );
       },
       transitionsBuilder: (ctx, anim, _, child) => SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        position: Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
             .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
         child: child,
       ),
