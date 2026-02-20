@@ -8,7 +8,8 @@ import 'ui/common_widgets.dart';
 /// Appears right before sensor selection in the flow.
 /// Uses light theme to match Protocol Selection and Coast Down pages.
 class WheelMetricsPage extends StatefulWidget {
-  const WheelMetricsPage({super.key});
+  final bool isOverlay;
+  const WheelMetricsPage({super.key, this.isOverlay = false});
 
   @override
   State<WheelMetricsPage> createState() => _WheelMetricsPageState();
@@ -110,7 +111,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
           ? const Center(child: CircularProgressIndicator(color: accentGemini))
           : GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onHorizontalDragEnd: (details) {
+              onHorizontalDragEnd: widget.isOverlay ? null : (details) {
                 if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
                   Navigator.push(
                     context,

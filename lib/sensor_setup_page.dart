@@ -11,7 +11,8 @@ import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class SensorSetupPage extends StatefulWidget {
-  const SensorSetupPage({super.key});
+  final bool isOverlay;
+  const SensorSetupPage({super.key, this.isOverlay = false});
 
   @override
   State<SensorSetupPage> createState() => _SensorSetupPageState();
@@ -338,7 +339,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
+        onHorizontalDragEnd: widget.isOverlay ? null : (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200 && canProceed) {
             _handleSwipeUp();
           }

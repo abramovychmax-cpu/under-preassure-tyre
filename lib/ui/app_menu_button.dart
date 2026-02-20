@@ -69,11 +69,11 @@ class AppMenuButton extends StatelessWidget {
       onSelected: (value) {
         switch (value) {
           case 'wheel':
-            openMenuOverlay(context, const WheelMetricsPage());
+            openMenuOverlay(context, const WheelMetricsPage(isOverlay: true));
           case 'safety':
-            openMenuOverlay(context, const SafetyGuidePage());
+            openMenuOverlay(context, const SafetyGuidePage(isOverlay: true));
           case 'sensors':
-            openMenuOverlay(context, const SensorSetupPage());
+            openMenuOverlay(context, const SensorSetupPage(isOverlay: true));
         }
       },
       itemBuilder: (_) => const [

@@ -4,7 +4,8 @@ import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
 class SafetyGuidePage extends StatelessWidget {
-  const SafetyGuidePage({super.key});
+  final bool isOverlay;
+  const SafetyGuidePage({super.key, this.isOverlay = false});
 
   void _goToProtocols(BuildContext context) {
     Navigator.push(
@@ -31,7 +32,7 @@ class SafetyGuidePage extends StatelessWidget {
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
+        onHorizontalDragEnd: isOverlay ? null : (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
             _goToProtocols(context);
           }
