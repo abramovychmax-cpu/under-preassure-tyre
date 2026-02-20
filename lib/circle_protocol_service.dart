@@ -110,16 +110,42 @@ class CircleProtocolService {
 
     // Analyze each lap
     final allLaps = <CircleLapData>[];
+
+    // ── Pass 1: compute total distance per lap to find exit gate ──────────────
+    // Exit gate = min(total distance across all laps).
+    // A user who stopped 200 m short affects the gate; all other laps are
+    // trimmed to the same road length so terrain is identical.
+    final lapDistancesM = <int, double>{};
+    for (int lapIdx = 0; lapIdx < recordsByLap.length; lapIdx++) {
+      final lapRecords = recordsByLap[lapIdx] ?? [];
+      double cumDist = 0.0;
+      for (final r in lapRecords) {
+        final speed = (r['speed'] as num?)?.toDouble() ?? 0.0;
+        cumDist += speed; // m/s × 1s = metres
+      }
+      lapDistancesM[lapIdx] = cumDist;
+    }
+
+    final exitGateM = lapDistancesM.values.isEmpty
+        ? double.infinity
+        : lapDistancesM.values.reduce(math.min);
+
+    print('📏 Lap distances: '
+        '${lapDistancesM.values.map((d) => d.toStringAsFixed(0)).join(', ')} m  '
+        '|  exit gate = ${exitGateM.toStringAsFixed(0)} m');
+
+    // ── Pass 2: analyze each lap trimmed to exit gate ─────────────────────────
     for (int lapIdx = 0; lapIdx < recordsByLap.length; lapIdx++) {
       final lapRecords = recordsByLap[lapIdx] ?? [];
       final metadata = lapMetadata[lapIdx] ?? {};
-      
+
       if (lapRecords.isEmpty) continue;
-      
+
       // Use REAR pressure for regression X-axis; front derived via Silca ratio
       final pressure = (metadata['rearPressure'] as num?)?.toDouble() ?? 0.0;
-      final lapData = _analyzeLap(lapRecords, lapIdx, pressure, cda, rho);
-      
+      final lapData = _analyzeLap(
+          lapRecords, lapIdx, pressure, cda, rho, exitGateM);
+
       if (lapData != null) {
         allLaps.add(lapData);
       }
@@ -142,16 +168,12 @@ class CircleProtocolService {
       throw Exception('No valid laps found. Ensure enough complete laps with stable power output.');
     }
 
-    // ── Duration matching: verify all valid laps took ~same time ──
-    print('🔄 Checking duration consistency across ${validLaps.length} laps:');
-    final baseDuration = validLaps.first.duration;
+    // ── Duration matching: now just a sanity log — gate trimming handles mismatches ──
+    print('🔄 Lap gate-trimmed distances:');
     for (final lap in validLaps) {
-      if (!lap.matchesDuration(validLaps.first, tolerancePercent: 10.0)) {
-        print('  ⚠ Lap ${lap.lapIndex}: duration ${lap.duration.toStringAsFixed(0)}s '
-            'vs baseline ${baseDuration.toStringAsFixed(0)}s (mismatch > 10%)');
-      } else {
-        print('  ✓ Lap ${lap.lapIndex}: ${lap.duration.toStringAsFixed(0)}s (consistent)');
-      }
+      print('  ✓ Lap ${lap.lapIndex}: ${(lap.distance * 1000).toStringAsFixed(0)} m '
+            '| ${lap.duration.toStringAsFixed(0)} s '
+            '| ${lap.avgPower.toStringAsFixed(0)} W');
     }
 
     // ── Cross-lap power spread check ─────────────────────────────────────────
@@ -183,6 +205,7 @@ class CircleProtocolService {
     double pressure,
     double cda,
     double rho,
+    double exitGateM,  // stop accumulating at this cumulative distance (metres)
   ) {
     if (records.isEmpty) return null;
 
@@ -199,8 +222,16 @@ class CircleProtocolService {
       final vibration = (record['vibrationRms'] as num?)?.toDouble() ?? 0.0;
       final timestamp = record['timestamp'] as String?;
 
-      powers.add(power);
-      speeds.add(speed);
+      // Exit gate: stop once we have reached the shortest lap's distance.
+      // Linear interpolation at the boundary: partial contribution of this sample.
+      final remaining = exitGateM - totalDistance;
+      if (remaining <= 0) break;               // already at gate
+      final fraction = (speed > 0 && remaining < speed)
+          ? remaining / speed                  // partial last second
+          : 1.0;                               // full second still within gate
+
+      powers.add(power * fraction);
+      speeds.add(speed * fraction);
       vibrations.add(vibration);
 
       // Aero-corrected RR residual: (P − 0.5·CdA·ρ·v³) / v  (speed in m/s)
@@ -209,8 +240,8 @@ class CircleProtocolService {
         rrSamples.add((power - pAero) / speed);
       }
 
-      // Accumulate distance: speed (m/s) * 1 second
-      totalDistance += speed;
+      // Accumulate distance: speed (m/s) * fraction seconds
+      totalDistance += speed * fraction;
 
       if (timestamp != null) {
         final dt = DateTime.tryParse(timestamp);
