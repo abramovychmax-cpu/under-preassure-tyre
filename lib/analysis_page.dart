@@ -19,10 +19,13 @@ class AnalysisPage extends StatefulWidget {
   final String protocol; // 'constant_power', 'lap_efficiency', or 'coast_down'
   final String bikeType;  // 'road', 'tt', 'gravel', 'mountain'
 
+  final bool isOverlay;
+
   const AnalysisPage({
     required this.fitFilePath,
     required this.protocol,
     this.bikeType = 'road',
+    this.isOverlay = false,
     super.key,
   });
 
@@ -424,7 +427,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
-        actions: const [AppMenuButton()],
+        actions: widget.isOverlay ? null : const [AppMenuButton()],
       ),
       body: _isLoading
           ? _buildLoadingScreen()

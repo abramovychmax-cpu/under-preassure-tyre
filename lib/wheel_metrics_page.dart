@@ -106,7 +106,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
         ),
         centerTitle: true,
         foregroundColor: const Color(0xFF222222),
-        actions: const [AppMenuButton()],
+        actions: widget.isOverlay ? null : const [AppMenuButton()],
       ),
         body: RightEdgeSwipeDetector(
           onSwipeForward: widget.isOverlay || SensorService().isSessionActive

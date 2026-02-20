@@ -71,13 +71,6 @@ void openPartialOverlay(BuildContext context, Widget page) {
         final screenHeight = MediaQuery.of(ctx).size.height;
         return Stack(
           children: [
-            // Semi-transparent scrim — tapping closes the overlay
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(ctx).pop(),
-                child: Container(color: Colors.black.withOpacity(0.5)),
-              ),
-            ),
             // 90 % content panel — anchored at top, drops down
             Positioned(
               top: 0,
@@ -160,13 +153,13 @@ Future<void> _openLastAnalysis(BuildContext context) async {
   final protocol = data['protocol']    as String? ?? 'coast_down';
   final bikeType = data['bikeType']    as String? ?? 'road';
   if (!context.mounted) return;
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => AnalysisPage(
-        fitFilePath: fitPath,
-        protocol: protocol,
-        bikeType: bikeType,
-      ),
+  openMenuOverlay(
+    context,
+    AnalysisPage(
+      fitFilePath: fitPath,
+      protocol: protocol,
+      bikeType: bikeType,
+      isOverlay: true,
     ),
   );
 }

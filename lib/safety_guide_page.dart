@@ -29,7 +29,7 @@ class SafetyGuidePage extends StatelessWidget {
         foregroundColor: const Color(0xFF222222),
         backgroundColor: bgLight,
         elevation: 0,
-        actions: const [AppMenuButton()],
+        actions: isOverlay ? null : const [AppMenuButton()],
       ),
       body: RightEdgeSwipeDetector(
         onSwipeForward: (isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
