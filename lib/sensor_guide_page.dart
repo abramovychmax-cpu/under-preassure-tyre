@@ -83,7 +83,7 @@ class SensorGuidePage extends StatelessWidget {
                     ),
                   ],
                 ),
-                Spacer(flex: 3),
+                const Spacer(flex: 3),
                 OnboardingNavBar(
                   onBack: () => Navigator.pop(context),
                   onForward: () => _navigateToSetup(context),

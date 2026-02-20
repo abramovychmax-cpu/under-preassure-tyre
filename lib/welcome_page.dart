@@ -86,7 +86,7 @@ class _WelcomePageState extends State<WelcomePage> {
                     ),
                   ],
                 ),
-                Spacer(flex: 3),
+                const Spacer(flex: 3),
                 OnboardingNavBar(
                   onForward: _navigateToSetup,
                 ),
