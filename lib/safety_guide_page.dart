@@ -31,14 +31,7 @@ class SafetyGuidePage extends StatelessWidget {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (isOverlay || SensorService().isSessionActive) ? null : (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
-            _goToProtocols(context);
-          }
-        },
-        child: Column(
+      body: Column(
           children: [
           Expanded(
           child: SingleChildScrollView(
@@ -89,7 +82,6 @@ class SafetyGuidePage extends StatelessWidget {
           ),
           ],
         ),
-      ),
     );
   }
 

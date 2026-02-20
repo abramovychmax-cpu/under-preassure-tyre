@@ -30,14 +30,7 @@ class HowItWorksPage extends StatelessWidget {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
-            _navigateNext(context);
-          }
-        },
-        child: Column(
+      body: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -75,7 +68,6 @@ class HowItWorksPage extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 

@@ -19,13 +19,6 @@ class SensorGuidePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgLight,
       body: AppMenuOverlay(
-        child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
-            _navigateToSetup(context);
-          }
-        },
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -92,7 +85,6 @@ class SensorGuidePage extends StatelessWidget {
             ),
           ),
         ),
-      ),
       ),
     );
   }

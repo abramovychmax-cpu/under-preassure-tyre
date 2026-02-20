@@ -113,17 +113,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
           : Column(
               children: [
                 Expanded(
-                  child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onHorizontalDragEnd: (widget.isOverlay || SensorService().isSessionActive) ? null : (details) {
-                if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
-                  );
-                }
-              },
-              child: SingleChildScrollView(
+                  child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,7 +378,6 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
               ),
             ),
           ),
-        ),
         if (!widget.isOverlay)
           OnboardingNavBar(
             onBack: () => Navigator.pop(context),

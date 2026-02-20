@@ -337,14 +337,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
         foregroundColor: const Color(0xFF222222),
         actions: const [AppMenuButton()],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (widget.isOverlay || SensorService().isSessionActive) ? null : (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && canProceed) {
-            _handleSwipeUp();
-          }
-        },
-        child: Padding(
+      body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
@@ -559,7 +552,6 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
           ],
         ),
       ),
-    ),
     );
   }
 }
