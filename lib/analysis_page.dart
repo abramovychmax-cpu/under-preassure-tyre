@@ -121,11 +121,17 @@ class _AnalysisPageState extends State<AnalysisPage> {
             await ConstantPowerClusteringService.analyzeConstantPower(
           fitBytes,
           jsonlPath,
+          cda: _cdaForBikeType(widget.bikeType),
+          rho: _standardAirDensity(),
         );
         await _analyzeConstantPowerProtocol(matchedSegments);
       } else if (widget.protocol == 'lap_efficiency') {
         _updateFeedback('🔄 Analyzing lap efficiency data...');
-        final laps = await CircleProtocolService.analyzeLapsFromJsonl(jsonlPath);
+        final laps = await CircleProtocolService.analyzeLapsFromJsonl(
+          jsonlPath,
+          cda: _cdaForBikeType(widget.bikeType),
+          rho: _standardAirDensity(),
+        );
         await _analyzeCircleProtocol(laps);
       } else if (widget.protocol == 'coast_down') {
         _updateFeedback('📉 Analyzing coast-down data...');
@@ -261,6 +267,20 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
     _updateFeedback('✅ Analysis complete!');
   }
+
+  /// CdA (m²) defaults by bike type — standard literature values.
+  static double _cdaForBikeType(String bikeType) {
+    switch (bikeType) {
+      case 'tt':       return 0.240;
+      case 'gravel':   return 0.380;
+      case 'mountain': return 0.500;
+      default:         return 0.320; // road
+    }
+  }
+
+  /// Standard air density (kg/m³) at 20 °C, 1013 hPa.
+  /// Good enough for relative comparisons; a weather-API version can refine.
+  static double _standardAirDensity() => 1.204;
 
   void _performRegression(
     List<MapEntry<double, double>> dataPoints, {

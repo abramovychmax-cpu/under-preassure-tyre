@@ -9,7 +9,9 @@ class CircleLapData {
   final double avgPower;        // Average power across lap (watts)
   final double avgSpeed;        // Average speed across lap (km/h)
   final double vibrationRms;    // RMS vibration across lap
-  final double efficiency;      // avg_speed / avg_power
+  final double efficiency;      // avg_speed / avg_power (km/h per watt)
+  final double rrResidual;      // Aero-corrected rolling resistance: mean((P − P_aero) / v)
+                                // Units: kg·m/s² (= CRR × mass × g); comparable across power levels
   final double duration;        // Duration of lap (seconds)
   final double distance;        // Total distance (km)
   final int numRecords;         // Number of data points in lap
@@ -30,6 +32,7 @@ class CircleLapData {
     required this.avgSpeed,
     required this.vibrationRms,
     required this.efficiency,
+    required this.rrResidual,
     required this.duration,
     required this.distance,
     required this.numRecords,
@@ -68,8 +71,10 @@ class CircleProtocolService {
   /// Load JSONL and analyze each lap as a complete circle
   /// Filters out invalid laps (incomplete, erratic power, etc.)
   static Future<List<CircleLapData>> analyzeLapsFromJsonl(
-    String jsonlPath,
-  ) async {
+    String jsonlPath, {
+    double cda = 0.320,
+    double rho = 1.204,
+  }) async {
     final jsonlFile = File(jsonlPath);
     if (!jsonlFile.existsSync()) {
       throw Exception('JSONL file not found: $jsonlPath');
@@ -113,7 +118,7 @@ class CircleProtocolService {
       
       // Use REAR pressure for regression X-axis; front derived via Silca ratio
       final pressure = (metadata['rearPressure'] as num?)?.toDouble() ?? 0.0;
-      final lapData = _analyzeLap(lapRecords, lapIdx, pressure);
+      final lapData = _analyzeLap(lapRecords, lapIdx, pressure, cda, rho);
       
       if (lapData != null) {
         allLaps.add(lapData);
@@ -149,6 +154,25 @@ class CircleProtocolService {
       }
     }
 
+    // ── Cross-lap power spread check ─────────────────────────────────────────
+    // Aero drag ∝ v³ so different power levels produce different speeds.
+    // The RR residual formula corrects for this, but a large spread hints at
+    // inconsistent pacing — warn the user but do not reject the data.
+    if (validLaps.length >= 2) {
+      final lapPowers = validLaps.map((l) => l.avgPower).toList();
+      final maxP = lapPowers.reduce(math.max);
+      final minP = lapPowers.reduce(math.min);
+      final spread = maxP > 0 ? (maxP - minP) / maxP : 0.0;
+      if (spread > 0.10) {
+        print('⚠ Cross-lap power spread ${(spread * 100).toStringAsFixed(1)}% '
+            '(${minP.toStringAsFixed(0)}–${maxP.toStringAsFixed(0)} W). '
+            'Aero correction applied (CdA=$cda, ρ=${rho.toStringAsFixed(3)}). '
+            'Best results when power is consistent across laps.');
+      } else {
+        print('✓ Cross-lap power spread ${(spread * 100).toStringAsFixed(1)}% — within 10% tolerance');
+      }
+    }
+
     return validLaps;
   }
 
@@ -157,12 +181,15 @@ class CircleProtocolService {
     List<Map<String, dynamic>> records,
     int lapIdx,
     double pressure,
+    double cda,
+    double rho,
   ) {
     if (records.isEmpty) return null;
 
     final powers = <double>[];
     final speeds = <double>[];
     final vibrations = <double>[];
+    final rrSamples = <double>[]; // aero-corrected RR residual samples
     DateTime? startTime, endTime;
     double totalDistance = 0;
 
@@ -176,6 +203,12 @@ class CircleProtocolService {
       speeds.add(speed);
       vibrations.add(vibration);
 
+      // Aero-corrected RR residual: (P − 0.5·CdA·ρ·v³) / v  (speed in m/s)
+      if (speed > 0.5) {
+        final pAero = 0.5 * cda * rho * speed * speed * speed;
+        rrSamples.add((power - pAero) / speed);
+      }
+
       // Accumulate distance: speed (m/s) * 1 second
       totalDistance += speed;
 
@@ -187,6 +220,10 @@ class CircleProtocolService {
         }
       }
     }
+
+    // Aero-corrected rolling resistance residual
+    final avgRr = rrSamples.isEmpty ? 0.0
+        : rrSamples.fold<double>(0.0, (a, b) => a + b) / rrSamples.length;
 
     // Calculate averages
     final avgPower = powers.fold<double>(0, (a, b) => a + b) / powers.length;
@@ -229,6 +266,7 @@ class CircleProtocolService {
       avgSpeed: avgSpeed,
       vibrationRms: vibrationRms,
       efficiency: efficiency,
+      rrResidual: avgRr,
       duration: duration,
       distance: distance,
       numRecords: records.length,
@@ -261,9 +299,11 @@ class CircleProtocolService {
     print('📊 Building regression dataset from ${laps.length} laps:');
     for (final lap in laps) {
       if (lap.isValid()) {
-        points.add(MapEntry(lap.pressure, lap.efficiency));
+        points.add(MapEntry(lap.pressure, lap.rrResidual));
         print('  ✓ Lap ${lap.lapIndex} @ ${lap.pressure.toStringAsFixed(1)} PSI: '
-            'efficiency=${lap.efficiency.toStringAsFixed(4)} (quality=${lap.dataQuality.toStringAsFixed(2)})');
+            'rrResidual=${lap.rrResidual.toStringAsFixed(2)} '
+            'efficiency=${lap.efficiency.toStringAsFixed(4)} '
+            '(quality=${lap.dataQuality.toStringAsFixed(2)})');
       } else {
         print('  ✗ Lap ${lap.lapIndex}: SKIPPED (quality=${lap.dataQuality.toStringAsFixed(2)})');
       }

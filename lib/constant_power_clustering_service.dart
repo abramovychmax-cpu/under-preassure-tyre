@@ -369,7 +369,7 @@ class ConstantPowerClusteringService {
   /// Loose power gate for zone membership — same effort level.
   static const double _zonePowerTolerancePct = 20.0;
   /// Minimum segment distance; filters accidental short blips.
-  static const double _minSegmentDistanceM = 150.0;
+  static const double _minSegmentDistanceM = 20.0;
 
   /// Group all detected segments by GPS zone, then compute per-lap
   /// distance-weighted average efficiency for each zone.
@@ -491,8 +491,10 @@ class ConstantPowerClusteringService {
   /// 5. Distance-weighted efficiency per lap → [MatchedSegment] list
   static Future<List<MatchedSegment>> analyzeConstantPower(
     List<int> fitBytes,
-    String jsonlPath,
-  ) async {
+    String jsonlPath, {
+    double cda = 0.320,
+    double rho = 1.204,
+  }) async {
     final jsonlFile  = File(jsonlPath);
     final jsonlLines = await jsonlFile.readAsLines();
 
@@ -522,7 +524,7 @@ class ConstantPowerClusteringService {
       rawLaps.add(_detectRawSegments(records, lapIdx, pressure));
     }
 
-    return _aggregateRawByGpsZone(rawLaps, rawLaps.length);
+    return _aggregateRawByGpsZone(rawLaps, rawLaps.length, cda: cda, rho: rho);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -531,8 +533,10 @@ class ConstantPowerClusteringService {
 
   static List<MatchedSegment> _aggregateRawByGpsZone(
     List<List<_RawPowerSegment>> rawLaps,
-    int numLaps,
-  ) {
+    int numLaps, {
+    double cda = 0.320,
+    double rho = 1.204,
+  }) {
     // Flatten all raw segments. We do NOT pre-filter by length here since short
     // segments can still be fully contained within a valid overlap interval.
     final all = <_RawPowerSegment>[for (final lap in rawLaps) ...lap];
@@ -641,7 +645,7 @@ class ConstantPowerClusteringService {
             if (raw.distances.last < entryGate ||
                 raw.distances.first > exitGate) { continue; }
             final extracted =
-                _subExtractFromInterval(raw, entryGate, exitGate);
+                _subExtractFromInterval(raw, entryGate, exitGate, cda, rho);
             if (extracted == null) continue;
             wEff      += extracted.efficiency * extracted.distance;
             totalDist += extracted.distance;
@@ -779,6 +783,8 @@ class ConstantPowerClusteringService {
     _RawPowerSegment raw,
     double entryGate,
     double exitGate,
+    double cda,
+    double rho,
   ) {
     if (raw.distances.isEmpty) return null;
     if (raw.distances.first > entryGate || raw.distances.last < exitGate) return null;
@@ -832,6 +838,22 @@ class ConstantPowerClusteringService {
     final avgSpd = sliceSpd.fold(0.0, (a, b) => a + b) / sliceSpd.length;
     final duration = (exitIdx - entryIdx).toDouble() + exitFrac - entryFrac;
 
+    // Aero-corrected rolling resistance residual: mean((P − 0.5·CdA·ρ·v³) / v)
+    // speeds are in km/h → convert to m/s.  Units: kg·m/s² (= CRR × mass × g)
+    double rrSum = 0.0;
+    int rrCount = 0;
+    for (int i = 0; i < slicePow.length; i++) {
+      final vMs = sliceSpd[i] / 3.6;
+      if (vMs > 0.5) {
+        final pAero = 0.5 * cda * rho * vMs * vMs * vMs;
+        rrSum += (slicePow[i] - pAero) / vMs;
+        rrCount++;
+      }
+    }
+    final rrResidual = rrCount > 0
+        ? rrSum / rrCount
+        : (avgPow > 0 ? avgSpd / avgPow : 0.0);
+
     return ConstantPowerSegment(
       segmentIndex: raw.segmentIndex,
       lapIndex:     raw.lapIndex,
@@ -843,7 +865,7 @@ class ConstantPowerClusteringService {
       avgSpeed:     avgSpd,
       distance:     gateLength,
       duration:     duration,
-      efficiency:   avgPow > 0 ? avgSpd / avgPow : 0.0,
+      efficiency:   rrResidual,
       numRecords:   slicePow.length,
       startTime:    raw.startTime,
       endTime:      raw.endTime,
