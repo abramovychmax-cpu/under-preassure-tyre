@@ -75,7 +75,7 @@ void openPartialOverlay(BuildContext context, Widget page) {
             Positioned.fill(
               child: GestureDetector(
                 onTap: () => Navigator.of(ctx).pop(),
-                child: Container(color: Colors.black.withValues(alpha: 0.5)),
+                child: Container(color: Colors.black.withOpacity(0.5)),
               ),
             ),
             // 90 % content panel
