@@ -545,22 +545,21 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
             const SizedBox(height: 12),
             // Swipe indicator
             Center(
-              child: Column(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.keyboard_arrow_left,
                     color: canProceed ? accentGemini : Colors.grey.shade400,
-                    size: 28,
+                    size: 20,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 6),
                   Text(
                     canProceed
                         ? 'SWIPE TO CONFIGURE WHEEL'
                         : _useGpsSpeed
                             ? 'ENABLE GPS FIRST'
                             : 'CONNECT SPEED SENSOR FIRST',
-                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: canProceed ? accentGemini : Colors.grey.shade400,
                       fontSize: 12,
@@ -571,7 +570,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SafeArea(top: false, child: SizedBox(height: 16)),
           ],
         ),
       ),

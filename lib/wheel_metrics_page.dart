@@ -382,18 +382,17 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
 
                   // Swipe Indicator
                   const Center(
-                    child: Column(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.keyboard_arrow_left,
                           color: accentGemini,
-                          size: 28,
+                          size: 20,
                         ),
-                        SizedBox(height: 4),
+                        SizedBox(width: 6),
                         Text(
                           'SWIPE TO CONTINUE',
-                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: accentGemini,
                             fontSize: 12,
@@ -404,7 +403,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SafeArea(top: false, child: SizedBox(height: 16)),
                 ],
               ),
             ),

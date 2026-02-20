@@ -81,18 +81,17 @@ class WheelMetricsGuidePage extends StatelessWidget {
                 ),
                 Spacer(flex: 3),
                 Center(
-                  child: Column(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.keyboard_arrow_left,
                         color: accentGemini,
-                        size: 28,
+                        size: 20,
                       ),
-                      SizedBox(height: 4),
+                      SizedBox(width: 6),
                       Text(
                         'SWIPE TO CONTINUE',
-                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: accentGemini,
                           fontSize: 12,
@@ -103,7 +102,7 @@ class WheelMetricsGuidePage extends StatelessWidget {
                     ],
                   ),
                 ),
-                SizedBox(height: 20),
+                SafeArea(top: false, child: SizedBox(height: 16)),
               ],
             ),
           ),
