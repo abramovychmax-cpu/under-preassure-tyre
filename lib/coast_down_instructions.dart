@@ -37,13 +37,8 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
-            _goToPressure(context);
-          }
-        },
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: SensorService().isSessionActive ? null : () => _goToPressure(context),
         child: Column(
           children: [
             Expanded(
@@ -70,6 +65,9 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                     const SizedBox(height: 24),
                     _sectionHeader('Power'),
                     _bulletPoint('Power consistency is not required. Coast only.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Phone'),
+                    _bulletPoint('Mount your phone on the handlebar. Keeping it in a pocket changes the bike weight distribution and may affect results.'),
                     const SizedBox(height: 20),
                   ],
                 ),

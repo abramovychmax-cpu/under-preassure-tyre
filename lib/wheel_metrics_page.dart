@@ -40,6 +40,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
   double _calculatedCircumference = 2.1;
 
   bool _isLoading = true;
+  bool _firstVisit = false;
 
   @override
   void initState() {
@@ -66,8 +67,15 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
 
       // Ensure tire width is in valid range
       if (_selectedTireWidth < 16) _selectedTireWidth = 16;
-      if (_selectedTireWidth > 100) _selectedTireWidth = 100; // Allow up to ~4.0" (100mm)
+      if (_selectedTireWidth > 100) _selectedTireWidth = 100;
     });
+    if (!widget.isOverlay) {
+      final seen = _prefs.getBool('wheel_metrics_seen') ?? false;
+      if (!seen) {
+        await _prefs.setBool('wheel_metrics_seen', true);
+        if (mounted) setState(() => _firstVisit = true);
+      }
+    }
   }
 
   void _calculateAndSaveCircumference() {
@@ -389,6 +397,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
               context,
               MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
             ),
+            forwardHighlighted: _firstVisit,
           ),
       ],
     ),

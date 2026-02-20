@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_setup_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
-class SensorGuidePage extends StatelessWidget {
+class SensorGuidePage extends StatefulWidget {
   const SensorGuidePage({super.key});
+
+  @override
+  State<SensorGuidePage> createState() => _SensorGuidePageState();
+}
+
+class _SensorGuidePageState extends State<SensorGuidePage> {
+  bool _firstVisit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstVisit();
+  }
+
+  Future<void> _checkFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('sensor_guide_seen') ?? false;
+    if (!seen) {
+      await prefs.setBool('sensor_guide_seen', true);
+      if (mounted) setState(() => _firstVisit = true);
+    }
+  }
 
   void _navigateToSetup(BuildContext context) {
     Navigator.push(
@@ -81,6 +104,7 @@ class SensorGuidePage extends StatelessWidget {
                 OnboardingNavBar(
                   onBack: () => Navigator.pop(context),
                   onForward: () => _navigateToSetup(context),
+                  forwardHighlighted: _firstVisit,
                 ),
               ],
             ),

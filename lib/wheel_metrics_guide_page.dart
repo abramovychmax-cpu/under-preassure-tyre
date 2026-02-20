@@ -18,15 +18,10 @@ class WheelMetricsGuidePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      body: AppMenuOverlay(
-        child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
-            _navigateToMetrics(context);
-          }
-        },
-        child: SafeArea(
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: SensorService().isSessionActive ? null : () => _navigateToMetrics(context),
+        child: AppMenuOverlay(
+          child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
@@ -92,7 +87,7 @@ class WheelMetricsGuidePage extends StatelessWidget {
             ),
           ),
         ),
-      ),
+        ),
       ),
     );
   }

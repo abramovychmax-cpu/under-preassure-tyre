@@ -35,13 +35,8 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
-            _goToPressure(context);
-          }
-        },
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: SensorService().isSessionActive ? null : () => _goToPressure(context),
         child: Column(
           children: [
             Expanded(
@@ -62,6 +57,9 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
                     _sectionHeader('Power'),
                     _bulletPoint("Hold steady power each run (aim within ±15W). Surges don't count"),
                     _bulletPoint('Only repeatable segments with similar power (±10%) are used in analysis.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Phone'),
+                    _bulletPoint('Mount your phone on the handlebar. Keeping it in a pocket changes the bike weight distribution and may affect results.'),
                     const SizedBox(height: 20),
                   ],
                 ),

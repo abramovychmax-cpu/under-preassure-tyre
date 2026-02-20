@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_guide_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
-class HowItWorksPage extends StatelessWidget {
+class HowItWorksPage extends StatefulWidget {
   const HowItWorksPage({super.key});
+
+  @override
+  State<HowItWorksPage> createState() => _HowItWorksPageState();
+}
+
+class _HowItWorksPageState extends State<HowItWorksPage> {
+  bool _firstVisit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstVisit();
+  }
+
+  Future<void> _checkFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('how_it_works_seen') ?? false;
+    if (!seen) {
+      await prefs.setBool('how_it_works_seen', true);
+      if (mounted) setState(() => _firstVisit = true);
+    }
+  }
 
   void _navigateNext(BuildContext context) {
     Navigator.push(
@@ -66,6 +89,7 @@ class HowItWorksPage extends StatelessWidget {
             OnboardingNavBar(
               onBack: () => Navigator.pop(context),
               onForward: () => _navigateNext(context),
+              forwardHighlighted: _firstVisit,
             ),
           ],
         ),

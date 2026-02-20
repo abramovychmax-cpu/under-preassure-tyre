@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'how_it_works_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
@@ -12,6 +13,23 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> {
+  bool _firstVisit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstVisit();
+  }
+
+  Future<void> _checkFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('welcome_seen') ?? false;
+    if (!seen) {
+      await prefs.setBool('welcome_seen', true);
+      if (mounted) setState(() => _firstVisit = true);
+    }
+  }
+
   void _navigateToSetup() {
     Navigator.push(
       context,
@@ -83,6 +101,7 @@ class _WelcomePageState extends State<WelcomePage> {
                 const Spacer(flex: 3),
                 OnboardingNavBar(
                   onForward: _navigateToSetup,
+                  forwardHighlighted: _firstVisit,
                 ),
               ],
             ),

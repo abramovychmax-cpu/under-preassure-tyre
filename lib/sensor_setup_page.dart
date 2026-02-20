@@ -47,6 +47,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
   /// True when user explicitly opts to use GPS as their speed source
   bool _useGpsSpeed = false;
+  bool _firstVisit = false;
 
   void _toggleGpsSpeed(bool value) {
     setState(() => _useGpsSpeed = value);
@@ -57,6 +58,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   void initState() {
     super.initState();
     _loadSpeedUnit();
+    _checkFirstVisit();
     _initInternalSensors();
     _initDataStreams();
 
@@ -102,6 +104,16 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     setState(() {
       _speedUnit = prefs.getString('speed_unit') ?? 'km/h';
     });
+  }
+
+  Future<void> _checkFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (widget.isOverlay) return;
+    final seen = prefs.getBool('sensor_setup_seen') ?? false;
+    if (!seen) {
+      await prefs.setBool('sensor_setup_seen', true);
+      if (mounted) setState(() => _firstVisit = true);
+    }
   }
 
   double _convertSpeed(double kmh) {
@@ -552,6 +564,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                       ? 'ENABLE GPS FIRST'
                       : 'SELECT SPEED SENSOR',
               statusColor: const Color(0xFFE6A817),
+              forwardHighlighted: _firstVisit && canProceed,
             ),
           ],
         ),

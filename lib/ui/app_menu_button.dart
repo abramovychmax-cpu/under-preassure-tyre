@@ -85,7 +85,7 @@ void openPartialOverlay(BuildContext context, Widget page) {
                   ),
                   // Floating close button at top-right of panel
                   Positioned(
-                    top: 8,
+                    top: MediaQuery.of(ctx).padding.top + 8,
                     right: 8,
                     child: Material(
                       color: Colors.transparent,

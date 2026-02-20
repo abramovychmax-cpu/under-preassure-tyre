@@ -37,13 +37,8 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
         elevation: 0,
         actions: const [AppMenuButton()],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
-            _goToPressure(context);
-          }
-        },
+      body: RightEdgeSwipeDetector(
+        onSwipeForward: SensorService().isSessionActive ? null : () => _goToPressure(context),
         child: Column(
           children: [
             Expanded(
@@ -67,6 +62,9 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
                     _sectionHeader('Consistency'),
                     _bulletPoint('Complete the same number of laps at each pressure.'),
                     _bulletPoint('Keep body position identical across all laps.'),
+                    const SizedBox(height: 24),
+                    _sectionHeader('Phone'),
+                    _bulletPoint('Mount your phone on the handlebar. Keeping it in a pocket changes the bike weight distribution and may affect results.'),
                     const SizedBox(height: 20),
                   ],
                 ),

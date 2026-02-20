@@ -1,12 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'protocol_selection_page.dart';
 import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
-class SafetyGuidePage extends StatelessWidget {
+class SafetyGuidePage extends StatefulWidget {
   final bool isOverlay;
   const SafetyGuidePage({super.key, this.isOverlay = false});
+
+  @override
+  State<SafetyGuidePage> createState() => _SafetyGuidePageState();
+}
+
+class _SafetyGuidePageState extends State<SafetyGuidePage> {
+  bool _firstVisit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isOverlay) _checkFirstVisit();
+  }
+
+  Future<void> _checkFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('safety_guide_seen') ?? false;
+    if (!seen) {
+      await prefs.setBool('safety_guide_seen', true);
+      if (mounted) setState(() => _firstVisit = true);
+    }
+  }
 
   void _goToProtocols(BuildContext context) {
     Navigator.push(
@@ -29,10 +52,10 @@ class SafetyGuidePage extends StatelessWidget {
         foregroundColor: const Color(0xFF222222),
         backgroundColor: bgLight,
         elevation: 0,
-        actions: isOverlay ? null : const [AppMenuButton()],
+        actions: widget.isOverlay ? null : const [AppMenuButton()],
       ),
       body: RightEdgeSwipeDetector(
-        onSwipeForward: (isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
+        onSwipeForward: (widget.isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
         child: Column(
           children: [
           Expanded(
@@ -80,7 +103,8 @@ class SafetyGuidePage extends StatelessWidget {
       ),
           OnboardingNavBar(
             onBack: () => Navigator.pop(context),
-            onForward: (isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
+            onForward: (widget.isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
+            forwardHighlighted: _firstVisit,
           ),
           ],
         ),

@@ -57,12 +57,14 @@ class OnboardingNavBar extends StatelessWidget {
   final VoidCallback? onForward;
   final String? statusText;
   final Color? statusColor;
+  final bool forwardHighlighted;
   const OnboardingNavBar({
     super.key,
     this.onBack,
     this.onForward,
     this.statusText,
     this.statusColor,
+    this.forwardHighlighted = false,
   });
 
   @override
@@ -106,11 +108,19 @@ class OnboardingNavBar extends StatelessWidget {
               child: SizedBox(
                 width: 48,
                 height: 48,
-                child: Icon(
-                  Icons.chevron_right,
-                  color: onForward != null ? accentGemini : const Color(0xFFCCCCCC),
-                  size: 32,
-                ),
+                child: forwardHighlighted && onForward != null
+                    ? Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF222222),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.chevron_right, color: Colors.white, size: 32),
+                      )
+                    : Icon(
+                        Icons.chevron_right,
+                        color: onForward != null ? accentGemini : const Color(0xFFCCCCCC),
+                        size: 32,
+                      ),
               ),
             ),
           ],
@@ -147,8 +157,9 @@ class RightEdgeSwipeDetector extends StatelessWidget {
           width: 24,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
+            dragStartBehavior: DragStartBehavior.down,
             onHorizontalDragEnd: (details) {
-              if ((details.primaryVelocity ?? 0) < -300) {
+              if ((details.primaryVelocity ?? 0) < -200) {
                 onSwipeForward!();
               }
             },
