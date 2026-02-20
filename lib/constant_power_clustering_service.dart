@@ -14,7 +14,8 @@ class ConstantPowerSegment {
   final double avgSpeed;         // Average speed (km/h)
   final double distance;         // Distance traveled (meters)
   final double duration;         // Duration (seconds)
-  final double efficiency;       // speed / power (km/h per watt)
+  final double efficiency;       // (speed / power) / (1 + vibration) — vibration-penalised
+  final double avgVibration;     // Mean vibration magnitude (g) during segment
   final int numRecords;          // Number of data points
   final DateTime startTime;
   final DateTime endTime;
@@ -31,6 +32,7 @@ class ConstantPowerSegment {
     required this.distance,
     required this.duration,
     required this.efficiency,
+    required this.avgVibration,
     required this.numRecords,
     required this.startTime,
     required this.endTime,
@@ -175,7 +177,20 @@ class ConstantPowerClusteringService {
   }
 
 
-  /// Detect constant-power segments within a lap from JSONL records (CV < 10%)
+  /// Coefficient of variation helper
+  static double _cv(List<double> values) {
+    if (values.length < 2) return 0.0;
+    final mean = values.fold(0.0, (a, b) => a + b) / values.length;
+    if (mean <= 0) return double.infinity;
+    final variance = values.fold(0.0, (s, v) => s + math.pow(v - mean, 2)) / values.length;
+    return math.sqrt(variance) / mean;
+  }
+
+  /// Detect constant-power segments within a lap from JSONL records.
+  ///
+  /// Uses a **growing window**: starts at minWindow samples and extends
+  /// forward as long as the power CV stays below [segmentThreshold].
+  /// This avoids fragmenting long stable efforts into many 10-second pieces.
   static List<ConstantPowerSegment> _detectConstantPowerSegmentsFromJsonl(
     List<Map<String, dynamic>> records,
     int lapIdx,
@@ -184,87 +199,95 @@ class ConstantPowerClusteringService {
     if (records.isEmpty) return [];
 
     final segments = <ConstantPowerSegment>[];
-    const segmentThreshold = 0.10; // 10% CV threshold for constant power
+    const segmentThreshold = 0.10; // 10% CV = constant power
+    const minWindow = 10;          // minimum stable run length (≈10 s at 1 Hz)
 
     int i = 0;
     int segmentId = 0;
 
-    while (i < records.length) {
-      // Find a window of constant power
-      const windowSize = 10; // ~10 records at 1 Hz
-      if (i + windowSize > records.length) break;
+    while (i + minWindow <= records.length) {
+      // ── Seed: check the minimum window first ──────────────────────────────
+      List<double> powers = records
+          .sublist(i, i + minWindow)
+          .map((r) => (r['power'] as num?)?.toDouble() ?? 0.0)
+          .where((p) => p > 0)
+          .toList();
 
-      final window = records.sublist(i, i + windowSize);
-      final powers = <double>[];
-      final speeds = <double>[];
-      final lats = <double>[];
-      final lons = <double>[];
+      if (powers.length < minWindow ~/ 2 || _cv(powers) >= segmentThreshold) {
+        i++;
+        continue; // not enough data or too variable — slide by 1
+      }
+
+      // ── Grow: extend while the growing window stays stable ────────────────
+      int end = i + minWindow; // exclusive end index
+      while (end < records.length) {
+        final p = (records[end]['power'] as num?)?.toDouble() ?? 0.0;
+        if (p <= 0) break; // zero/missing power breaks the run
+        final extended = [...powers, p];
+        if (_cv(extended) >= segmentThreshold) break;
+        powers = extended;
+        end++;
+      }
+
+      // ── Extract all fields from the confirmed window ──────────────────────
+      final window = records.sublist(i, end);
+      final speeds      = <double>[];
+      final lats        = <double>[];
+      final lons        = <double>[];
+      final vibrations  = <double>[];
       DateTime? startTime, endTime;
 
-      for (final record in window) {
-        final power = (record['power'] as num?)?.toDouble() ?? 0.0;
-        final speed = (record['speed'] as num?)?.toDouble() ?? 0.0;
-        final lat = (record['gpsLatitude'] as num?)?.toDouble() ?? 0.0;
-        final lon = (record['gpsLongitude'] as num?)?.toDouble() ?? 0.0;
-        final timestamp = record['timestamp'] as String?;
-
-        powers.add(power);
-        speeds.add(speed);
-        lats.add(lat);
-        lons.add(lon);
-
-        if (timestamp != null) {
-          final dt = DateTime.tryParse(timestamp);
-          if (dt != null) {
-            startTime ??= dt;
-            endTime = dt;
-          }
+      for (final r in window) {
+        speeds.add((r['speed_kmh'] as num?)?.toDouble() ?? 0.0);
+        // GPS keys as written by SensorService: 'lat' / 'lon'
+        lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
+        lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
+        vibrations.add((r['vibration'] as num?)?.toDouble() ?? 0.0);
+        final ts = r['ts'] as String?;
+        if (ts != null) {
+          final dt = DateTime.tryParse(ts);
+          if (dt != null) { startTime ??= dt; endTime = dt; }
         }
       }
 
-      // Calculate CV of power
-      final avgPower = powers.fold<double>(0, (a, b) => a + b) / powers.length;
-      if (avgPower > 0) {
-        final variance = powers.fold<double>(0, (sum, p) => sum + math.pow(p - avgPower, 2)) /
-            powers.length;
-        final stdDev = math.sqrt(variance);
-        final cv = stdDev / avgPower;
+      final avgPower = powers.fold(0.0, (a, b) => a + b) / powers.length;
+      final cv       = _cv(powers);
+      final avgSpeed = speeds.fold(0.0, (a, b) => a + b) / speeds.length;
+      // Use the start GPS point for stable matching (not centroid)
+      final startLat = lats.firstWhere((v) => v != 0.0, orElse: () => 0.0);
+      final startLon = lons.firstWhere((v) => v != 0.0, orElse: () => 0.0);
+      final duration  = window.length.toDouble(); // seconds at 1 Hz
+      // Fix: avgSpeed is km/h → convert to m/s before multiplying by seconds
+      final distance  = (avgSpeed / 3.6) * duration;
+      final avgVib = vibrations.isEmpty
+          ? 0.0
+          : vibrations.fold(0.0, (a, b) => a + b) / vibrations.length;
+      // Efficiency: speed/power baseline, penalised by vibration.
+      // Higher vibration → more surface impedance → worse efficiency score.
+      final efficiency = avgPower > 0
+          ? (avgSpeed / avgPower) / (1.0 + avgVib)
+          : 0.0;
 
-        // If CV < 10%, this is a constant-power segment
-        if (cv < segmentThreshold && avgPower > 0) {
-          final avgSpeed = speeds.fold<double>(0, (a, b) => a + b) / speeds.length;
-          final avgLat = lats.fold<double>(0, (a, b) => a + b) / lats.length;
-          final avgLon = lons.fold<double>(0, (a, b) => a + b) / lons.length;
-          final duration = window.length.toDouble(); // Approximate in seconds
-          final distance = avgSpeed * duration; // meters
+      segments.add(ConstantPowerSegment(
+        segmentIndex: segmentId,
+        lapIndex: lapIdx,
+        pressure: pressure,
+        avgLat: startLat,
+        avgLon: startLon,
+        avgPower: avgPower,
+        cvPower: cv,
+        avgSpeed: avgSpeed,
+        distance: distance,
+        duration: duration,
+        efficiency: efficiency,
+        avgVibration: avgVib,
+        numRecords: window.length,
+        startTime: startTime ?? DateTime.now(),
+        endTime: endTime ?? DateTime.now(),
+      ));
 
-          final efficiency = avgPower > 0 ? avgSpeed / avgPower : 0.0;
-
-          segments.add(ConstantPowerSegment(
-            segmentIndex: segmentId,
-            lapIndex: lapIdx,
-            pressure: pressure,
-            avgLat: avgLat,
-            avgLon: avgLon,
-            avgPower: avgPower,
-            cvPower: cv,
-            avgSpeed: avgSpeed,
-            distance: distance,
-            duration: duration,
-            efficiency: efficiency,
-            numRecords: window.length,
-            startTime: startTime ?? DateTime.now(),
-            endTime: endTime ?? DateTime.now(),
-          ));
-
-          segmentId++;
-          i += windowSize; // Move past this segment
-        } else {
-          i += 1; // Move by 1 if not constant-power
-        }
-      } else {
-        i += 1;
-      }
+      segmentId++;
+      i = end; // advance past the entire confirmed window
     }
 
     return segments;

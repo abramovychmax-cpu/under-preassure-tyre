@@ -25,6 +25,7 @@ class SensorService {
   // buffer of recent vibration samples for smoothing (timestamp ms -> value in g)
   final List<Map<String, double>> _vibrationSamples = [];
   static const int _vibrationWindowMs = 300;
+  double _lastVibration = 0.0; // last smoothed vibration magnitude (g)
   // buffer of recent power samples for averaging (timestamp ms -> value)
   final List<Map<String, int>> _powerSamples = [];
   static const int _powerWindowMs = 3000;
@@ -162,6 +163,7 @@ class SensorService {
           sum += (s['v'] ?? 0.0);
         }
         final double avg = sum / _vibrationSamples.length;
+        _lastVibration = avg;
         _vibrationController.add(avg);
       }
     });
@@ -498,6 +500,10 @@ class SensorService {
         record['lat'] = _currentLat;
         record['lon'] = _currentLon;
         record['altitude'] = _currentAltitude;
+      }
+
+      if (_lastVibration > 0.0) {
+        record['vibration'] = _lastVibration;
       }
 
       _fitWriter!.writeRecord(record);
