@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'sensor_service.dart';
 import 'sensor_setup_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
@@ -21,7 +22,7 @@ class SensorGuidePage extends StatelessWidget {
         child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
             _navigateToSetup(context);
           }
         },

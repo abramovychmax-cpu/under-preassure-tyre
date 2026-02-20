@@ -743,6 +743,9 @@ class SensorService {
     }
   }
 
+  /// True while a FIT recording session is in progress (first run started, not yet finished).
+  bool get isSessionActive => _fitWriter != null;
+
   /// Get the current FIT writer instance (for background flush)
   FitWriter? getFitWriter() => _fitWriter;
   

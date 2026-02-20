@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'how_it_works_page.dart';
+import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
@@ -27,7 +28,7 @@ class _WelcomePageState extends State<WelcomePage> {
         child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
             _navigateToSetup();
           }
         },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'safety_guide_page.dart';
+import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
@@ -111,7 +112,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
           ? const Center(child: CircularProgressIndicator(color: accentGemini))
           : GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onHorizontalDragEnd: widget.isOverlay ? null : (details) {
+              onHorizontalDragEnd: (widget.isOverlay || SensorService().isSessionActive) ? null : (details) {
                 if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
                   Navigator.push(
                     context,

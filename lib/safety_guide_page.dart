@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'protocol_selection_page.dart';
+import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
@@ -32,7 +33,7 @@ class SafetyGuidePage extends StatelessWidget {
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: isOverlay ? null : (details) {
+        onHorizontalDragEnd: (isOverlay || SensorService().isSessionActive) ? null : (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
             _goToProtocols(context);
           }

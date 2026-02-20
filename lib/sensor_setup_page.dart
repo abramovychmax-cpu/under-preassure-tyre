@@ -339,7 +339,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: widget.isOverlay ? null : (details) {
+        onHorizontalDragEnd: (widget.isOverlay || SensorService().isSessionActive) ? null : (details) {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200 && canProceed) {
             _handleSwipeUp();
           }

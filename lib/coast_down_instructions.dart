@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'sensor_service.dart';
 import 'pressure_input_page.dart'; // We will create this next
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
@@ -39,7 +40,7 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
             _goToPressure(context);
           }
         },

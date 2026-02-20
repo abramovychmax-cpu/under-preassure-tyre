@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'sensor_service.dart';
 import 'pressure_input_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
@@ -39,7 +40,7 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < -200 && !SensorService().isSessionActive) {
             _goToPressure(context);
           }
         },
