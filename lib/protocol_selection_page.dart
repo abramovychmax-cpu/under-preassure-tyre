@@ -25,18 +25,10 @@ class ProtocolSelectionPage extends StatelessWidget {
         foregroundColor: const Color(0xFF222222),
         actions: const [AppMenuButton()],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final totalAvailableHeight = constraints.maxHeight - 64;
-          final cardHeight = (totalAvailableHeight - 80) / 3; // Reduced from totalAvailableHeight / 3
-
-          return ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        children: [
               _protocolCard(
-                cardHeight,
                 'Coast-Down (Gravity)',
                 'Action: Coast hill; no pedaling.\nRequirement: At least 3 runs.\nNote: No Power Meter required.',
                 Icons.terrain,
@@ -49,7 +41,6 @@ class ProtocolSelectionPage extends StatelessWidget {
                 },
               ),
               _protocolCard(
-                cardHeight,
                 'Constant Power / Speed',
                 'Action: Flat road; steady effort.\nRequirement: At least 3 runs.\nData: Speed vs. Wattage efficiency.',
                 Icons.bolt,
@@ -66,7 +57,6 @@ class ProtocolSelectionPage extends StatelessWidget {
                 },
               ),
               _protocolCard(
-                cardHeight,
                 'Lap Efficiency (Chung)',
                 'Action: Closed GPS loop.\nRequirement: At least 3 laps per pressure.\nData: Avg Power vs. Avg Speed.',
                 Icons.loop,
@@ -83,9 +73,7 @@ class ProtocolSelectionPage extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 12),
-            ],
-          );
-        },
+        ],
       ),
     );
   }
@@ -111,7 +99,7 @@ class ProtocolSelectionPage extends StatelessWidget {
     );
   }
 
-  Widget _protocolCard(double height, String title, String desc, IconData icon, String pillLabel, VoidCallback onTap) {
+  Widget _protocolCard(String title, String desc, IconData icon, String pillLabel, VoidCallback onTap) {
     final List<Widget> descWidgets = desc.split('\n').map((line) {
       final splitIdx = line.indexOf(':');
       if (splitIdx > 0) {
@@ -137,8 +125,7 @@ class ProtocolSelectionPage extends StatelessWidget {
     }).toList();
 
     return Container(
-      height: height - 16,
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -153,7 +140,7 @@ class ProtocolSelectionPage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -173,34 +160,25 @@ class ProtocolSelectionPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Indent pill + description to align with title text (icon 40px + gap 14px = 54px)
-              Padding(
-                padding: const EdgeInsets.only(left: 54),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: accentGemini.withAlpha(31),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        pillLabel,
-                        style: const TextStyle(
-                          color: Color(0xFF1F9D8F),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...descWidgets,
-                  ],
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: accentGemini.withAlpha(31),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  pillLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF1F9D8F),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
+              const SizedBox(height: 10),
+              ...descWidgets,
             ],
           ),
         ),
