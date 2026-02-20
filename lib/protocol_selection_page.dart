@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'coast_down_instructions.dart';
 import 'constant_power_instructions.dart';
 import 'lap_efficiency_instructions.dart';
-import 'safety_guide_page.dart';
 import 'ui/app_menu_button.dart';
 import 'sensor_service.dart';
 import 'ui/common_widgets.dart';
@@ -82,22 +81,6 @@ class ProtocolSelectionPage extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => const LapEfficiencyInstructions()),
                   );
                 },
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentGemini,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
-                  );
-                },
-                child: const Text('VIEW SAFETY GUIDE'),
               ),
               const SizedBox(height: 12),
             ],
