@@ -90,10 +90,10 @@ void openPartialOverlay(BuildContext context, Widget page) {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     child: page,
                   ),
-                  // Floating close button at top-left of panel
+                  // Floating close button at top-right of panel
                   Positioned(
                     top: 8,
-                    left: 8,
+                    right: 8,
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
