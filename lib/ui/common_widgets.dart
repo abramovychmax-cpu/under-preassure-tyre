@@ -47,3 +47,52 @@ class AppCard extends StatelessWidget {
     );
   }
 }
+
+/// Navigation bar for onboarding pages.
+/// Back chevron on the left (hidden when [onBack] is null — first page).
+/// Forward button (dark rounded box) on the right; greyed when [onForward] is null.
+class OnboardingNavBar extends StatelessWidget {
+  final VoidCallback? onBack;
+  final VoidCallback? onForward;
+  const OnboardingNavBar({super.key, this.onBack, this.onForward});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (onBack != null)
+              GestureDetector(
+                onTap: onBack,
+                child: const SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Icon(Icons.chevron_left, color: accentGemini, size: 32),
+                ),
+              )
+            else
+              const SizedBox(width: 48),
+            GestureDetector(
+              onTap: onForward,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: onForward != null
+                      ? const Color(0xFF222222)
+                      : const Color(0xFFCCCCCC),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

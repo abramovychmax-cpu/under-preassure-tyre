@@ -45,7 +45,11 @@ class HowItWorksPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 10),
+                    const Hero(
+                      tag: 'onboarding_icon',
+                      child: Icon(Icons.lightbulb_outline, size: 56, color: accentGemini),
+                    ),
+                    const SizedBox(height: 24),
                     const Text(
                       'To find your fastest pressure, perform at least three runs at different pressures and let the app calculate the optimum.',
                       style: TextStyle(fontSize: 16, color: Color(0xFF666666), height: 1.5),
@@ -74,20 +78,10 @@ class HowItWorksPage extends StatelessWidget {
                 ),
               ),
             ),
-            const Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.keyboard_arrow_left, color: accentGemini, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'SWIPE TO CONTINUE',
-                    style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.1),
-                  ),
-                ],
-              ),
+            OnboardingNavBar(
+              onBack: () => Navigator.pop(context),
+              onForward: () => _navigateNext(context),
             ),
-            const SafeArea(top: false, child: SizedBox(height: 16)),
           ],
         ),
       ),

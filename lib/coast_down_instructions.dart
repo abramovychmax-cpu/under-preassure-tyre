@@ -75,20 +75,10 @@ class _CoastDownInstructionsState extends State<CoastDownInstructions> {
                 ),
               ),
             ),
-            const Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.keyboard_arrow_left, color: accentGemini, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'SWIPE TO CONTINUE',
-                    style: TextStyle(color: accentGemini, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.1),
-                  ),
-                ],
-              ),
+            OnboardingNavBar(
+              onBack: () => Navigator.pop(context),
+              onForward: SensorService().isSessionActive ? null : () => _goToPressure(context),
             ),
-            const SafeArea(top: false, child: SizedBox(height: 16)),
           ],
         ),
       ),

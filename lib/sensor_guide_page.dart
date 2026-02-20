@@ -26,19 +26,22 @@ class SensorGuidePage extends StatelessWidget {
             _navigateToSetup(context);
           }
         },
-        child: const SafeArea(
+        child: SafeArea(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               children: [
-                SizedBox(height: 60),
-                Spacer(flex: 2),
-                Column(
+                const SizedBox(height: 60),
+                const Spacer(flex: 2),
+                const Column(
                   children: [
-                    Icon(
-                      Icons.sensors,
-                      size: 80,
-                      color: accentGemini,
+                    Hero(
+                      tag: 'onboarding_icon',
+                      child: Icon(
+                        Icons.sensors,
+                        size: 80,
+                        color: accentGemini,
+                      ),
                     ),
                     SizedBox(height: 48),
                     Text(
@@ -81,29 +84,10 @@ class SensorGuidePage extends StatelessWidget {
                   ],
                 ),
                 Spacer(flex: 3),
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.keyboard_arrow_left,
-                        color: accentGemini,
-                        size: 20,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'SWIPE TO CONTINUE',
-                        style: TextStyle(
-                          color: accentGemini,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ],
-                  ),
+                OnboardingNavBar(
+                  onBack: () => Navigator.pop(context),
+                  onForward: () => _navigateToSetup(context),
                 ),
-                SafeArea(top: false, child: SizedBox(height: 16)),
               ],
             ),
           ),

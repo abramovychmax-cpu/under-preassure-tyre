@@ -110,7 +110,10 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
       ),
         body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: accentGemini))
-          : GestureDetector(
+          : Column(
+              children: [
+                Expanded(
+                  child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onHorizontalDragEnd: (widget.isOverlay || SensorService().isSessionActive) ? null : (details) {
                 if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
@@ -381,35 +384,20 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
                     ],
                   ),
                   const SizedBox(height: 32),
-
-                  // Swipe Indicator
-                  const Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.keyboard_arrow_left,
-                          color: accentGemini,
-                          size: 20,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'SWIPE TO CONTINUE',
-                          style: TextStyle(
-                            color: accentGemini,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SafeArea(top: false, child: SizedBox(height: 16)),
                 ],
               ),
             ),
           ),
+        ),
+        OnboardingNavBar(
+          onBack: () => Navigator.pop(context),
+          onForward: (widget.isOverlay || SensorService().isSessionActive) ? null : () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
+          ),
+        ),
+      ],
+    ),
     );
   }
 }

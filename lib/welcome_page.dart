@@ -32,16 +32,19 @@ class _WelcomePageState extends State<WelcomePage> {
             _navigateToSetup();
           }
         },
-        child: const SafeArea(
+        child: SafeArea(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               children: [
-                SizedBox(height: 40),
-                Spacer(flex: 2),
-                Column(
+                const SizedBox(height: 40),
+                const Spacer(flex: 2),
+                const Column(
                   children: [
-                    CyclingWheelIcon(size: 160),
+                    Hero(
+                      tag: 'onboarding_icon',
+                      child: CyclingWheelIcon(size: 160),
+                    ),
                     SizedBox(height: 48),
                     Text(
                       'PERFECT\nPRESSURE',
@@ -84,29 +87,9 @@ class _WelcomePageState extends State<WelcomePage> {
                   ],
                 ),
                 Spacer(flex: 3),
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.keyboard_arrow_left,
-                        color: accentGemini,
-                        size: 20,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'SWIPE TO CONTINUE',
-                        style: TextStyle(
-                          color: accentGemini,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ],
-                  ),
+                OnboardingNavBar(
+                  onForward: _navigateToSetup,
                 ),
-                SafeArea(top: false, child: SizedBox(height: 16)),
               ],
             ),
           ),
