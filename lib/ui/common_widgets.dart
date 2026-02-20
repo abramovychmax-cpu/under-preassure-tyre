@@ -50,7 +50,7 @@ class AppCard extends StatelessWidget {
 
 /// Navigation bar for onboarding pages.
 /// Back chevron on the left (hidden when [onBack] is null — first page).
-/// Forward button (dark rounded box) on the right; greyed when [onForward] is null.
+/// Forward chevron on the right (greyed when [onForward] is null).
 /// Optional [statusText] and [statusColor] shown centred between the chevrons.
 class OnboardingNavBar extends StatelessWidget {
   final VoidCallback? onBack;
@@ -100,19 +100,17 @@ class OnboardingNavBar extends StatelessWidget {
                     )
                   : const SizedBox.shrink(),
             ),
-            // Right forward button
+            // Right forward chevron
             GestureDetector(
               onTap: onForward,
-              child: Container(
+              child: SizedBox(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: onForward != null
-                      ? const Color(0xFF222222)
-                      : const Color(0xFFCCCCCC),
-                  borderRadius: BorderRadius.circular(14),
+                child: Icon(
+                  Icons.chevron_right,
+                  color: onForward != null ? accentGemini : const Color(0xFFCCCCCC),
+                  size: 32,
                 ),
-                child: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
               ),
             ),
           ],
