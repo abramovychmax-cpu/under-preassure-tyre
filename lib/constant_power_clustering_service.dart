@@ -321,11 +321,15 @@ class ConstantPowerClusteringService {
         end++;
       }
 
-      final window    = records.sublist(i, end);
-      final speeds    = <double>[];
-      final distances = <double>[];
-      final lats      = <double>[];
-      final lons      = <double>[];
+      final window        = records.sublist(i, end);
+      final speeds        = <double>[];
+      final distances     = <double>[];
+      final lats          = <double>[];
+      final lons          = <double>[];
+      // Full-window powers aligned 1-to-1 with speeds/distances (no filtering).
+      // The growing-window CV check uses the filtered 'powers' list above; we
+      // store the unfiltered 'powersAligned' so array lengths always match.
+      final powersAligned = <double>[];
       DateTime? startTime, endTime;
 
       for (final r in window) {
@@ -333,6 +337,7 @@ class ConstantPowerClusteringService {
         distances.add((r['distance'] as num?)?.toDouble() ?? 0.0);
         lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
         lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
+        powersAligned.add((r['power'] as num?)?.toDouble() ?? 0.0);
         final ts = r['ts'] as String?;
         if (ts != null) {
           final dt = DateTime.tryParse(ts);
@@ -344,7 +349,7 @@ class ConstantPowerClusteringService {
         lapIndex: lapIdx,
         segmentIndex: segmentId,
         pressure: pressure,
-        powers: powers,
+        powers: powersAligned,
         speeds: speeds,
         distances: distances,
         lats: lats,
@@ -365,9 +370,6 @@ class ConstantPowerClusteringService {
   static const double _zonePowerTolerancePct = 20.0;
   /// Minimum segment distance; filters accidental short blips.
   static const double _minSegmentDistanceM = 150.0;
-  /// Minimum ratio of shortest-to-longest gate distance within a zone.
-  /// Zones below this are dropped — road sections differ too much to compare.
-  static const double _distanceRatioGate   = 0.50;
 
   /// Group all detected segments by GPS zone, then compute per-lap
   /// distance-weighted average efficiency for each zone.
@@ -531,18 +533,16 @@ class ConstantPowerClusteringService {
     List<List<_RawPowerSegment>> rawLaps,
     int numLaps,
   ) {
-    // Flatten and filter short blips
-    final all = <_RawPowerSegment>[
-      for (final lap in rawLaps)
-        ...lap.where((s) => s.segmentDistance >= _minSegmentDistanceM),
-    ];
+    // Flatten all raw segments. We do NOT pre-filter by length here since short
+    // segments can still be fully contained within a valid overlap interval.
+    final all = <_RawPowerSegment>[for (final lap in rawLaps) ...lap];
 
     if (all.isEmpty) {
-      print('⚠ No raw segments ≥ ${_minSegmentDistanceM.toStringAsFixed(0)} m found across $numLaps laps');
+      print('⚠ No raw segments found across $numLaps laps');
       return [];
     }
 
-    // GPS zone clustering (greedy, start-point + power gate)
+    // ── GPS zone clustering (greedy, start-point + power gate) ───────────────
     final zones = <List<_RawPowerSegment>>[];
     final used  = <int>{};
 
@@ -550,7 +550,8 @@ class ConstantPowerClusteringService {
       if (used.contains(i)) continue;
       final zone = [all[i]];
       used.add(i);
-      final avgPowI = all[i].powers.fold(0.0, (a, b) => a + b) / all[i].powers.length;
+      final avgPowI = all[i].powers.isEmpty ? 0.0
+          : all[i].powers.fold(0.0, (a, b) => a + b) / all[i].powers.length;
 
       for (int j = i + 1; j < all.length; j++) {
         if (used.contains(j)) continue;
@@ -559,9 +560,13 @@ class ConstantPowerClusteringService {
           all[j].startLat, all[j].startLon,
         );
         if (d > _gpsZoneRadiusM) continue;
-        final avgPowJ  = all[j].powers.fold(0.0, (a, b) => a + b) / all[j].powers.length;
-        final maxP     = math.max(avgPowI, avgPowJ);
-        if (maxP > 0 && (avgPowI - avgPowJ).abs() / maxP * 100.0 > _zonePowerTolerancePct) continue;
+        final avgPowJ = all[j].powers.isEmpty ? 0.0
+            : all[j].powers.fold(0.0, (a, b) => a + b) / all[j].powers.length;
+        final maxP = math.max(avgPowI, avgPowJ);
+        if (maxP > 0 &&
+            (avgPowI - avgPowJ).abs() / maxP * 100.0 > _zonePowerTolerancePct) {
+          continue;
+        }
         zone.add(all[j]);
         used.add(j);
       }
@@ -574,9 +579,11 @@ class ConstantPowerClusteringService {
     int zoneId = 0;
 
     for (final zone in zones) {
-      // Group by lap
+      // ── Group by lap ──────────────────────────────────────────────────────
       final byLap = <int, List<_RawPowerSegment>>{};
-      for (final seg in zone) { byLap.putIfAbsent(seg.lapIndex, () => []).add(seg); }
+      for (final seg in zone) {
+        byLap.putIfAbsent(seg.lapIndex, () => []).add(seg);
+      }
 
       if (byLap.length < numLaps) {
         print('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
@@ -584,123 +591,246 @@ class ConstantPowerClusteringService {
         continue;
       }
 
-      // Gate distance = minimum across all laps' longest segment
-      double gateDist  = double.infinity;
-      double maxDist   = 0.0;
-      for (final segs in byLap.values) {
-        final lapMax = segs.map((s) => s.segmentDistance).fold(0.0, math.max);
-        if (lapMax < gateDist) gateDist = lapMax;
-        if (lapMax > maxDist) maxDist = lapMax;
+      // ── Build coverage intervals per lap ──────────────────────────────────
+      // Each raw segment covers [distances.first, distances.last] on the
+      // per-lap cumulative wheel-distance axis, which is comparable across laps
+      // because every lap starts at the same physical anchor point.
+      final lapIntervals = <int, List<List<double>>>{};
+      for (final entry in byLap.entries) {
+        final raw = <List<double>>[];
+        for (final seg in entry.value) {
+          if (seg.distances.length < 2) continue;
+          raw.add([seg.distances.first, seg.distances.last]);
+        }
+        lapIntervals[entry.key] = _mergeIntervals(raw);
       }
 
-      // Ratio gate
-      if (maxDist > 0 && gateDist / maxDist < _distanceRatioGate) {
-        print('✗ Zone $zoneId: dist ratio=${gateDist.toStringAsFixed(0)}/'
-            '${maxDist.toStringAsFixed(0)}'
-            '=${(gateDist / maxDist).toStringAsFixed(2)} < $_distanceRatioGate — skipping');
+      // ── Sweep-line intersection: find road stretches ALL laps cover ───────
+      final overlaps = _intersectAllLaps(lapIntervals, numLaps);
+      final validOverlaps = overlaps
+          .where((iv) => iv[1] - iv[0] >= _minSegmentDistanceM)
+          .toList();
+
+      if (validOverlaps.isEmpty) {
+        print('✗ Zone $zoneId: no shared interval ≥'
+            ' ${_minSegmentDistanceM.toStringAsFixed(0)} m — skipping');
         zoneId++;
         continue;
       }
 
-      print('  ↳ Zone $zoneId gate=${gateDist.toStringAsFixed(0)} m '
-          '(min/max=${(gateDist / maxDist).toStringAsFixed(2)})');
+      print('  ↳ Zone $zoneId: ${validOverlaps.length} valid overlap(s)'
+          ' (${overlaps.length} raw) across $numLaps laps');
 
-      final pressures    = <double>[];
-      final efficiencies = <double>[];
-      final repByLap     = <int, ConstantPowerSegment>{};
+      // ── One MatchedSegment per valid overlap interval ─────────────────────
+      for (final overlap in validOverlaps) {
+        final entryGate = overlap[0];
+        final exitGate  = overlap[1];
+        final pressures    = <double>[];
+        final efficiencies = <double>[];
+        final repByLap     = <int, ConstantPowerSegment>{};
 
-      for (final lapIdx in byLap.keys.toList()..sort()) {
-        final lapSegs    = byLap[lapIdx]!;
-        double totalDist = 0.0;
-        double wEff      = 0.0;
-        ConstantPowerSegment? rep;
+        for (final lapIdx in byLap.keys.toList()..sort()) {
+          final lapSegs = byLap[lapIdx]!;
+          double totalDist = 0.0;
+          double wEff      = 0.0;
+          ConstantPowerSegment? rep;
 
-        for (final raw in lapSegs) {
-          final trimmed = _trimRawSegmentToGate(raw, gateDist);
-          if (trimmed == null) continue;
-          wEff      += trimmed.efficiency * trimmed.distance;
-          totalDist += trimmed.distance;
-          rep ??= trimmed;
+          for (final raw in lapSegs) {
+            if (raw.distances.isEmpty) continue;
+            // Skip segments with no overlap with this interval
+            if (raw.distances.last < entryGate ||
+                raw.distances.first > exitGate) { continue; }
+            final extracted =
+                _subExtractFromInterval(raw, entryGate, exitGate);
+            if (extracted == null) continue;
+            wEff      += extracted.efficiency * extracted.distance;
+            totalDist += extracted.distance;
+            rep ??= extracted;
+          }
+
+          if (totalDist == 0.0 || rep == null) continue;
+          final wavgEff = wEff / totalDist;
+
+          pressures.add(rep.pressure);
+          efficiencies.add(wavgEff);
+          repByLap[lapIdx] = ConstantPowerSegment(
+            segmentIndex: rep.segmentIndex,
+            lapIndex:     rep.lapIndex,
+            pressure:     rep.pressure,
+            avgLat:       rep.avgLat,
+            avgLon:       rep.avgLon,
+            avgPower:     rep.avgPower,
+            cvPower:      rep.cvPower,
+            avgSpeed:     rep.avgSpeed,
+            distance:     totalDist,
+            duration:     rep.duration,
+            efficiency:   wavgEff,
+            numRecords:   rep.numRecords,
+            startTime:    rep.startTime,
+            endTime:      rep.endTime,
+          );
+          print('    lap $lapIdx gate'
+              ' [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m'
+              ' | pressure=${rep.pressure.toStringAsFixed(1)} psi'
+              ' | wavgEff=${wavgEff.toStringAsFixed(4)}');
         }
 
-        if (totalDist == 0.0 || rep == null) continue;
-        final wavgEff = wEff / totalDist;
+        if (pressures.length < numLaps) {
+          print('✗   [${entryGate.toStringAsFixed(0)}, '
+              '${exitGate.toStringAsFixed(0)}]: '
+              '${pressures.length}/$numLaps laps — skipping');
+          continue;
+        }
 
-        pressures.add(rep.pressure);
-        efficiencies.add(wavgEff);
-        repByLap[lapIdx] = ConstantPowerSegment(
-          segmentIndex: rep.segmentIndex,
-          lapIndex:     rep.lapIndex,
-          pressure:     rep.pressure,
-          avgLat:       rep.avgLat,
-          avgLon:       rep.avgLon,
-          avgPower:     rep.avgPower,
-          cvPower:      rep.cvPower,
-          avgSpeed:     rep.avgSpeed,
-          distance:     totalDist,
-          duration:     rep.duration,
-          efficiency:   wavgEff,
-          numRecords:   rep.numRecords,
-          startTime:    rep.startTime,
-          endTime:      rep.endTime,
-        );
-        print('  ↳ Zone $zoneId lap $lapIdx: ${lapSegs.length} seg(s) gate-trimmed | '
-            'pressure=${rep.pressure.toStringAsFixed(1)} psi | '
-            'wavgEff=${wavgEff.toStringAsFixed(4)}');
-      }
-
-      if (pressures.length < numLaps) {
-        print('✗ Zone $zoneId: only ${pressures.length}/$numLaps laps after trim — skipping');
+        print('✓ Zone $zoneId overlap'
+            ' [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m'
+            ' → ${pressures.length} regression points');
+        matched.add(MatchedSegment(
+          segmentId:     zoneId,
+          segmentsByLap: repByLap,
+          pressures:     pressures,
+          efficiencies:  efficiencies,
+        ));
         zoneId++;
-        continue;
       }
-
-      print('✓ Zone $zoneId → ${pressures.length} regression points');
-      matched.add(MatchedSegment(
-        segmentId:     zoneId,
-        segmentsByLap: repByLap,
-        pressures:     pressures,
-        efficiencies:  efficiencies,
-      ));
-      zoneId++;
     }
 
-    print('💾 Total zones after gate trimming: ${matched.length}');
+    print('💾 Total overlap zones for regression: ${matched.length}');
     return matched;
   }
 
-  /// Trim a [_RawPowerSegment] to exactly [gateDist] meters from its start
-  /// via linear interpolation. Returns null if shorter than [gateDist].
-  static ConstantPowerSegment? _trimRawSegmentToGate(
-    _RawPowerSegment raw,
-    double gateDist,
+  // ────────────────────────────────────────────────────────────────────────────
+  // Sweep-line overlap helpers
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /// Merge overlapping / touching 1-D intervals.
+  /// Input: list of [start, end] (each a 2-element list). Output: sorted, merged.
+  static List<List<double>> _mergeIntervals(List<List<double>> intervals) {
+    if (intervals.isEmpty) return [];
+    final sorted = [...intervals]..sort((a, b) => a[0].compareTo(b[0]));
+    final merged = [sorted.first.toList()];
+    for (int i = 1; i < sorted.length; i++) {
+      if (sorted[i][0] <= merged.last[1]) {
+        merged.last[1] = math.max(merged.last[1], sorted[i][1]);
+      } else {
+        merged.add(sorted[i].toList());
+      }
+    }
+    return merged;
+  }
+
+  /// Sweep-line intersection: find all contiguous intervals covered by EVERY lap.
+  ///
+  /// [lapIntervals] maps lapIndex → list of merged [start, end] intervals.
+  /// Returns intervals where all [numLaps] laps are simultaneously active.
+  static List<List<double>> _intersectAllLaps(
+    Map<int, List<List<double>>> lapIntervals,
+    int numLaps,
   ) {
-    if (raw.distances.isEmpty || raw.segmentDistance < gateDist) return null;
+    // Build events: (position, delta +1/-1, lapIndex)
+    final events = <List<num>>[];
+    for (final entry in lapIntervals.entries) {
+      for (final iv in entry.value) {
+        events.add([iv[0],  1, entry.key.toDouble()]);
+        events.add([iv[1], -1, entry.key.toDouble()]);
+      }
+    }
+    // Sort by position; opens (+1) before closes (-1) at same position
+    events.sort((a, b) {
+      final cmp = a[0].compareTo(b[0]);
+      return cmp != 0 ? cmp : b[1].compareTo(a[1]);
+    });
 
-    final d0      = raw.distances.first;
-    final target  = d0 + gateDist;
-    int    trimIdx = raw.distances.length - 1;
-    double frac    = 0.0;
+    final openLaps = <int>{};
+    double? fullStart;
+    final result = <List<double>>[];
 
+    for (final event in events) {
+      final pos   = event[0].toDouble();
+      final delta = event[1].toInt();
+      final lap   = event[2].toInt();
+
+      // On close: if we had full coverage, record the interval
+      if (delta == -1 && fullStart != null && pos > fullStart) {
+        result.add([fullStart, pos]);
+        fullStart = null;
+      }
+
+      // Update open set
+      if (delta == 1) {
+        openLaps.add(lap);
+      } else {
+        openLaps.remove(lap);
+      }
+
+      // Start tracking once all laps are simultaneously active
+      if (openLaps.length == numLaps && fullStart == null) {
+        fullStart = pos;
+      }
+    }
+    return result;
+  }
+
+  /// Sub-extract a [_RawPowerSegment] to exactly the [entryGate..exitGate]
+  /// interval, interpolating at both boundary crossings.
+  ///
+  /// Returns null if the segment does not span the full interval.
+  static ConstantPowerSegment? _subExtractFromInterval(
+    _RawPowerSegment raw,
+    double entryGate,
+    double exitGate,
+  ) {
+    if (raw.distances.isEmpty) return null;
+    if (raw.distances.first > entryGate || raw.distances.last < exitGate) return null;
+
+    double lerp(List<double> arr, int i, double f) {
+      if (i + 1 >= arr.length) return arr[i];
+      return arr[i] + f * (arr[i + 1] - arr[i]);
+    }
+
+    // Find entry crossing
+    int    entryIdx  = 0;
+    double entryFrac = 0.0;
     for (int i = 0; i < raw.distances.length - 1; i++) {
-      if (raw.distances[i + 1] >= target) {
+      if (raw.distances[i + 1] >= entryGate) {
         final span = raw.distances[i + 1] - raw.distances[i];
-        frac    = span > 0 ? (target - raw.distances[i]) / span : 0.0;
-        trimIdx = i;
+        entryFrac = span > 0 ? (entryGate - raw.distances[i]) / span : 0.0;
+        entryIdx  = i;
         break;
       }
     }
 
-    final slicePow = raw.powers.sublist(0, math.min(trimIdx + 1, raw.powers.length));
-    final sliceSpd = raw.speeds.sublist(0, math.min(trimIdx + 1, raw.speeds.length));
+    // Find exit crossing (search from entry onwards)
+    int    exitIdx  = raw.distances.length - 1;
+    double exitFrac = 0.0;
+    for (int i = entryIdx; i < raw.distances.length - 1; i++) {
+      if (raw.distances[i + 1] >= exitGate) {
+        final span = raw.distances[i + 1] - raw.distances[i];
+        exitFrac = span > 0 ? (exitGate - raw.distances[i]) / span : 0.0;
+        exitIdx  = i;
+        break;
+      }
+    }
+
+    // Build slices with interpolated boundary samples
+    final slicePow = <double>[lerp(raw.powers, entryIdx, entryFrac)];
+    final sliceSpd = <double>[lerp(raw.speeds,  entryIdx, entryFrac)];
+    for (int i = entryIdx + 1; i <= exitIdx; i++) {
+      slicePow.add(raw.powers[i]);
+      sliceSpd.add(raw.speeds[i]);
+    }
+    // Replace last sample with interpolated exit value (if range is non-trivial)
+    if (exitIdx > entryIdx) {
+      slicePow[slicePow.length - 1] = lerp(raw.powers, exitIdx, exitFrac);
+      sliceSpd[sliceSpd.length - 1] = lerp(raw.speeds,  exitIdx, exitFrac);
+    }
+
     if (slicePow.isEmpty) return null;
 
-    final avgPower = slicePow.fold(0.0, (a, b) => a + b) / slicePow.length;
-    final avgSpeed = sliceSpd.isEmpty ? 0.0
-        : sliceSpd.fold(0.0, (a, b) => a + b) / sliceSpd.length;
-    final cv       = _cv(slicePow);
-    final duration = trimIdx + frac;
-    final efficiency = avgPower > 0 ? avgSpeed / avgPower : 0.0;
+    final gateLength = exitGate - entryGate;
+    final avgPow = slicePow.fold(0.0, (a, b) => a + b) / slicePow.length;
+    final avgSpd = sliceSpd.fold(0.0, (a, b) => a + b) / sliceSpd.length;
+    final duration = (exitIdx - entryIdx).toDouble() + exitFrac - entryFrac;
 
     return ConstantPowerSegment(
       segmentIndex: raw.segmentIndex,
@@ -708,13 +838,13 @@ class ConstantPowerClusteringService {
       pressure:     raw.pressure,
       avgLat:       raw.startLat,
       avgLon:       raw.startLon,
-      avgPower:     avgPower,
-      cvPower:      cv,
-      avgSpeed:     avgSpeed,
-      distance:     gateDist,
+      avgPower:     avgPow,
+      cvPower:      _cv(slicePow),
+      avgSpeed:     avgSpd,
+      distance:     gateLength,
       duration:     duration,
-      efficiency:   efficiency,
-      numRecords:   trimIdx + 1,
+      efficiency:   avgPow > 0 ? avgSpd / avgPow : 0.0,
+      numRecords:   slicePow.length,
       startTime:    raw.startTime,
       endTime:      raw.endTime,
     );

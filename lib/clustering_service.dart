@@ -439,14 +439,35 @@ class CoastDownClusteringService {
   static List<DescentSegment> _trimToGateDistance(
     List<_RawDescent> raws,
   ) {
-    // Compute per-run coasting distances; minimum = exit gate reference
-    final dists = raws.map((r) => r.coastingDistance).toList()..sort();
-    final gateDist     = dists.first;  // minimum
-    final ratioMinMax  = dists.last > 0 ? gateDist / dists.last : 1.0;
-    print('  ↳ Coasting distances: ${dists.map((d) => d.toStringAsFixed(0)).join(', ')} m'
-        '  |  gate = ${gateDist.toStringAsFixed(0)} m'
-        '  |  min/max ratio = ${ratioMinMax.toStringAsFixed(2)}'
-        '${ratioMinMax < 0.5 ? '  ⚠ one run is very short vs others' : ''}');
+    // Entry gate = latest coasting start across all runs
+    //              (every run is guaranteed to have been freewheeling from here)
+    // Exit gate  = earliest coasting end
+    //              (every run is guaranteed to have still been coasting until here)
+    final entryGate  = raws.map((r) => r.distances[r.start]).reduce(math.max);
+    final exitGate   = raws.map((r) => r.distances[r.end]).reduce(math.min);
+    final gateLength = exitGate - entryGate;
+
+    if (gateLength <= 0) {
+      throw Exception(
+        'Stage 3: Coasting windows do not overlap '
+        '(entry=${entryGate.toStringAsFixed(0)} m, exit=${exitGate.toStringAsFixed(0)} m). '
+        'Runs may cover different sections of the descent.',
+      );
+    }
+
+    final allRunDists = raws
+        .map((r) => r.distances[r.end] - r.distances[r.start])
+        .toList()..sort();
+    final ratio = allRunDists.last > 0 ? gateLength / allRunDists.last : 1.0;
+    print('  ↳ Gate: entry=${entryGate.toStringAsFixed(0)} m'
+        ' → exit=${exitGate.toStringAsFixed(0)} m'
+        '  |  length=${gateLength.toStringAsFixed(0)} m'
+        '  |  ratio=${ratio.toStringAsFixed(2)}'
+        '${ratio < 0.5 ? '  ⚠ one run has very short/late coasting' : ''}');
+
+    // Linear interpolation helper
+    double interpolate(List<double> arr, int i, double frac) =>
+        arr[i] + (arr[i + 1] - arr[i]) * frac;
 
     final segments = <DescentSegment>[];
 
@@ -454,67 +475,73 @@ class CoastDownClusteringService {
       final s = raw.start;
       final e = raw.end;
 
-      // Wheel distance at coasting start (per-lap cumulative, starts near 0)
-      final distAtStart = raw.distances[s];
-      final targetDist  = distAtStart + gateDist;
-
-      // Linear interpolation helper
-      double interpolate(List<double> arr, int i, double frac) =>
-          arr[i] + (arr[i + 1] - arr[i]) * frac;
-
-      // Find the sample pair that straddles targetDist
-      int trimIdx = e; // fallback = natural end
-      double frac = 0.0;
+      // ── Find entry gate crossing ──────────────────────────────────────────
+      int    entryIdx  = s;
+      double entryFrac = 0.0;
       for (int i = s; i < e; i++) {
-        if (raw.distances[i + 1] >= targetDist) {
+        if (raw.distances[i + 1] >= entryGate) {
           final span = raw.distances[i + 1] - raw.distances[i];
-          frac = span > 0 ? (targetDist - raw.distances[i]) / span : 0.0;
-          trimIdx = i;
+          entryFrac = span > 0 ? (entryGate - raw.distances[i]) / span : 0.0;
+          entryIdx  = i;
           break;
         }
       }
 
-      // Interpolated values at trim point
-      final vEnd    = interpolate(raw.speeds,    trimIdx, frac);
-      final altEnd  = interpolate(raw.altitudes, trimIdx, frac);
-      final altDrop = raw.altitudes[s] - altEnd;
+      // ── Find exit gate crossing (search from entry onwards) ───────────────
+      int    exitIdx  = e;
+      double exitFrac = 0.0;
+      for (int i = entryIdx; i < e; i++) {
+        if (raw.distances[i + 1] >= exitGate) {
+          final span = raw.distances[i + 1] - raw.distances[i];
+          exitFrac = span > 0 ? (exitGate - raw.distances[i]) / span : 0.0;
+          exitIdx  = i;
+          break;
+        }
+      }
+
+      // Interpolated values at both gate crossings
+      final vEntry   = interpolate(raw.speeds,    entryIdx, entryFrac);
+      final vExit    = interpolate(raw.speeds,    exitIdx,  exitFrac);
+      final altEntry = interpolate(raw.altitudes, entryIdx, entryFrac);
+      final altExit  = interpolate(raw.altitudes, exitIdx,  exitFrac);
+      final altDrop  = altEntry - altExit;
 
       if (altDrop < _minAltitudeDropM) {
-        print('  ✗ Run ${raw.runIdx}: after trimming altDrop=${altDrop.toStringAsFixed(1)}m < ${_minAltitudeDropM}m, skipping');
+        print('  ✗ Run ${raw.runIdx}: altDrop=${altDrop.toStringAsFixed(1)} m'
+            ' < $_minAltitudeDropM m after gate trim, skipping');
         continue;
       }
 
-      // Rebuild speed slice for avg/max
-      final dSpd = raw.speeds.sublist(s, trimIdx + 1);
+      final dSpd   = raw.speeds.sublist(entryIdx, exitIdx + 1);
       final avgSpd = dSpd.reduce((a, b) => a + b) / dSpd.length;
       final maxSpd = dSpd.reduce((a, b) => a > b ? a : b);
-      final vStart = raw.speeds[s];
-      final duration = (trimIdx - s).toDouble();
+      final duration = (exitIdx - entryIdx).toDouble() + exitFrac - entryFrac;
 
-      final crr = _calculateCRR(altDrop, gateDist, vStart, vEnd);
-      final efficiency = gateDist / math.max(maxSpd, 0.1);
+      final crr        = _calculateCRR(altDrop, gateLength, vEntry, vExit);
+      final efficiency = gateLength / math.max(maxSpd, 0.1);
 
-      print('  ✓ Run ${raw.runIdx}: gate-trimmed to ${gateDist.toStringAsFixed(0)}m | '
-          'altDrop=${altDrop.toStringAsFixed(1)}m | '
-          'vStart=${vStart.toStringAsFixed(1)}→vEnd=${vEnd.toStringAsFixed(1)} m/s | '
+      print('  ✓ Run ${raw.runIdx}: '
+          'gate [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m | '
+          'altDrop=${altDrop.toStringAsFixed(1)} m | '
+          'vEntry=${vEntry.toStringAsFixed(1)}→vExit=${vExit.toStringAsFixed(1)} m/s | '
           'CRR=${crr.toStringAsFixed(5)}');
 
       segments.add(DescentSegment(
-        runIndex: raw.runIdx,
-        frontPressure: raw.frontPressure,
-        rearPressure: raw.rearPressure,
-        altitudeDrop: altDrop,
+        runIndex:        raw.runIdx,
+        frontPressure:   raw.frontPressure,
+        rearPressure:    raw.rearPressure,
+        altitudeDrop:    altDrop,
         durationSeconds: duration,
-        avgSpeed: avgSpd,
-        maxSpeed: maxSpd,
-        distance: gateDist,
-        startLat: raw.startLat,
-        startLon: raw.startLon,
-        endLat: interpolate(raw.lats, trimIdx, frac),
-        endLon: interpolate(raw.lons, trimIdx, frac),
-        crr: crr,
-        efficiency: efficiency,
-        numRecords: trimIdx - s + 1,
+        avgSpeed:        avgSpd,
+        maxSpeed:        maxSpd,
+        distance:        gateLength,
+        startLat:        interpolate(raw.lats, entryIdx, entryFrac),
+        startLon:        interpolate(raw.lons, entryIdx, entryFrac),
+        endLat:          interpolate(raw.lats, exitIdx,  exitFrac),
+        endLon:          interpolate(raw.lons, exitIdx,  exitFrac),
+        crr:             crr,
+        efficiency:      efficiency,
+        numRecords:      exitIdx - entryIdx + 1,
       ));
     }
 
