@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:fit_tool/fit_tool.dart';
 import 'package:path_provider/path_provider.dart';
+import 'app_logger.dart';
 
 /// High-level FIT file writer using the official fit_tool SDK for 100% compliance.
 /// This ensures Strava compatibility and proper FIT message structure.
@@ -53,7 +54,9 @@ class FitWriter {
         final sessionDir = Directory(ext.path);
         await sessionDir.create(recursive: true);
         final path = '${sessionDir.path}/$base.fit';
-        return FitWriter._(path);
+        final writer = FitWriter._(path);
+        await AppLogger.init('$path.log');
+        return writer;
       }
     } catch (e) {
       // Fallback to documents directory
@@ -64,12 +67,14 @@ class FitWriter {
     final sessionDir = Directory('${appDoc.path}/tyre_sessions');
     await sessionDir.create(recursive: true);
     final path = '${sessionDir.path}/$base.fit';
-    return FitWriter._(path);
+    final writer = FitWriter._(path);
+    await AppLogger.init('$path.log');
+    return writer;
   }
 
   Future<void> startSession(Map<String, dynamic> metadata) async {
     _sessionStartTime = DateTime.now().toUtc();
-    print('[FitWriter] startSession → file: $fitPath | startTime: $_sessionStartTime');
+    AppLogger.log('[FitWriter] startSession → file: $fitPath | startTime: $_sessionStartTime');
 
     // Create FileID message (REQUIRED)
     final fileIdMessage = FileIdMessage()
@@ -92,7 +97,7 @@ class FitWriter {
 
   Future<void> writeLap(double front, double rear,
       {required int lapIndex}) async {
-    print('[FitWriter] writeLap: front=$front rear=$rear lapIndex=$lapIndex | records so far: ${_records.length}');
+    AppLogger.log('[FitWriter] writeLap: front=$front rear=$rear lapIndex=$lapIndex | records so far: ${_records.length}');
     // If we have an active previous lap, flush it to a LapMessage
     if (_laps.isNotEmpty) {
       _finishCurrentLap();
@@ -125,7 +130,7 @@ class FitWriter {
 
   void _finishCurrentLap() {
     final lapRecordCount = _records.length - _currentLapRecordStartIndex;
-    print('[FitWriter] _finishCurrentLap: lap#${_laps.length} | records in lap: $lapRecordCount | total records: ${_records.length}');
+    AppLogger.log('[FitWriter] _finishCurrentLap: lap#${_laps.length} | records in lap: $lapRecordCount | total records: ${_records.length}');
     if (_records.isEmpty || _currentLapRecordStartIndex >= _records.length) return;
 
     // Get slice of records for this lap
@@ -265,7 +270,7 @@ class FitWriter {
 
     _records.add(recordMsg);
     if (_recordCount % 30 == 0) {
-      print('[FitWriter] writeRecord #$_recordCount | ts=${recordTime.toIso8601String()} | speed=${speedKmh.toStringAsFixed(1)} km/h | power=$power W | dist=${(_totalDistance/1000).toStringAsFixed(3)} km | lat=$lat lon=$lon');
+      AppLogger.log('[FitWriter] writeRecord #$_recordCount | ts=${recordTime.toIso8601String()} | speed=${speedKmh.toStringAsFixed(1)} km/h | power=$power W | dist=${(_totalDistance/1000).toStringAsFixed(3)} km | lat=$lat lon=$lon');
     }
   }
 
@@ -275,7 +280,7 @@ class FitWriter {
 
   Future<void> finish() async {
     if (_sessionStartTime == null) {
-      print('[FitWriter] finish() called but no session started — aborting');
+      AppLogger.log('[FitWriter] finish() called but no session started — aborting');
       return;
     }
 
@@ -283,7 +288,7 @@ class FitWriter {
     final endTimeEpoch = _dateTimeToFitEpoch(endTime);
     final totalElapsedTime = endTime.difference(_sessionStartTime!).inSeconds.toDouble();
     final avgPower = _recordCount > 0 ? (_totalPower / _recordCount).toInt() : 0;
-    print('[FitWriter] finish() | laps: ${_laps.length} | total records: ${_records.length} | duration: ${totalElapsedTime.toStringAsFixed(0)}s | avgPower: $avgPower W | dist: ${(_totalDistance/1000).toStringAsFixed(3)} km');
+    AppLogger.log('[FitWriter] finish() | laps: ${_laps.length} | total records: ${_records.length} | duration: ${totalElapsedTime.toStringAsFixed(0)}s | avgPower: $avgPower W | dist: ${(_totalDistance/1000).toStringAsFixed(3)} km');
 
     // NO: _builder.addAll(_records); -> Records are now added incrementally in _finishCurrentLap
 
@@ -341,7 +346,7 @@ class FitWriter {
       final bytes = fitFile.toBytes();
       final file = File(fitPath);
       await file.writeAsBytes(bytes);
-      print('[FitWriter] FIT file written: $fitPath (${bytes.length} bytes)');
+      AppLogger.log('[FitWriter] FIT file written: $fitPath (${bytes.length} bytes)');
       
       // Write tire pressure metadata to companion JSONL file
       // This preserves the critical tire pressure data alongside the FIT file
@@ -350,7 +355,11 @@ class FitWriter {
       
       // Write sensor records (cadence, speed, power) for coast detection analysis
       await _writeSensorRecords(fitPath);
+      AppLogger.log('[FitWriter] Session fully written. Closing log.');
+      await AppLogger.close();
     } catch (e) {
+      AppLogger.log('[FitWriter] ERROR in finish(): $e');
+      await AppLogger.close();
       rethrow;
     }
   }
@@ -364,7 +373,7 @@ class FitWriter {
     
     try {
       final metadataPath = '$fitPath.jsonl';
-      print('[FitWriter] Writing pressure metadata → $metadataPath | ${_laps.length} laps');
+      AppLogger.log('[FitWriter] Writing pressure metadata → $metadataPath | ${_laps.length} laps');
       final metadataFile = File(metadataPath);
       final sink = metadataFile.openWrite();
       
@@ -488,7 +497,7 @@ class FitWriter {
     try {
       final sensorPath = '$fitPath.sensor_records.jsonl';
       final totalSensorRecords = _lapSensorRecords.values.fold(0, (s, l) => s + l.length);
-      print('[FitWriter] Writing sensor records → $sensorPath | ${_lapSensorRecords.length} laps | $totalSensorRecords records');
+      AppLogger.log('[FitWriter] Writing sensor records → $sensorPath | ${_lapSensorRecords.length} laps | $totalSensorRecords records');
       final sensorFile = File(sensorPath);
       final sink = sensorFile.openWrite();
       
@@ -515,7 +524,7 @@ class FitWriter {
       await sink.close();
       print('DEBUG: Wrote sensor records to $sensorPath');
     } catch (e) {
-      print('Warning: Failed to write sensor records: $e');
+      AppLogger.log('[FitWriter] Warning: Failed to write sensor records: $e');
     }
   }
 }

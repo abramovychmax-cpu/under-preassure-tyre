@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:io';
+import 'app_logger.dart';
 
 /// Represents a single constant-power segment within a lap
 class ConstantPowerSegment {
@@ -148,7 +149,7 @@ class ConstantPowerClusteringService {
           recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
         }
       } catch (e) {
-        print('ERROR: Failed to parse JSONL line: $e');
+        AppLogger.log('ERROR: Failed to parse JSONL line: $e');
       }
     }
 
@@ -292,14 +293,14 @@ class ConstantPowerClusteringService {
     double pressure,
   ) {
     if (records.isEmpty) {
-      print('[Clustering] _detectRawSegments: lap $lapIdx has 0 records — skipping');
+      AppLogger.log('[Clustering] _detectRawSegments: lap $lapIdx has 0 records — skipping');
       return [];
     }
 
     // Check first record for expected keys
     if (records.isNotEmpty) {
       final sample = records.first;
-      print('[Clustering] _detectRawSegments lap $lapIdx: first record keys=${sample.keys.toList()} | power=${sample["power"]} | speed=${sample["speed_kmh"]} | lat=${sample["lat"]} | lon=${sample["lon"]} | ts=${sample["timestamp"] ?? sample["ts"]}');
+      AppLogger.log('[Clustering] _detectRawSegments lap $lapIdx: first record keys=${sample.keys.toList()} | power=${sample["power"]} | speed=${sample["speed_kmh"]} | lat=${sample["lat"]} | lon=${sample["lon"]} | ts=${sample["timestamp"] ?? sample["ts"]}');
     }
 
     final segments = <_RawPowerSegment>[];
@@ -372,7 +373,7 @@ class ConstantPowerClusteringService {
       segmentId++;
       i = end;
     }
-    print('[Clustering] _detectRawSegments lap $lapIdx: found ${segments.length} segments from ${records.length} records');
+    AppLogger.log('[Clustering] _detectRawSegments lap $lapIdx: found ${segments.length} segments from ${records.length} records');
     return segments;
   }
   /// GPS radius for grouping segments from the same road section.
@@ -403,7 +404,7 @@ class ConstantPowerClusteringService {
     ];
 
     if (all.isEmpty) {
-      print('⚠ No segments ≥ ${_minSegmentDistanceM.toStringAsFixed(0)} m found across $numLaps laps');
+      AppLogger.log('⚠ No segments ≥ ${_minSegmentDistanceM.toStringAsFixed(0)} m found across $numLaps laps');
       return [];
     }
 
@@ -434,7 +435,7 @@ class ConstantPowerClusteringService {
       zones.add(zone);
     }
 
-    print('📍 GPS zones found: ${zones.length} (${all.length} segments, $numLaps laps)');
+    AppLogger.log('📍 GPS zones found: ${zones.length} (${all.length} segments, $numLaps laps)');
 
     // ── Aggregate per zone ────────────────────────────────────────────────────
     final matched = <MatchedSegment>[];
@@ -449,7 +450,7 @@ class ConstantPowerClusteringService {
 
       // Require representation in ALL laps
       if (byLap.length < numLaps) {
-        print('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
+        AppLogger.log('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
         zoneId++;
         continue;
       }
@@ -470,12 +471,12 @@ class ConstantPowerClusteringService {
         pressures.add(rep.pressure);
         efficiencies.add(wavgEff);
         repByLap[lapIdx] = rep;
-        print('  ↳ Zone $zoneId lap $lapIdx: ${lapSegs.length} seg(s) | '
+        AppLogger.log('  ↳ Zone $zoneId lap $lapIdx: ${lapSegs.length} seg(s) | '
             'pressure=${rep.pressure.toStringAsFixed(1)} psi | '
             'wavgEff=${wavgEff.toStringAsFixed(4)}');
       }
 
-      print('✓ Zone $zoneId → ${pressures.length} regression points');
+      AppLogger.log('✓ Zone $zoneId → ${pressures.length} regression points');
       matched.add(MatchedSegment(
         segmentId: zoneId,
         segmentsByLap: repByLap,
@@ -485,7 +486,7 @@ class ConstantPowerClusteringService {
       zoneId++;
     }
 
-    print('💾 Total zones for regression: ${matched.length}');
+    AppLogger.log('💾 Total zones for regression: ${matched.length}');
     return matched;
   }
 
@@ -520,7 +521,7 @@ class ConstantPowerClusteringService {
           if (lapIdx == null) continue;
           if (json.containsKey('frontPressure')) lapMetadata[lapIdx] = json;
         } catch (e) {
-          print('ERROR: Failed to parse JSONL pressure line: $e');
+          AppLogger.log('ERROR: Failed to parse JSONL pressure line: $e');
         }
       }
     }
@@ -532,7 +533,7 @@ class ConstantPowerClusteringService {
     final sensorPath = '${jsonlPath.replaceAll(RegExp(r'\.jsonl$'), '')}.sensor_records.jsonl';
     final sensorFile = File(sensorPath);
     if (!sensorFile.existsSync()) {
-      print('⚠ sensor_records file not found: $sensorPath');
+      AppLogger.log('⚠ sensor_records file not found: $sensorPath');
     } else {
       for (final line in await sensorFile.readAsLines()) {
         if (line.trim().isEmpty) continue;
@@ -542,12 +543,12 @@ class ConstantPowerClusteringService {
           if (lapIdx == null) continue;
           recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
         } catch (e) {
-          print('ERROR: Failed to parse sensor record line: $e');
+          AppLogger.log('ERROR: Failed to parse sensor record line: $e');
         }
       }
     }
 
-    print('📂 analyzeConstantPower: ${lapMetadata.length} laps metadata, '
+    AppLogger.log('📂 analyzeConstantPower: ${lapMetadata.length} laps metadata, '
         '${recordsByLap.values.fold(0, (s, l) => s + l.length)} sensor records');
 
     final rawLaps = <List<_RawPowerSegment>>[];
@@ -556,7 +557,7 @@ class ConstantPowerClusteringService {
       final metadata = lapMetadata[lapIdx]  ?? {};
       final pressure = (metadata['rearPressure'] as num?)?.toDouble() ?? 0.0;
       final segs = _detectRawSegments(records, lapIdx, pressure);
-      print('[Clustering] lap $lapIdx: ${records.length} records → ${segs.length} raw segments (pressure=$pressure psi)');
+      AppLogger.log('[Clustering] lap $lapIdx: ${records.length} records → ${segs.length} raw segments (pressure=$pressure psi)');
       rawLaps.add(segs);
     }
 
@@ -578,7 +579,7 @@ class ConstantPowerClusteringService {
     final all = <_RawPowerSegment>[for (final lap in rawLaps) ...lap];
 
     if (all.isEmpty) {
-      print('⚠ No raw segments found across $numLaps laps');
+      AppLogger.log('⚠ No raw segments found across $numLaps laps');
       return [];
     }
 
@@ -613,7 +614,7 @@ class ConstantPowerClusteringService {
       zones.add(zone);
     }
 
-    print('📍 GPS zones (raw): ${zones.length} (${all.length} segments, $numLaps laps)');
+    AppLogger.log('📍 GPS zones (raw): ${zones.length} (${all.length} segments, $numLaps laps)');
 
     final matched = <MatchedSegment>[];
     int zoneId = 0;
@@ -626,7 +627,7 @@ class ConstantPowerClusteringService {
       }
 
       if (byLap.length < numLaps) {
-        print('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
+        AppLogger.log('✗ Zone $zoneId: ${byLap.length}/$numLaps laps — skipping');
         zoneId++;
         continue;
       }
@@ -652,13 +653,13 @@ class ConstantPowerClusteringService {
           .toList();
 
       if (validOverlaps.isEmpty) {
-        print('✗ Zone $zoneId: no shared interval ≥'
+        AppLogger.log('✗ Zone $zoneId: no shared interval ≥'
             ' ${_minSegmentDistanceM.toStringAsFixed(0)} m — skipping');
         zoneId++;
         continue;
       }
 
-      print('  ↳ Zone $zoneId: ${validOverlaps.length} valid overlap(s)'
+      AppLogger.log('  ↳ Zone $zoneId: ${validOverlaps.length} valid overlap(s)'
           ' (${overlaps.length} raw) across $numLaps laps');
 
       // ── One MatchedSegment per valid overlap interval ─────────────────────
@@ -709,20 +710,20 @@ class ConstantPowerClusteringService {
             startTime:    rep.startTime,
             endTime:      rep.endTime,
           );
-          print('    lap $lapIdx gate'
+          AppLogger.log('    lap $lapIdx gate'
               ' [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m'
               ' | pressure=${rep.pressure.toStringAsFixed(1)} psi'
               ' | wavgEff=${wavgEff.toStringAsFixed(4)}');
         }
 
         if (pressures.length < numLaps) {
-          print('✗   [${entryGate.toStringAsFixed(0)}, '
+          AppLogger.log('✗   [${entryGate.toStringAsFixed(0)}, '
               '${exitGate.toStringAsFixed(0)}]: '
               '${pressures.length}/$numLaps laps — skipping');
           continue;
         }
 
-        print('✓ Zone $zoneId overlap'
+        AppLogger.log('✓ Zone $zoneId overlap'
             ' [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m'
             ' → ${pressures.length} regression points');
         matched.add(MatchedSegment(
@@ -735,7 +736,7 @@ class ConstantPowerClusteringService {
       }
     }
 
-    print('💾 Total overlap zones for regression: ${matched.length}');
+    AppLogger.log('💾 Total overlap zones for regression: ${matched.length}');
     return matched;
   }
 
@@ -915,17 +916,17 @@ class ConstantPowerClusteringService {
   ) {
     final points = <MapEntry<double, double>>[];
 
-    print('📊 Building regression dataset from ${matchedSegments.length} matched segments:');
+    AppLogger.log('📊 Building regression dataset from ${matchedSegments.length} matched segments:');
     int includedPoints = 0;
 
     for (final matched in matchedSegments) {
       if (matched.isIncomplete) {
-        print('  ✗ Segment ${matched.segmentId}: marked incomplete');
+        AppLogger.log('  ✗ Segment ${matched.segmentId}: marked incomplete');
         continue; // Skip incomplete segments
       }
 
       if (matched.pressures.isEmpty || matched.efficiencies.isEmpty) {
-        print('  ✗ Segment ${matched.segmentId}: empty data');
+        AppLogger.log('  ✗ Segment ${matched.segmentId}: empty data');
         continue;
       }
 
@@ -937,12 +938,12 @@ class ConstantPowerClusteringService {
         includedPoints++;
       }
 
-      print('  ✓ Segment ${matched.segmentId}: ${matched.pressures.length} points added '
+      AppLogger.log('  ✓ Segment ${matched.segmentId}: ${matched.pressures.length} points added '
           '(pressures: ${matched.pressures.map((p) => p.toStringAsFixed(1)).join(', ')}, '
           'efficiencies: ${matched.efficiencies.map((e) => e.toStringAsFixed(3)).join(', ')})');
     }
 
-    print('💾 Total regression points: $includedPoints');
+    AppLogger.log('💾 Total regression points: $includedPoints');
     return points;
   }
 

@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'fit_writer.dart';
+import 'app_logger.dart';
 
 class SensorService {
   static final SensorService _instance = SensorService._internal();
@@ -488,7 +489,7 @@ class SensorService {
     _simPhase = 0.0;
     _simPosition = 0.0;
     _simForward = true;
-    print('[SensorService] _startSimTimer started | baseSpeed=$_simBaseSpeed km/h | gateLat=$_simGateLat gateLon=$_simGateLon');
+    AppLogger.log('[SensorService] _startSimTimer started | baseSpeed=$_simBaseSpeed km/h | gateLat=$_simGateLat gateLon=$_simGateLon');
 
     // immediately seed the simulated coordinates so that the very first
     // recording timer (which may fire before the 500ms tick) has valid
@@ -550,12 +551,12 @@ class SensorService {
 
   void _startRecordingTimer() {
     _recordingTimer?.cancel();
-    print('[SensorService] _startRecordingTimer started');
+    AppLogger.log('[SensorService] _startRecordingTimer started');
     int tickCount = 0;
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       tickCount++;
       if (_fitWriter == null) {
-        print('[SensorService] recording timer: _fitWriter is null, cancelling');
+        AppLogger.log('[SensorService] recording timer: _fitWriter is null, cancelling');
         timer.cancel();
         return;
       }
@@ -590,7 +591,7 @@ class SensorService {
       }
 
       if (tickCount % 30 == 0) {
-        print('[SensorService] tick #$tickCount | speed=${currentSpeedValue.toStringAsFixed(1)} km/h | power=$_lastPublishedPower W | cadence=$_lastPublishedCadence rpm | dist=${(currentDistanceValue * 1000).toStringAsFixed(0)} m | lat=$_currentLat lon=$_currentLon | hasGps=${record.containsKey("lat")}');
+        AppLogger.log('[SensorService] tick #$tickCount | speed=${currentSpeedValue.toStringAsFixed(1)} km/h | power=$_lastPublishedPower W | cadence=$_lastPublishedCadence rpm | dist=${(currentDistanceValue * 1000).toStringAsFixed(0)} m | lat=$_currentLat lon=$_currentLon | hasGps=${record.containsKey("lat")}');
       }
 
       _fitWriter!.writeRecord(record);
@@ -789,11 +790,11 @@ class SensorService {
 
   /// Start a new FIT recording session (or add lap to existing one)
   Future<void> startRecordingSession(double frontPressure, double rearPressure, {String protocol = 'coast_down'}) async {
-    print('[SensorService] startRecordingSession: front=$frontPressure rear=$rearPressure protocol=$protocol simMode=$_simMode sessionActive=${_fitWriter != null}');
+    AppLogger.log('[SensorService] startRecordingSession: front=$frontPressure rear=$rearPressure protocol=$protocol simMode=$_simMode sessionActive=${_fitWriter != null}');
     try {
       if (_fitWriter != null) {
         // Session already active - treat this as a new "Lap" / Run
-        print('[SensorService] Adding lap to existing session: front=$frontPressure rear=$rearPressure');
+        AppLogger.log('[SensorService] Adding lap to existing session: front=$frontPressure rear=$rearPressure');
         await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1);
         _startRecordingTimer();
         if (_simMode) {
@@ -804,7 +805,7 @@ class SensorService {
       }
 
       _fitWriter = await FitWriter.create(protocol: protocol);
-      print('[SensorService] FIT session created: ${_fitWriter!.fitPath}');
+      AppLogger.log('[SensorService] FIT session created: ${_fitWriter!.fitPath}');
       await _fitWriter?.startSession({
         'sportType': 'cycling',
         'subSport': 'cycling',
@@ -823,15 +824,15 @@ class SensorService {
         _startSimTimer();
       }
 
-      print('[SensorService] FIT recording started: front=$frontPressure rear=$rearPressure protocol=$protocol');
+      AppLogger.log('[SensorService] FIT recording started: front=$frontPressure rear=$rearPressure protocol=$protocol');
     } catch (e) {
-      print('[SensorService] ERROR starting FIT recording session: $e');
+      AppLogger.log('[SensorService] ERROR starting FIT recording session: $e');
     }
   }
 
   /// Stop recording and finalize the FIT file
   Future<void> stopRecordingSession() async {
-    print('[SensorService] stopRecordingSession: finalising file ${_fitWriter?.fitPath}');
+    AppLogger.log('[SensorService] stopRecordingSession: finalising file ${_fitWriter?.fitPath}');
     _recordingTimer?.cancel(); // STOP RECORDING LOOP
     _simTimer?.cancel();
     _simTimer = null;
@@ -839,14 +840,14 @@ class SensorService {
     
     try {
       if (_fitWriter == null) {
-        print('[SensorService] WARNING: No active FIT recording session to stop');
+        AppLogger.log('[SensorService] WARNING: No active FIT recording session to stop');
         return;
       }
       await _fitWriter?.finish();
-      print('[SensorService] FIT recording session finished: ${_fitWriter?.fitPath}');
+      AppLogger.log('[SensorService] FIT recording session finished: ${_fitWriter?.fitPath}');
       _fitWriter = null;
     } catch (e) {
-      print('[SensorService] ERROR stopping FIT recording session: $e');
+      AppLogger.log('[SensorService] ERROR stopping FIT recording session: $e');
     }
   }
 
