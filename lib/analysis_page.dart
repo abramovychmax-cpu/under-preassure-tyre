@@ -108,6 +108,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       final jsonlPath = '${widget.fitFilePath}.jsonl';
       final jsonlFile = File(jsonlPath);
+      print('[AnalysisPage] fitPath: ${widget.fitFilePath}');
+      print('[AnalysisPage] jsonlPath: $jsonlPath | exists: ${jsonlFile.existsSync()}');
+      final sensorPath = '${widget.fitFilePath}.sensor_records.jsonl';
+      print('[AnalysisPage] sensorPath: $sensorPath | exists: ${File(sensorPath).existsSync()}');
+      print('[AnalysisPage] protocol: ${widget.protocol} | bikeType: ${widget.bikeType}');
       if (!jsonlFile.existsSync()) {
         throw Exception('Companion JSONL file not found: $jsonlPath');
       }
@@ -120,6 +125,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       if (widget.protocol == 'constant_power' || widget.protocol == 'sim') {
         _updateFeedback('🔍 Detecting constant-power segments...');
+        print('[AnalysisPage] Starting constant_power analysis...');
         final matchedSegments =
             await ConstantPowerClusteringService.analyzeConstantPower(
           fitBytes,
@@ -127,6 +133,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
           cda: _cdaForBikeType(widget.bikeType),
           rho: _standardAirDensity(),
         );
+        print('[AnalysisPage] analyzeConstantPower returned ${matchedSegments.length} matched segments');
         await _analyzeConstantPowerProtocol(matchedSegments);
       } else if (widget.protocol == 'lap_efficiency') {
         _updateFeedback('🔄 Analyzing lap efficiency data...');
@@ -159,7 +166,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
   ) async {
     // matchedSegments already gate-trimmed and zone-aggregated by analyzeConstantPower
     if (matchedSegments.isEmpty) {
+      print('[AnalysisPage] ERROR: matchedSegments is empty — throwing');
       throw Exception('No matching segments found across laps');
+    }
+
+    print('[AnalysisPage] _analyzeConstantPowerProtocol: ${matchedSegments.length} segments');
+    for (int i = 0; i < matchedSegments.length; i++) {
+      final m = matchedSegments[i];
+      print('[AnalysisPage]   segment[$i]: ${m.pressures.length} laps | pressures=${m.pressures.map((p) => p.toStringAsFixed(1)).toList()} | efficiencies=${m.efficiencies.map((e) => e.toStringAsFixed(4)).toList()}');
     }
 
     final dataPoints =
@@ -192,6 +206,8 @@ class _AnalysisPageState extends State<AnalysisPage> {
         allowTwoPoint: true,
         powerCvPercent: _powerConsistencyPercent,
         extraWarning: trimmed.length < _minQuadraticPoints ? 'Only ${trimmed.length} data points; using observed best result (low confidence).' : null);
+
+    print('[AnalysisPage] regression done | optimalRear=$_optimalRearPressure | optimalFront=$_optimalFrontPressure | R²=$_rSquared | confidence=$_confidenceLevel');
 
     setState(() {
       _isLoading = false;

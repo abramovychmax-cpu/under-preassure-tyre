@@ -291,7 +291,16 @@ class ConstantPowerClusteringService {
     int lapIdx,
     double pressure,
   ) {
-    if (records.isEmpty) return [];
+    if (records.isEmpty) {
+      print('[Clustering] _detectRawSegments: lap $lapIdx has 0 records — skipping');
+      return [];
+    }
+
+    // Check first record for expected keys
+    if (records.isNotEmpty) {
+      final sample = records.first;
+      print('[Clustering] _detectRawSegments lap $lapIdx: first record keys=${sample.keys.toList()} | power=${sample["power"]} | speed=${sample["speed_kmh"]} | lat=${sample["lat"]} | lon=${sample["lon"]} | ts=${sample["timestamp"] ?? sample["ts"]}');
+    }
 
     final segments = <_RawPowerSegment>[];
     const segmentThreshold = 0.10;
@@ -363,7 +372,7 @@ class ConstantPowerClusteringService {
       segmentId++;
       i = end;
     }
-
+    print('[Clustering] _detectRawSegments lap $lapIdx: found ${segments.length} segments from ${records.length} records');
     return segments;
   }
   /// GPS radius for grouping segments from the same road section.
@@ -546,7 +555,9 @@ class ConstantPowerClusteringService {
       final records  = recordsByLap[lapIdx] ?? [];
       final metadata = lapMetadata[lapIdx]  ?? {};
       final pressure = (metadata['rearPressure'] as num?)?.toDouble() ?? 0.0;
-      rawLaps.add(_detectRawSegments(records, lapIdx, pressure));
+      final segs = _detectRawSegments(records, lapIdx, pressure);
+      print('[Clustering] lap $lapIdx: ${records.length} records → ${segs.length} raw segments (pressure=$pressure psi)');
+      rawLaps.add(segs);
     }
 
     return _aggregateRawByGpsZone(rawLaps, rawLaps.length, cda: cda, rho: rho);

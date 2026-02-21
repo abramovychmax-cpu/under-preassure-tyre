@@ -69,6 +69,7 @@ class FitWriter {
 
   Future<void> startSession(Map<String, dynamic> metadata) async {
     _sessionStartTime = DateTime.now().toUtc();
+    print('[FitWriter] startSession → file: $fitPath | startTime: $_sessionStartTime');
 
     // Create FileID message (REQUIRED)
     final fileIdMessage = FileIdMessage()
@@ -91,6 +92,7 @@ class FitWriter {
 
   Future<void> writeLap(double front, double rear,
       {required int lapIndex}) async {
+    print('[FitWriter] writeLap: front=$front rear=$rear lapIndex=$lapIndex | records so far: ${_records.length}');
     // If we have an active previous lap, flush it to a LapMessage
     if (_laps.isNotEmpty) {
       _finishCurrentLap();
@@ -122,6 +124,8 @@ class FitWriter {
   }
 
   void _finishCurrentLap() {
+    final lapRecordCount = _records.length - _currentLapRecordStartIndex;
+    print('[FitWriter] _finishCurrentLap: lap#${_laps.length} | records in lap: $lapRecordCount | total records: ${_records.length}');
     if (_records.isEmpty || _currentLapRecordStartIndex >= _records.length) return;
 
     // Get slice of records for this lap
@@ -260,6 +264,9 @@ class FitWriter {
       ..power = power; // watts
 
     _records.add(recordMsg);
+    if (_recordCount % 30 == 0) {
+      print('[FitWriter] writeRecord #$_recordCount | ts=${recordTime.toIso8601String()} | speed=${speedKmh.toStringAsFixed(1)} km/h | power=$power W | dist=${(_totalDistance/1000).toStringAsFixed(3)} km | lat=$lat lon=$lon');
+    }
   }
 
   Future<void> flush() async {
@@ -268,6 +275,7 @@ class FitWriter {
 
   Future<void> finish() async {
     if (_sessionStartTime == null) {
+      print('[FitWriter] finish() called but no session started — aborting');
       return;
     }
 
@@ -275,6 +283,7 @@ class FitWriter {
     final endTimeEpoch = _dateTimeToFitEpoch(endTime);
     final totalElapsedTime = endTime.difference(_sessionStartTime!).inSeconds.toDouble();
     final avgPower = _recordCount > 0 ? (_totalPower / _recordCount).toInt() : 0;
+    print('[FitWriter] finish() | laps: ${_laps.length} | total records: ${_records.length} | duration: ${totalElapsedTime.toStringAsFixed(0)}s | avgPower: $avgPower W | dist: ${(_totalDistance/1000).toStringAsFixed(3)} km');
 
     // NO: _builder.addAll(_records); -> Records are now added incrementally in _finishCurrentLap
 
@@ -332,6 +341,7 @@ class FitWriter {
       final bytes = fitFile.toBytes();
       final file = File(fitPath);
       await file.writeAsBytes(bytes);
+      print('[FitWriter] FIT file written: $fitPath (${bytes.length} bytes)');
       
       // Write tire pressure metadata to companion JSONL file
       // This preserves the critical tire pressure data alongside the FIT file
@@ -354,6 +364,7 @@ class FitWriter {
     
     try {
       final metadataPath = '$fitPath.jsonl';
+      print('[FitWriter] Writing pressure metadata → $metadataPath | ${_laps.length} laps');
       final metadataFile = File(metadataPath);
       final sink = metadataFile.openWrite();
       
@@ -476,6 +487,8 @@ class FitWriter {
     
     try {
       final sensorPath = '$fitPath.sensor_records.jsonl';
+      final totalSensorRecords = _lapSensorRecords.values.fold(0, (s, l) => s + l.length);
+      print('[FitWriter] Writing sensor records → $sensorPath | ${_lapSensorRecords.length} laps | $totalSensorRecords records');
       final sensorFile = File(sensorPath);
       final sink = sensorFile.openWrite();
       
