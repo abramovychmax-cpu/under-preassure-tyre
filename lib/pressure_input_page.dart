@@ -49,7 +49,10 @@ class _PressureInputPageState extends State<PressureInputPage> {
     
     _loadSettings();
     _rearController.addListener(_updateFrontPressure);
+    settingsChanged.addListener(_onSettingsChanged);
   }
+
+  void _onSettingsChanged() => _loadSettings();
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -100,6 +103,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
 
   @override
   void dispose() {
+    settingsChanged.removeListener(_onSettingsChanged);
     _rearController.removeListener(_updateFrontPressure);
     _rearController.dispose();
     super.dispose();

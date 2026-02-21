@@ -52,6 +52,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   void _toggleGpsSpeed(bool value) {
     setState(() => _useGpsSpeed = value);
     SensorService().setUseGpsAsSpeed(value);
+    settingsChanged.value++;
   }
 
   @override
@@ -73,7 +74,8 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     powerConnected    = initSlots.contains('power');
     cadenceConnected  = initSlots.contains('cadence');
     _useGpsSpeed      = svc.useGpsAsSpeed;
-    
+    settingsChanged.addListener(_onSettingsChanged);
+
     // Subscribe to per-slot connection status
     _connectedSlotsSub = svc.connectedSlotsStream.listen((slots) {
       if (!mounted) return;
@@ -125,12 +127,22 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
   @override
   void dispose() {
+    settingsChanged.removeListener(_onSettingsChanged);
     _speedSub?.cancel();
     _cadenceSub?.cancel();
     _powerSub?.cancel();
     _connectedNamesSub?.cancel();
     _connectedSlotsSub?.cancel();
     super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (!mounted) return;
+    final svc = SensorService();
+    setState(() {
+      _useGpsSpeed = svc.useGpsAsSpeed;
+    });
+    _loadSpeedUnit();
   }
 
   void _initDataStreams() {
@@ -323,6 +335,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   void _handleSwipeUp() {
     final bool canProceed = (_useGpsSpeed || speedConnected) && gpsGranted;
     if (canProceed) {
+      setState(() => _firstVisit = false);
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const WheelMetricsGuidePage()),
@@ -553,9 +566,10 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
             ),
 
             const SizedBox(height: 12),
+            if (!widget.isOverlay)
             OnboardingNavBar(
               onBack: () => Navigator.pop(context),
-              onForward: (widget.isOverlay || SensorService().isSessionActive)
+              onForward: SensorService().isSessionActive
                   ? null
                   : (canProceed ? _handleSwipeUp : null),
               statusText: canProceed

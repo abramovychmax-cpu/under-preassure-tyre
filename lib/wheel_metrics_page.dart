@@ -98,6 +98,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
     _prefs.setString('bike_type', _selectedBikeType);
     _prefs.setString('speed_unit', _selectedSpeedUnit);
     _prefs.setDouble('wheel_circumference', circumferenceM);
+    settingsChanged.value++;
   }
 
   @override
@@ -393,10 +394,10 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
         if (!widget.isOverlay)
           OnboardingNavBar(
             onBack: () => Navigator.pop(context),
-            onForward: SensorService().isSessionActive ? null : () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SafetyGuidePage()),
-            ),
+            onForward: SensorService().isSessionActive ? null : () {
+              setState(() => _firstVisit = false);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SafetyGuidePage()));
+            },
             forwardHighlighted: _firstVisit,
           ),
       ],

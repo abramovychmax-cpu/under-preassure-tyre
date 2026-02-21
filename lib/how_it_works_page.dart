@@ -30,6 +30,7 @@ class _HowItWorksPageState extends State<HowItWorksPage> {
   }
 
   void _navigateNext(BuildContext context) {
+    setState(() => _firstVisit = false);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SensorGuidePage()),

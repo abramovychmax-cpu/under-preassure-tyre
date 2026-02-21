@@ -31,6 +31,7 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   void _navigateToSetup() {
+    setState(() => _firstVisit = false);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const HowItWorksPage()),

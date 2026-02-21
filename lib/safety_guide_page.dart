@@ -32,6 +32,7 @@ class _SafetyGuidePageState extends State<SafetyGuidePage> {
   }
 
   void _goToProtocols(BuildContext context) {
+    setState(() => _firstVisit = false);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ProtocolSelectionPage()),
@@ -101,9 +102,10 @@ class _SafetyGuidePageState extends State<SafetyGuidePage> {
         ),
       ),
       ),
+          if (!widget.isOverlay)
           OnboardingNavBar(
             onBack: () => Navigator.pop(context),
-            onForward: (widget.isOverlay || SensorService().isSessionActive) ? null : () => _goToProtocols(context),
+            onForward: SensorService().isSessionActive ? null : () => _goToProtocols(context),
             forwardHighlighted: _firstVisit,
           ),
           ],

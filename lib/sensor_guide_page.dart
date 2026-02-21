@@ -30,6 +30,7 @@ class _SensorGuidePageState extends State<SensorGuidePage> {
   }
 
   void _navigateToSetup(BuildContext context) {
+    setState(() => _firstVisit = false);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SensorSetupPage()),

@@ -16,6 +16,11 @@ const Color accentGemini = Color(0xFF47D1C1);
 // Border colors
 const Color cardBorder = Color(0xFFDDDDDD);
 
+/// Fires whenever wheel metrics or sensor settings are saved.
+/// Pages that depend on those settings should call their _loadSettings()
+/// in a listener added in initState and removed in dispose.
+final settingsChanged = ValueNotifier<int>(0);
+
 /// Common card widget with consistent styling
 class AppCard extends StatelessWidget {
   final Widget child;
@@ -173,7 +178,7 @@ class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector> {
             onHorizontalDragUpdate: (details) {
               if (_fired) return;
               final delta = details.globalPosition.dx - _startX;
-              if (delta < -50) {
+              if (delta < -80) {
                 _fired = true;
                 widget.onSwipeForward!();
               }
