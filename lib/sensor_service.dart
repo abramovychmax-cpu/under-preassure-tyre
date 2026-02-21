@@ -488,6 +488,16 @@ class SensorService {
     _simPhase = 0.0;
     _simPosition = 0.0;
     _simForward = true;
+
+    // immediately seed the simulated coordinates so that the very first
+    // recording timer (which may fire before the 500ms tick) has valid
+    // lat/lon.  Without this, stale values from a previous real-GPS session
+    // (e.g. Warsaw) can leak into the FIT file and cause the track to be
+    // rejected by Strava.
+    _currentLat = _simGateLat;
+    _currentLon = _simGateLon;
+    _currentAltitude = 0.0;
+
     _simTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       _simPhase += 0.5;
       final double noise = sin(_simPhase * 0.8) * 1.5 + (_simRandom.nextDouble() - 0.5) * 0.5;

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
+import 'ui/common_widgets.dart'; // for settingsChanged
 
 class RecordingPage extends StatefulWidget {
   final double frontPressure;
@@ -48,6 +49,8 @@ class _RecordingPageState extends State<RecordingPage> {
     super.initState();
     _pressureUnit = widget.pressureUnit;
     _loadSettings();
+    // Listen for global settings changes (unit switch)
+    settingsChanged.addListener(_onSettingsChanged);
 
     // Ensure keyboard is hidden and page doesn't resize when keyboard appears
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -110,6 +113,8 @@ class _RecordingPageState extends State<RecordingPage> {
     });
   }
 
+  void _onSettingsChanged() => _loadSettings();
+
   double _convertSpeed(double kmh) {
     if (_speedUnit == 'mph') {
       return kmh * 0.621371;
@@ -125,6 +130,7 @@ class _RecordingPageState extends State<RecordingPage> {
     _cadenceSub?.cancel();
     _vibrationSub?.cancel();
     _elapsedTimer?.cancel();
+    settingsChanged.removeListener(_onSettingsChanged);
     super.dispose();
   }
 
@@ -173,9 +179,29 @@ class _RecordingPageState extends State<RecordingPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    _buildDataRow('SPEED${_gpsSpeedMode ? ' (GPS)' : ''}', _convertSpeed(currentSpeed).toStringAsFixed(1), _speedUnit, 'POWER', '$currentPower', 'watts'),
-                    _buildDataRow('CADENCE', '$currentCadence', 'RPM', 'vibrations', currentVibration.toStringAsFixed(2), 'g'),
-                    _buildDataRow('DISTANCE', currentDistance.toStringAsFixed(2), 'km', 'TIME LAPSED', _formatDuration(_elapsed), '_'),
+                    _buildDataRow(
+                      'SPEED${_gpsSpeedMode ? ' (GPS)' : ''}',
+                      _convertSpeed(currentSpeed).toStringAsFixed(1),
+                      _speedUnit,
+                      'POWER',
+                      '$currentPower',
+                      'watts'),
+                    _buildDataRow(
+                      'CADENCE',
+                      '$currentCadence',
+                      'RPM',
+                      'vibrations',
+                      currentVibration.toStringAsFixed(2),
+                      'g'),
+                    _buildDataRow(
+                      'DISTANCE',
+                      _speedUnit == 'mph'
+                        ? (currentDistance * 0.621371).toStringAsFixed(2)
+                        : currentDistance.toStringAsFixed(2),
+                      _speedUnit == 'mph' ? 'mi' : 'km',
+                      'TIME LAPSED',
+                      _formatDuration(_elapsed),
+                      '_'),
                   ],
                 ),
               ),

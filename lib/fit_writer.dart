@@ -133,8 +133,18 @@ class FitWriter {
     
     // Start time of this lap (from the first record, or the lap metadata?)
     // Using record timestamp is safer for FIT compliance.
-    final startTime = first.timestamp ?? 0;
-    final endTime = last.timestamp ?? 0;
+    // guard against missing timestamps (shouldn't happen) and clamp
+    int startTime = first.timestamp ?? 0;
+    int endTime = last.timestamp ?? 0;
+    // if somehow we didn't get a timestamp (0), fall back to session start
+    if (startTime == 0 && _sessionStartTime != null) {
+      startTime = _dateTimeToFitEpoch(_sessionStartTime!);
+    }
+    if (endTime == 0 && _sessionStartTime != null) {
+      endTime = _dateTimeToFitEpoch(_sessionStartTime!);
+    }
+    startTime = startTime & 0xFFFFFFFF;
+    endTime = endTime & 0xFFFFFFFF;
     
     // Calculate totals for this lap
     double distStart = first.distance ?? 0;
@@ -202,7 +212,11 @@ class FitWriter {
     } else {
       recordTime = DateTime.now().toUtc();
     }
-    final timestamp = _dateTimeToFitEpoch(recordTime);
+    int timestamp = _dateTimeToFitEpoch(recordTime);
+    if (timestamp < 0 || timestamp > 0xFFFFFFFF) {
+      print('WARNING: clamping out-of-range record timestamp: $timestamp');
+      timestamp = timestamp & 0xFFFFFFFF;
+    }
 
     final lat = (record['lat'] as num?)?.toDouble() ?? 0.0;
     final lon = (record['lon'] as num?)?.toDouble() ?? 0.0;
@@ -453,8 +467,18 @@ class FitWriter {
 
   /// Convert Dart DateTime to FIT epoch (seconds since 1989-12-31 00:00:00 UTC)
   static int _dateTimeToFitEpoch(DateTime dt) {
+    // FIT timestamps are unsigned 32‑bit seconds since 1989‑12‑31.
+    // Clamp negative values (dates before FIT epoch) to zero and mask
+    // to 32 bits in case the Dart int wraps when cast by fit_tool.
     final fitEpoch = DateTime.utc(1989, 12, 31);
-    return dt.difference(fitEpoch).inSeconds;
+    final diff = dt.toUtc().difference(fitEpoch);
+    if (diff.isNegative) {
+      print('WARNING: FIT timestamp before epoch: $dt');
+      return 0;
+    }
+    final secs = diff.inSeconds;
+    // mask to 32 bits to avoid the 2106 wrap-around if Dart int is large
+    return secs & 0xFFFFFFFF;
   }
 
   /// Write sensor records to companion JSONL file for coast detection
