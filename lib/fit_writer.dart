@@ -143,16 +143,14 @@ class FitWriter {
     if (endTime == 0 && _sessionStartTime != null) {
       endTime = _dateTimeToFitEpoch(_sessionStartTime!);
     }
-    startTime = startTime & 0xFFFFFFFF;
-    endTime = endTime & 0xFFFFFFFF;
-    
+    // timestamps are Unix ms — convert elapsed time to seconds for FIT fields
+    double totalLapTime = (endTime - startTime) / 1000.0; // ms → seconds
+    if (totalLapTime < 0) totalLapTime = 0;
+
     // Calculate totals for this lap
     double distStart = first.distance ?? 0;
     double distEnd = last.distance ?? 0;
     double lapDistance = distEnd - distStart;
-    
-    double totalLapTime = (endTime - startTime).toDouble(); // seconds
-    if (totalLapTime < 0) totalLapTime = 0;
     
     // Avg Power
     double sumPower = 0;
@@ -212,11 +210,8 @@ class FitWriter {
     } else {
       recordTime = DateTime.now().toUtc();
     }
-    int timestamp = _dateTimeToFitEpoch(recordTime);
-    if (timestamp < 0 || timestamp > 0xFFFFFFFF) {
-      print('WARNING: clamping out-of-range record timestamp: $timestamp');
-      timestamp = timestamp & 0xFFFFFFFF;
-    }
+    // fit_tool expects Unix milliseconds — no clamping needed here.
+    final int timestamp = _dateTimeToFitEpoch(recordTime);
 
     final lat = (record['lat'] as num?)?.toDouble() ?? 0.0;
     final lon = (record['lon'] as num?)?.toDouble() ?? 0.0;
@@ -465,20 +460,11 @@ class FitWriter {
     }
   }
 
-  /// Convert Dart DateTime to FIT epoch (seconds since 1989-12-31 00:00:00 UTC)
+  /// Convert Dart DateTime to the value expected by fit_tool's timestamp fields.
+  /// fit_tool 1.x expects **Unix milliseconds** (ms since 1970-01-01 UTC).
+  /// Internally the SDK converts to FIT epoch seconds before writing the binary file.
   static int _dateTimeToFitEpoch(DateTime dt) {
-    // FIT timestamps are unsigned 32‑bit seconds since 1989‑12‑31.
-    // Clamp negative values (dates before FIT epoch) to zero and mask
-    // to 32 bits in case the Dart int wraps when cast by fit_tool.
-    final fitEpoch = DateTime.utc(1989, 12, 31);
-    final diff = dt.toUtc().difference(fitEpoch);
-    if (diff.isNegative) {
-      print('WARNING: FIT timestamp before epoch: $dt');
-      return 0;
-    }
-    final secs = diff.inSeconds;
-    // mask to 32 bits to avoid the 2106 wrap-around if Dart int is large
-    return secs & 0xFFFFFFFF;
+    return dt.toUtc().millisecondsSinceEpoch;
   }
 
   /// Write sensor records to companion JSONL file for coast detection
