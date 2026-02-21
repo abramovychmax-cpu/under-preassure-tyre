@@ -1,11 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
 import 'wheel_metrics_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
-class WheelMetricsGuidePage extends StatelessWidget {
+class WheelMetricsGuidePage extends StatefulWidget {
   const WheelMetricsGuidePage({super.key});
+
+  @override
+  State<WheelMetricsGuidePage> createState() => _WheelMetricsGuidePageState();
+}
+
+class _WheelMetricsGuidePageState extends State<WheelMetricsGuidePage> {
+  @override
+  void initState() {
+    super.initState();
+    _markSeen();
+  }
+
+  Future<void> _markSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('wheel_metrics_guide_seen', true);
+  }
 
   void _navigateToMetrics(BuildContext context) {
     Navigator.push(
@@ -82,6 +99,7 @@ class WheelMetricsGuidePage extends StatelessWidget {
                 OnboardingNavBar(
                   onBack: () => Navigator.pop(context),
                   onForward: () => _navigateToMetrics(context),
+                  forwardHighlighted: true,
                 ),
               ],
             ),

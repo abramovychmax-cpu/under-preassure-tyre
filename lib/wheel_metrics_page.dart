@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'protocol_selection_page.dart';
 import 'safety_guide_page.dart';
 import 'sensor_service.dart';
 import 'ui/app_menu_button.dart';
@@ -101,6 +102,17 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
     settingsChanged.value++;
   }
 
+  Future<void> _goForward() async {
+    final guideSeen = _prefs.getBool('safety_guide_seen') ?? false;
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => guideSeen ? const ProtocolSelectionPage() : const SafetyGuidePage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,7 +132,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
         body: RightEdgeSwipeDetector(
           onSwipeForward: widget.isOverlay || SensorService().isSessionActive
               ? null
-              : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SafetyGuidePage())),
+              : () => _goForward(),
           child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: accentGemini))
             : Column(
@@ -396,7 +408,7 @@ class _WheelMetricsPageState extends State<WheelMetricsPage> {
             onBack: () => Navigator.pop(context),
             onForward: SensorService().isSessionActive ? null : () {
               setState(() => _firstVisit = false);
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const SafetyGuidePage()));
+              _goForward();
             },
             forwardHighlighted: _firstVisit,
           ),

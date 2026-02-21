@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'sensor_service.dart';
 import 'wheel_metrics_guide_page.dart';
+import 'wheel_metrics_page.dart';
 import 'ui/app_menu_button.dart';
 import 'ui/common_widgets.dart';
 
@@ -336,11 +337,20 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
     final bool canProceed = (_useGpsSpeed || speedConnected || SensorService().isSimMode) && (gpsGranted || SensorService().isSimMode);
     if (canProceed) {
       setState(() => _firstVisit = false);
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const WheelMetricsGuidePage()),
-      );
+      _navigateForward();
     }
+  }
+
+  Future<void> _navigateForward() async {
+    final prefs = await SharedPreferences.getInstance();
+    final guideSeen = prefs.getBool('wheel_metrics_guide_seen') ?? false;
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => guideSeen ? const WheelMetricsPage() : const WheelMetricsGuidePage(),
+      ),
+    );
   }
 
   @override
