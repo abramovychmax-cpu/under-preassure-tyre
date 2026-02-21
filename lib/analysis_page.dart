@@ -118,7 +118,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
       }
       final fitBytes = await fitFile.readAsBytes();
 
-      if (widget.protocol == 'constant_power') {
+      if (widget.protocol == 'constant_power' || widget.protocol == 'sim') {
         _updateFeedback('🔍 Detecting constant-power segments...');
         final matchedSegments =
             await ConstantPowerClusteringService.analyzeConstantPower(
