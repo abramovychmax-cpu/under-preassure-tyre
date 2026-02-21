@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'app_logger.dart';
 import 'dart:io';
@@ -196,8 +197,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
     final avgPower = powers.fold<double>(0, (a, b) => a + b) / powers.length;
     final powerVariance = powers.fold<double>(0, (sum, p) => sum + (p - avgPower) * (p - avgPower)) / powers.length;
-    final powerCv = avgPower > 0 ? (powerVariance / (avgPower * avgPower)) : 0.0;
+    // CV = StdDev / Mean (not squared)
+    final powerCv = avgPower > 0 ? math.sqrt(powerVariance) / avgPower : 0.0;
 
+    AppLogger.log('[AnalysisPage] power stats: avg=${avgPower.toStringAsFixed(1)} W | stdDev=${math.sqrt(powerVariance).toStringAsFixed(1)} W | CV=${(powerCv*100).toStringAsFixed(1)}%');
+    AppLogger.log('[AnalysisPage] regression input (${trimmed.length} pts): ${trimmed.map((p) => "${p.key.toStringAsFixed(2)}bar->${p.value.toStringAsFixed(4)}").join(", ")}');
     setState(() {
       _regressionDataPoints = trimmed;
       _powerConsistencyPercent = powerCv * 100;
@@ -232,7 +236,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
       final powers = validLaps.map((l) => l.avgPower).toList();
       final avgPower = powers.fold<double>(0, (a, b) => a + b) / powers.length;
       final powerVariance = powers.fold<double>(0, (sum, p) => sum + (p - avgPower) * (p - avgPower)) / powers.length;
-      final powerCv = avgPower > 0 ? (powerVariance / (avgPower * avgPower)) : 0.0;
+      final powerCv = avgPower > 0 ? math.sqrt(powerVariance) / avgPower : 0.0;
 
       setState(() {
         _powerConsistencyPercent = powerCv * 100;
@@ -334,85 +338,118 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
 
     final n = dataPoints.length;
-    final meanP = dataPoints.fold(0.0, (sum, p) => sum + p.key) / n;
-    final meanE = dataPoints.fold(0.0, (sum, p) => sum + p.value) / n;
 
-    double sumX2 = 0, sumX3 = 0, sumX4 = 0;
-    double sumY = 0, sumXY = 0, sumX2Y = 0;
+    // ── Quadratic least-squares  y = A·x² + B·x + C ─────────────────────────
+    // Solve normal equations via Gaussian elimination with partial pivoting.
+    // Unknowns [C, B, A]  (constant first so indexing is natural).
+    //
+    //  ┌ n    Σx   Σx² ┐ ┌C┐   ┌  Σy   ┐
+    //  │ Σx   Σx²  Σx³ │ │B│ = │  Σxy  │
+    //  └ Σx²  Σx³  Σx⁴ ┘ └A┘   └  Σx²y ┘
+    double s0 = n.toDouble(), s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+    double sy = 0, sxy = 0, sx2y = 0;
 
-    for (final point in dataPoints) {
-      final x = point.key - meanP;
-      final y = point.value - meanE;
-      
-      sumX2 += x * x;
-      sumX3 += x * x * x;
-      sumX4 += x * x * x * x;
-      sumY += y;
-      sumXY += x * y;
-      sumX2Y += x * x * y;
+    for (final p in dataPoints) {
+      final x = p.key;
+      final y = p.value;
+      s1   += x;
+      s2   += x * x;
+      s3   += x * x * x;
+      s4   += x * x * x * x;
+      sy   += y;
+      sxy  += x * y;
+      sx2y += x * x * y;
     }
 
-    final det = n * (sumX2 * sumX4 - sumX3 * sumX3) - 
-                0 * (0 * sumX4 - sumX3 * sumX2) + 
-                sumX2 * (0 * sumX3 - sumX2 * sumX2);
+    // Augmented matrix [M | rhs]
+    var mat = [
+      [s0, s1, s2, sy  ],
+      [s1, s2, s3, sxy ],
+      [s2, s3, s4, sx2y],
+    ];
 
-    if (det.abs() < 1e-10) {
+    // Forward elimination with partial pivoting
+    for (int col = 0; col < 3; col++) {
+      int pivot = col;
+      for (int row = col + 1; row < 3; row++) {
+        if (mat[row][col].abs() > mat[pivot][col].abs()) pivot = row;
+      }
+      final tmp = mat[col]; mat[col] = mat[pivot]; mat[pivot] = tmp;
+      if (mat[col][col].abs() < 1e-10) {
+        setState(() { _errorMessage = 'Singular matrix: cannot fit quadratic'; });
+        return;
+      }
+      for (int row = col + 1; row < 3; row++) {
+        final f = mat[row][col] / mat[col][col];
+        for (int k = col; k <= 3; k++) { mat[row][k] -= f * mat[col][k]; }
+      }
+    }
+
+    // Back substitution  →  coeffs = [C, B, A]
+    final coeffs = List.filled(3, 0.0);
+    for (int i = 2; i >= 0; i--) {
+      coeffs[i] = mat[i][3];
+      for (int j = i + 1; j < 3; j++) { coeffs[i] -= mat[i][j] * coeffs[j]; }
+      coeffs[i] /= mat[i][i];
+    }
+    final cFinal = coeffs[0];
+    final b      = coeffs[1];
+    final a      = coeffs[2];
+
+    AppLogger.log('[AnalysisPage] regression | a=${a.toStringAsFixed(6)} b=${b.toStringAsFixed(6)} c=${cFinal.toStringAsFixed(6)} | pts=${dataPoints.map((p) => "${p.key.toStringAsFixed(2)}->${p.value.toStringAsFixed(4)}").join(", ")}');
+
+    // ── Vertex of the parabola = optimal pressure ─────────────────────────────
+    double optimalP = (a == 0) ? double.nan : -b / (2 * a);
+    AppLogger.log('[AnalysisPage] vertex optimalP=$optimalP | opens ${a > 0 ? "UP (min rolling resistance ✓)" : "DOWN"}');
+
+    if (optimalP.isNaN || optimalP.isInfinite || optimalP <= 0) {
+      // Degenerate — fall back to best observed point
+      final best = dataPoints.reduce((x, y) => x.value >= y.value ? x : y);
       setState(() {
-        _errorMessage = 'Singular matrix: cannot fit quadratic';
+        _coeffA = null; _coeffB = null; _coeffC = null;
+        _optimalRearPressure = best.key;
+        _optimalFrontPressure = best.key * (_silcaRatios[widget.bikeType] ?? 0.923);
+        _rSquared = 0.0;
+        _confidenceLevel = 'LOW';
+        _dataQualityWarning = 'Degenerate curve — showing best observed result.';
       });
       return;
     }
 
-    final cPrime = (sumY * (sumX2 * sumX4 - sumX3 * sumX3) -
-                    sumXY * (0 * sumX4 - sumX3 * sumX2) +
-                    sumX2Y * (0 * sumX3 - sumX2 * sumX2)) / det;
-
-    final b = (n * (sumXY * sumX4 - sumX2Y * sumX3) -
-               sumY * (0 * sumX4 - sumX3 * sumX2) +
-               sumX2Y * (0 * sumX3 - sumX2 * sumX2)) / det;
-
-    final a = (n * (sumX2 * sumX2Y - sumX3 * sumXY) -
-               0 * (0 * sumX2Y - sumX3 * sumXY) +
-               sumX2 * (0 * sumXY - sumX2 * sumXY)) / det;
-
-    final cFinal = cPrime + meanE - b * meanP - a * meanP * meanP;
-    double optimalP = -b / (2 * a);
-
-    if (optimalP < 0 || optimalP.isInfinite) {
-      setState(() {
-        _errorMessage = 'Invalid optimal pressure calculated';
-      });
-      return;
-    }
-
-    final avgY = dataPoints.fold(0.0, (sum, p) => sum + p.value) / n;
-    final ssRes = dataPoints.fold(0.0, (sum, p) {
+    // ── R² ────────────────────────────────────────────────────────────────────
+    final meanY = sy / n;
+    double ssRes = 0, ssTot = 0;
+    for (final p in dataPoints) {
       final yPred = a * p.key * p.key + b * p.key + cFinal;
-      return sum + (p.value - yPred) * (p.value - yPred);
-    });
-    final ssTot = dataPoints.fold(0.0, (sum, p) => sum + (p.value - avgY) * (p.value - avgY));
-    final rSquared = ssTot > 0 ? 1.0 - (ssRes / ssTot) : 0.0;
+      ssRes += (p.value - yPred) * (p.value - yPred);
+      ssTot += (p.value - meanY) * (p.value - meanY);
+    }
+    final rSquared = ssTot > 0 ? 1.0 - ssRes / ssTot : 0.0;
+    AppLogger.log('[AnalysisPage] R²=${rSquared.toStringAsFixed(4)} | ssRes=$ssRes ssTot=$ssTot');
 
-    final maxPressure = dataPoints.map((p) => p.key).reduce((a, b) => a > b ? a : b);
-    final efficiencyAtMax = a * maxPressure * maxPressure + b * maxPressure + cFinal;
-    final efficiencyAtOptimal = a * optimalP * optimalP + b * optimalP + cFinal;
-    final vibrationLoss = ((efficiencyAtOptimal - efficiencyAtMax) / efficiencyAtMax * 100).abs();
+    // ── Vibration / efficiency gain delta ─────────────────────────────────────
+    final maxPressure = dataPoints.map((p) => p.key).reduce(math.max);
+    final effAtMax = a * maxPressure * maxPressure + b * maxPressure + cFinal;
+    final effAtOpt = a * optimalP * optimalP + b * optimalP + cFinal;
+    final vibrationLoss = (effAtMax.abs() > 1e-10)
+        ? ((effAtOpt - effAtMax) / effAtMax.abs() * 100).clamp(-999.0, 999.0)
+        : 0.0;
 
-    // Validate data quality and set warnings
+    // ── Confidence classification ─────────────────────────────────────────────
     String? warning = extraWarning;
     String confidence = 'HIGH';
-    
+
     if (rSquared < 0.7) {
       confidence = 'LOW';
-      final rWarn = '⚠ Low R² (${rSquared.toStringAsFixed(2)}): Data is noisy, results may be unreliable.';
+      final rWarn = '\u26a0 Low R\u00b2 (${rSquared.toStringAsFixed(2)}): Data is noisy, results may be unreliable.';
       warning = warning == null ? rWarn : '$warning\n$rWarn';
     } else if (rSquared < 0.85) {
       confidence = 'MEDIUM';
     }
-    
+
     if (powerCvPercent != null && powerCvPercent > _powerCvWarnThreshold) {
       confidence = confidence == 'HIGH' ? 'MEDIUM' : 'LOW';
-      final powerWarning = '⚠ Power varied significantly between laps (${powerCvPercent.toStringAsFixed(1)}%). Results may be less reliable.';
+      final powerWarning = '\u26a0 Power varied significantly between laps (${powerCvPercent.toStringAsFixed(1)}%). Results may be less reliable.';
       warning = warning == null ? powerWarning : '$warning\n$powerWarning';
     }
 
@@ -423,8 +460,8 @@ class _AnalysisPageState extends State<AnalysisPage> {
       _optimalRearPressure = optimalP;
       final silcaRatio = _silcaRatios[widget.bikeType] ?? 0.923;
       _optimalFrontPressure = optimalP * silcaRatio;
-      _rSquared = rSquared.clamp(0, 1);
-      _vibrationLossPercent = vibrationLoss;
+      _rSquared = rSquared.clamp(-999.0, 1.0); // allow negative R² to show in UI
+      _vibrationLossPercent = vibrationLoss.clamp(0, 999);
       _confidenceLevel = confidence;
       _dataQualityWarning = warning;
     });
