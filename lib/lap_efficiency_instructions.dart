@@ -64,7 +64,7 @@ class _LapEfficiencyInstructionsState extends State<LapEfficiencyInstructions> {
                     _bulletPoint('Keep body position identical across all laps.'),
                     const SizedBox(height: 24),
                     _sectionHeader('Phone'),
-                    _bulletPoint('Mount your phone on the handlebar. Keeping it in a pocket changes the bike weight distribution and may affect results.'),
+                    _bulletPoint('Mount your phone on the handlebar for the best vibration reading.'),
                     const SizedBox(height: 20),
                   ],
                 ),

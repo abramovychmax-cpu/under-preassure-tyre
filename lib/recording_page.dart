@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
+import 'ui/app_menu_button.dart';
 
 class RecordingPage extends StatefulWidget {
   final double frontPressure;
@@ -132,14 +133,22 @@ class _RecordingPageState extends State<RecordingPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFFF2F2F2),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'RECORDING RUN',
+          style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFFF2F2F2),
+        foregroundColor: const Color(0xFF222222),
+        elevation: 0,
+        actions: const [AppMenuButton()],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 40),
-            const Text(
-              'RECORDING RUN',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5),
-            ),
+            const SizedBox(height: 16),
             Text(
               'LAP METADATA: ${widget.frontPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)}/${widget.rearPressure.toStringAsFixed(_pressureUnit == 'Bar' ? 2 : 1)} $_pressureUnit',
               style: TextStyle(fontSize: 14, color: Colors.black.withAlpha((0.4 * 255).round()), fontWeight: FontWeight.w500),

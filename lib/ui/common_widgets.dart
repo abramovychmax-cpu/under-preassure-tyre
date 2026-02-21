@@ -131,11 +131,10 @@ class OnboardingNavBar extends StatelessWidget {
   }
 }
 
-/// Adds a 24px transparent strip on the right edge that responds to leftward
+/// Adds a 32px transparent strip on the right edge that responds to leftward
 /// swipes — mirroring how iOS restricts back-swipe to the left edge only.
-/// Uses [HitTestBehavior.translucent] so it never blocks underlying widgets or
-/// competes with the native iOS back gesture.
-class RightEdgeSwipeDetector extends StatelessWidget {
+/// Fires mid-drag (50 px threshold) so it feels as instant as native back.
+class RightEdgeSwipeDetector extends StatefulWidget {
   final Widget child;
   final VoidCallback? onSwipeForward;
 
@@ -146,24 +145,40 @@ class RightEdgeSwipeDetector extends StatelessWidget {
   });
 
   @override
+  State<RightEdgeSwipeDetector> createState() => _RightEdgeSwipeDetectorState();
+}
+
+class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector> {
+  double _startX = 0;
+  bool _fired = false;
+
+  @override
   Widget build(BuildContext context) {
-    if (onSwipeForward == null) return child;
+    if (widget.onSwipeForward == null) return widget.child;
     return Stack(
       children: [
-        child,
+        widget.child,
         Positioned(
           right: 0,
           top: 0,
           bottom: 0,
-          width: 24,
+          width: 32,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             dragStartBehavior: DragStartBehavior.down,
-            onHorizontalDragEnd: (details) {
-              if ((details.primaryVelocity ?? 0) < -200) {
-                onSwipeForward!();
+            onHorizontalDragStart: (details) {
+              _startX = details.globalPosition.dx;
+              _fired = false;
+            },
+            onHorizontalDragUpdate: (details) {
+              if (_fired) return;
+              final delta = details.globalPosition.dx - _startX;
+              if (delta < -50) {
+                _fired = true;
+                widget.onSwipeForward!();
               }
             },
+            onHorizontalDragEnd: (_) => _fired = false,
           ),
         ),
       ],

@@ -153,7 +153,7 @@ Future<void> _openLastAnalysis(BuildContext context) async {
   final protocol = data['protocol']    as String? ?? 'coast_down';
   final bikeType = data['bikeType']    as String? ?? 'road';
   if (!context.mounted) return;
-  openMenuOverlay(
+  openPartialOverlay(
     context,
     AnalysisPage(
       fitFilePath: fitPath,
@@ -180,9 +180,9 @@ class AppMenuButton extends StatelessWidget {
           case 'wheel':
             openPartialOverlay(context, const WheelMetricsPage(isOverlay: true));
           case 'safety':
-            openMenuOverlay(context, const SafetyGuidePage(isOverlay: true));
+            openPartialOverlay(context, const SafetyGuidePage(isOverlay: true));
           case 'sensors':
-            openMenuOverlay(context, const SensorSetupPage(isOverlay: true));
+            openPartialOverlay(context, const SensorSetupPage(isOverlay: true));
           case 'results':
             _openLastAnalysis(context);
         }
