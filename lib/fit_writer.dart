@@ -399,11 +399,15 @@ class FitWriter {
           vibStdDev = sqrt(sumSq / (vibSamples.length - 1));
         }
         
+        // Infer the pressure unit from the value: > 20 = PSI, otherwise Bar
+        final pressureUnit = ((lap['rearPressure'] as double?) ?? 0.0) > 20.0 ? 'PSI' : 'Bar';
+
         // Format: one JSON line per lap with tire pressure + vibration data
         final line = '{'
             '"lapIndex": ${lap['index']}, '
             '"frontPressure": ${lap['frontPressure']}, '
             '"rearPressure": ${lap['rearPressure']}, '
+            '"pressureUnit": "$pressureUnit", '
             '"timestamp": "${lap['startTime']}", '
             '"vibrationAvg": ${vibAvg.toStringAsFixed(4)}, '
             '"vibrationMin": ${vibMin.toStringAsFixed(4)}, '

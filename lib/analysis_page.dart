@@ -87,8 +87,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
   }
 
-  double _psiToBar(double psi) => psi * 0.0689476;
-
   List<MapEntry<double, double>> _trimOutliers(List<MapEntry<double, double>> points) {
     if (points.length < 4) return List.of(points);
     final sorted = List<MapEntry<double, double>>.from(points)
@@ -112,6 +110,29 @@ class _AnalysisPageState extends State<AnalysisPage> {
       final jsonlFile = File(jsonlPath);
       AppLogger.log('[AnalysisPage] fitPath: ${widget.fitFilePath}');
       AppLogger.log('[AnalysisPage] jsonlPath: $jsonlPath | exists: ${jsonlFile.existsSync()}');
+
+      // Prefer pressureUnit stored in the JSONL (written at recording time),
+      // so the display is correct even if the user later changes the settings.
+      if (jsonlFile.existsSync()) {
+        try {
+          final firstLine = jsonlFile.readAsLinesSync().firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
+          if (firstLine.isNotEmpty) {
+            final j = jsonDecode(firstLine) as Map<String, dynamic>;
+            if (j.containsKey('pressureUnit')) {
+              _pressureUnit = j['pressureUnit'] as String;
+              AppLogger.log('[AnalysisPage] pressureUnit from JSONL: $_pressureUnit');
+            } else {
+              // Legacy files without pressureUnit: infer from value magnitude
+              final rearP = (j['rearPressure'] as num?)?.toDouble() ?? 0.0;
+              _pressureUnit = rearP > 20.0 ? 'PSI' : 'Bar';
+              AppLogger.log('[AnalysisPage] pressureUnit inferred from value ($rearP): $_pressureUnit');
+            }
+          }
+        } catch (e) {
+          AppLogger.log('[AnalysisPage] WARN: could not read pressureUnit from JSONL: $e');
+        }
+      }
+
       final sensorPath = '${widget.fitFilePath}.sensor_records.jsonl';
       AppLogger.log('[AnalysisPage] sensorPath: $sensorPath | exists: ${File(sensorPath).existsSync()}');
       AppLogger.log('[AnalysisPage] protocol: ${widget.protocol} | bikeType: ${widget.bikeType}');
@@ -877,9 +898,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  String _formatPressureValueOnly(double? psi) {
-    if (psi == null) return '--';
-    return _pressureUnit == 'Bar' ? _psiToBar(psi).toStringAsFixed(2) : psi.toStringAsFixed(1);
+  String _formatPressureValueOnly(double? pressure) {
+    if (pressure == null) return '--';
+    // Pressures are stored and regressed in the user's recording unit (BAR or PSI).
+    // No conversion needed — just format with appropriate decimal places.
+    return _pressureUnit == 'Bar' ? pressure.toStringAsFixed(2) : pressure.toStringAsFixed(1);
   }
 
   Widget _buildPressureEfficiencyCurve() {
