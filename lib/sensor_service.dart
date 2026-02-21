@@ -81,7 +81,7 @@ class SensorService {
 
   void setUseGpsAsSpeed(bool value) {
     _useGpsAsSpeed = value;
-    print('SensorService: useGpsAsSpeed=$value');
+    AppLogger.log('SensorService: useGpsAsSpeed=$value');
   }
 
   // cache of discovered device display names by id
@@ -131,7 +131,7 @@ class SensorService {
     _savedPowerId = prefs.getString('power_sensor_id');
     _savedCadenceId = prefs.getString('cadence_sensor_id');
 
-    print("LOADED SENSORS: Speed($_savedSpeedId), Power($_savedPowerId), Cadence($_savedCadenceId)");
+    AppLogger.log("LOADED SENSORS: Speed($_savedSpeedId), Power($_savedPowerId), Cadence($_savedCadenceId)");
     startScanning();
     _initGps();
     // start periodic UI publisher (2 Hz) to improve UI refresh reliability
@@ -218,7 +218,7 @@ class SensorService {
     _gpsDistance = 0.0;
     _distanceController.add(0.0);
     // Don't reset _lastWheelRevs/_lastWheelTime - keep them for speed calculation continuity
-    print("Distance Reset. Baseline Wheel Revs: $_lapStartRevs");
+    AppLogger.log('[SensorService] resetDistance | lapStartRevs=$_lapStartRevs');
   }
 
   void _initGps() async {
@@ -230,6 +230,9 @@ class SensorService {
     Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     ).listen((Position position) {
+      // In simulation mode the sim timer owns _currentLat/Lon — real GPS must
+      // not overwrite them or Warsaw / actual-device coords leak into FIT data.
+      if (_simMode) return;
       _currentAltitude = position.altitude;
       _currentLat = position.latitude;
       _currentLon = position.longitude;
@@ -257,7 +260,7 @@ class SensorService {
         withServices: [Guid("1816"), Guid("1818")],
         timeout: const Duration(minutes: 10),
       );
-    } catch (e) { print("Scan Error: $e"); }
+    } catch (e) { AppLogger.log("Scan Error: $e"); }
   }
 
   void startFilteredScan(String targetSlot) async {
@@ -306,7 +309,7 @@ class SensorService {
         withServices: targetServices,
         timeout: const Duration(seconds: 15),
       );
-    } catch (e) { print("Filtered Scan Error: $e"); }
+    } catch (e) { AppLogger.log("Filtered Scan Error: $e"); }
   }
 
   Future<void> _processSavedDevicesSequentially(List<ScanResult> results) async {
@@ -362,7 +365,7 @@ class SensorService {
         timeout: const Duration(seconds: 15),
       );
       
-      print("CONNECTED SUCCESSFULLY: $deviceId");
+      AppLogger.log("CONNECTED SUCCESSFULLY: $deviceId");
 
       // 3. Post-connection Breath (Sequential GATT operations)
       await Future.delayed(const Duration(milliseconds: 1000));
@@ -379,7 +382,7 @@ class SensorService {
       List<BluetoothService> services = await device.discoverServices();
       
       _connectedDevices[deviceId] = device;
-      print('REGISTERED CONNECTED DEVICE: $deviceId');
+      AppLogger.log('REGISTERED CONNECTED DEVICE: $deviceId');
       // update the connected names broadcast so UI can show friendly names
       _emitConnectedNames();
       _connectingIds.remove(deviceId);
@@ -401,7 +404,7 @@ class SensorService {
         }
       }
     } catch (e) {
-      print("Connect Error: $e");
+      AppLogger.log("Connect Error: $e");
       _connectingIds.remove(deviceId);
 
       // Cooldown for Android BT stack before restarting scan
@@ -546,7 +549,7 @@ class SensorService {
   void pauseRecordingSession() {
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    print("Recording paused (Wait State)");
+    AppLogger.log("Recording paused (Wait State)");
   }
 
   void _startRecordingTimer() {
@@ -575,7 +578,7 @@ class SensorService {
       final Map<String, dynamic> record = {
         'ts': now.toIso8601String(),
         'speed_kmh': currentSpeedValue,
-        'distance': currentDistanceValue,
+        'distance': currentDistanceValue * 1000, // convert km → metres for FIT spec
         'power': _lastPublishedPower,
         'cadence': _lastPublishedCadence,
       };
@@ -601,7 +604,7 @@ class SensorService {
   void _parseCSC(List<int> data, String deviceId) {
     if (data.isEmpty) return;
     int flags = data[0];
-    print('CSC packet from $deviceId flags=$flags len=${data.length}');
+    AppLogger.log('CSC packet from $deviceId flags=$flags len=${data.length}');
     bool hasWheel = (flags & 0x01) != 0;
     bool hasCrank = (flags & 0x02) != 0;
 
@@ -609,7 +612,7 @@ class SensorService {
       _usingBt = true;
       int currentRevs = (data[1]) | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
       int currentTime = (data[5]) | (data[6] << 8);
-      print('CSC wheel: device=$deviceId revs=$currentRevs time=$currentTime');
+      AppLogger.log('CSC wheel: device=$deviceId revs=$currentRevs time=$currentTime');
 
       // If this is the very first wheel reading we see, set lap baseline
       _lapStartRevs ??= currentRevs;
@@ -741,7 +744,7 @@ class SensorService {
             int crankRevs = data[offset] | (data[offset+1] << 8);
             int crankTime = data[offset+2] | (data[offset+3] << 8);
             
-            // print("DEBUG: PowerMeter Cadence extracted. Revs: $crankRevs, Time: $crankTime");
+            // AppLogger.log("DEBUG: PowerMeter Cadence extracted. Revs: $crankRevs, Time: $crankTime");
 
             if (_lastCrankRevs != null && _lastCrankTime != null) { // Ensure both are non-null
                int rDiff = (crankRevs - _lastCrankRevs!) & 0xFFFF;
