@@ -333,7 +333,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
   }
 
   void _handleSwipeUp() {
-    final bool canProceed = (_useGpsSpeed || speedConnected) && gpsGranted;
+    final bool canProceed = (_useGpsSpeed || speedConnected || SensorService().isSimMode) && (gpsGranted || SensorService().isSimMode);
     if (canProceed) {
       setState(() => _firstVisit = false);
       Navigator.push(
@@ -345,7 +345,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool canProceed = (_useGpsSpeed || speedConnected) && gpsGranted;
+    final bool canProceed = (_useGpsSpeed || speedConnected || SensorService().isSimMode) && (gpsGranted || SensorService().isSimMode);
     
     // use light background and shared app card styles
     return Scaffold(
@@ -387,7 +387,7 @@ class _SensorSetupPageState extends State<SensorSetupPage> {
                             children: [
                               const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF222222))),
                               const SizedBox(height: 2),
-                              Text(gpsGranted ? 'Locked' : 'Waiting...', style: TextStyle(fontSize: 12, color: gpsGranted ? accentGemini : Colors.black54)),
+                              Text(gpsGranted || SensorService().isSimMode ? 'Locked' : 'Waiting...', style: TextStyle(fontSize: 12, color: gpsGranted || SensorService().isSimMode ? accentGemini : Colors.black54)),
                             ],
                           ),
                         ),

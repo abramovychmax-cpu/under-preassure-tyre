@@ -135,10 +135,23 @@ class _RecordingPageState extends State<RecordingPage> {
       backgroundColor: const Color(0xFFF2F2F2),
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text(
-          'RECORDING RUN',
-          style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16),
-        ),
+        title: SensorService().isSimMode
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('RECORDING RUN', style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6A817),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text('SIM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+                  ),
+                ],
+              )
+            : const Text('RECORDING RUN', style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16)),
         centerTitle: true,
         backgroundColor: const Color(0xFFF2F2F2),
         foregroundColor: const Color(0xFF222222),

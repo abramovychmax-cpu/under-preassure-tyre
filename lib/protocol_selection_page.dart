@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'coast_down_instructions.dart';
 import 'constant_power_instructions.dart';
 import 'lap_efficiency_instructions.dart';
+import 'sim_instructions.dart';
 import 'ui/app_menu_button.dart';
 import 'sensor_service.dart';
 import 'ui/common_widgets.dart';
@@ -69,6 +70,19 @@ class ProtocolSelectionPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const LapEfficiencyInstructions()),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _protocolCard(
+                'Simulation (Indoor Test)',
+                'Action: No bike or sensors needed.\nRequirement: 3 runs × 1 minute each.\nNote: Tests the full analysis pipeline.',
+                Icons.play_circle_outline,
+                'No sensors required',
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SimInstructions()),
                   );
                 },
               ),

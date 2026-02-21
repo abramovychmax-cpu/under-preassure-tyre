@@ -459,6 +459,74 @@ class SensorService {
   int _lastPublishedPower = 0;
   Timer? _recordingTimer;
 
+  // --- SIM MODE ---
+  bool _simMode = false;
+  bool get isSimMode => _simMode;
+  Timer? _simTimer;
+  double _simPosition = 0.0;
+  bool _simForward = true;
+  double _simPhase = 0.0;
+  double _simBaseSpeed = 25.0;
+  final Random _simRandom = Random();
+  static const double _simGateLat = 48.8566;
+  static const double _simGateLon = 2.3522;
+  static const double _simRouteMeters = 200.0;
+  static const double _simMetersPerDegreeLat = 111000.0;
+
+  void enableSimMode() => _simMode = true;
+  void disableSimMode() { _simMode = false; _simTimer?.cancel(); _simTimer = null; }
+
+  double _toPressureBar(double p) => p > 10 ? p * 0.0689476 : p;
+
+  double _pressureToBaseSpeed(double frontBar, double rearBar) {
+    final p = (frontBar + rearBar) / 2.0;
+    return 22.0 + 5.0 * exp(-0.5 * pow((p - 4.2) / 0.7, 2));
+  }
+
+  void _startSimTimer() {
+    _simTimer?.cancel();
+    _simPhase = 0.0;
+    _simPosition = 0.0;
+    _simForward = true;
+    _simTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      _simPhase += 0.5;
+      final double noise = sin(_simPhase * 0.8) * 1.5 + (_simRandom.nextDouble() - 0.5) * 0.5;
+      final double speedKmh = (_simBaseSpeed + noise).clamp(10.0, 60.0);
+      final double speedMs = speedKmh / 3.6;
+
+      if (_simForward) {
+        _simPosition += speedMs * 0.5;
+        if (_simPosition >= _simRouteMeters) { _simPosition = _simRouteMeters; _simForward = false; }
+      } else {
+        _simPosition -= speedMs * 0.5;
+        if (_simPosition <= 0) { _simPosition = 0; _simForward = true; }
+      }
+
+      _currentLat = _simGateLat + (_simPosition / _simMetersPerDegreeLat);
+      _currentLon = _simGateLon;
+
+      final double distKm = speedMs * 0.5 / 1000.0;
+      _currentRunDistance += distKm;
+      currentDistanceValue += distKm;
+      currentSpeedValue = speedKmh;
+
+      _speedController.add(speedKmh);
+      _distanceController.add(_currentRunDistance);
+
+      final int power = (200 + (_simRandom.nextInt(17) - 8)).clamp(0, 9999);
+      _lastPublishedPower = power;
+      _powerController.add(power);
+
+      final int cadence = (85 + (_simRandom.nextInt(7) - 3)).clamp(0, 200);
+      _lastPublishedCadence = cadence;
+      _cadenceController.add(cadence);
+
+      final double vib = 0.28 + (_simRandom.nextDouble() - 0.5) * 0.05;
+      _lastVibration = vib;
+      _vibrationController.add(vib);
+    });
+  }
+
   // --- REFACTORED PARSERS --- 
   // ( ... existing parser code ...)
 
@@ -706,8 +774,12 @@ class SensorService {
       if (_fitWriter != null) {
         // Session already active - treat this as a new "Lap" / Run
         print('Adding run to existing FIT session: Front=$frontPressure, Rear=$rearPressure');
-        await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1); 
+        await _fitWriter?.writeLap(frontPressure, rearPressure, lapIndex: -1);
         _startRecordingTimer();
+        if (_simMode) {
+          _simBaseSpeed = _pressureToBaseSpeed(_toPressureBar(frontPressure), _toPressureBar(rearPressure));
+          _startSimTimer();
+        }
         return;
       }
 
@@ -725,6 +797,10 @@ class SensorService {
 
       // START RECORDING LOOP (1Hz)
       _startRecordingTimer();
+      if (_simMode) {
+        _simBaseSpeed = _pressureToBaseSpeed(_toPressureBar(frontPressure), _toPressureBar(rearPressure));
+        _startSimTimer();
+      }
 
       print('FIT recording session started: Front=$frontPressure, Rear=$rearPressure, Protocol=$protocol');
     } catch (e) {
@@ -735,6 +811,9 @@ class SensorService {
   /// Stop recording and finalize the FIT file
   Future<void> stopRecordingSession() async {
     _recordingTimer?.cancel(); // STOP RECORDING LOOP
+    _simTimer?.cancel();
+    _simTimer = null;
+    _simMode = false;
     
     try {
       if (_fitWriter == null) {
