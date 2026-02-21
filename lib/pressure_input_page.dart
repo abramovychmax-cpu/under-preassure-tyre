@@ -47,9 +47,9 @@ class _PressureInputPageState extends State<PressureInputPage> {
     // So initState runs once at the beginning of the 3-run sequence.
     // Preserve sim mode flag — stopRecordingSession() clears it as a side effect,
     // but we need it to survive into the first RecordingPage.
-    final _wasSimMode = SensorService().isSimMode;
+    final wasSimMode = SensorService().isSimMode;
     SensorService().stopRecordingSession();
-    if (_wasSimMode) SensorService().enableSimMode();
+    if (wasSimMode) SensorService().enableSimMode();
     
     _loadSettings();
     _rearController.addListener(_updateFrontPressure);
