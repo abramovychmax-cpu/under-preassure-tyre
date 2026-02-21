@@ -240,7 +240,8 @@ class ConstantPowerClusteringService {
         lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
         lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
         vibrations.add((r['vibration'] as num?)?.toDouble() ?? 0.0);
-        final ts = r['ts'] as String?;
+        // sensor_records.jsonl uses 'timestamp'; recording timer uses 'ts'
+        final ts = (r['ts'] ?? r['timestamp']) as String?;
         if (ts != null) {
           final dt = DateTime.tryParse(ts);
           if (dt != null) { startTime ??= dt; endTime = dt; }
@@ -338,7 +339,8 @@ class ConstantPowerClusteringService {
         lats.add((r['lat'] as num?)?.toDouble() ?? 0.0);
         lons.add((r['lon'] as num?)?.toDouble() ?? 0.0);
         powersAligned.add((r['power'] as num?)?.toDouble() ?? 0.0);
-        final ts = r['ts'] as String?;
+        // sensor_records.jsonl uses 'timestamp'; recording timer uses 'ts'
+        final ts = (r['ts'] ?? r['timestamp']) as String?;
         if (ts != null) {
           final dt = DateTime.tryParse(ts);
           if (dt != null) { startTime ??= dt; endTime = dt; }
@@ -495,26 +497,49 @@ class ConstantPowerClusteringService {
     double cda = 0.320,
     double rho = 1.204,
   }) async {
-    final jsonlFile  = File(jsonlPath);
-    final jsonlLines = await jsonlFile.readAsLines();
-
     final Map<int, List<Map<String, dynamic>>> recordsByLap = {};
     final Map<int, Map<String, dynamic>> lapMetadata = {};
 
-    for (final line in jsonlLines) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final json   = jsonDecode(line) as Map<String, dynamic>;
-        final lapIdx = json['lapIndex'] as int?;
-        if (lapIdx == null) continue;
-        if (json.containsKey('frontPressure')) lapMetadata[lapIdx] = json;
-        if (json.containsKey('ts') || json.containsKey('power')) {
-          recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
+    // ── Read pressure metadata from *.fit.jsonl (one line per lap) ───────────
+    final jsonlFile = File(jsonlPath);
+    if (jsonlFile.existsSync()) {
+      for (final line in await jsonlFile.readAsLines()) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final json   = jsonDecode(line) as Map<String, dynamic>;
+          final lapIdx = json['lapIndex'] as int?;
+          if (lapIdx == null) continue;
+          if (json.containsKey('frontPressure')) lapMetadata[lapIdx] = json;
+        } catch (e) {
+          print('ERROR: Failed to parse JSONL pressure line: $e');
         }
-      } catch (e) {
-        print('ERROR: Failed to parse JSONL line: $e');
       }
     }
+
+    // ── Read per-second sensor records from *.fit.sensor_records.jsonl ───────
+    // This is the companion file written by FitWriter._writeSensorRecords().
+    // It contains every 1-Hz sample: lapIndex, timestamp, speed_kmh, power,
+    // cadence, distance, lat, lon — everything needed for segment detection.
+    final sensorPath = '$jsonlPath'.replaceAll(RegExp(r'\.jsonl$'), '') + '.sensor_records.jsonl';
+    final sensorFile = File(sensorPath);
+    if (!sensorFile.existsSync()) {
+      print('⚠ sensor_records file not found: $sensorPath');
+    } else {
+      for (final line in await sensorFile.readAsLines()) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final json   = jsonDecode(line) as Map<String, dynamic>;
+          final lapIdx = json['lapIndex'] as int?;
+          if (lapIdx == null) continue;
+          recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
+        } catch (e) {
+          print('ERROR: Failed to parse sensor record line: $e');
+        }
+      }
+    }
+
+    print('📂 analyzeConstantPower: ${lapMetadata.length} laps metadata, '
+        '${recordsByLap.values.fold(0, (s, l) => s + l.length)} sensor records');
 
     final rawLaps = <List<_RawPowerSegment>>[];
     for (int lapIdx = 0; lapIdx < recordsByLap.length; lapIdx++) {
