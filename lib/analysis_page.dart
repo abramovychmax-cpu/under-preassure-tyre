@@ -12,6 +12,7 @@ import 'ui/common_widgets.dart';
 import 'constant_power_clustering_service.dart';
 import 'circle_protocol_service.dart';
 import 'coast_down_service.dart';
+import 'protocol_selection_page.dart';
 
 /// Analysis page: Load FIT + JSONL, perform quadratic regression on tire pressure.
 /// Displays optimal tire pressure recommendation based on 3+ runs.
@@ -105,6 +106,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       final prefs = await SharedPreferences.getInstance();
       _pressureUnit = prefs.getString('pressure_unit') ?? 'PSI';
+      const cvThreshold = 0.15; // Fixed at 15% CV — optimal for typical power meters
 
       final jsonlPath = '${widget.fitFilePath}.jsonl';
       final jsonlFile = File(jsonlPath);
@@ -148,13 +150,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       if (widget.protocol == 'constant_power' || widget.protocol == 'sim') {
         _updateFeedback('🔍 Detecting constant-power segments...');
-        AppLogger.log('[AnalysisPage] Starting constant_power analysis...');
+        AppLogger.log('[AnalysisPage] Starting constant_power analysis (cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)...');
         final matchedSegments =
             await ConstantPowerClusteringService.analyzeConstantPower(
           fitBytes,
           jsonlPath,
           cda: _cdaForBikeType(widget.bikeType),
           rho: _standardAirDensity(),
+          cvThreshold: cvThreshold,
         );
         AppLogger.log('[AnalysisPage] analyzeConstantPower returned ${matchedSegments.length} matched segments');
         await _analyzeConstantPowerProtocol(matchedSegments);
@@ -449,12 +452,20 @@ class _AnalysisPageState extends State<AnalysisPage> {
     AppLogger.log('[AnalysisPage] R²=${rSquared.toStringAsFixed(4)} | ssRes=$ssRes ssTot=$ssTot');
 
     // ── Vibration / efficiency gain delta ─────────────────────────────────────
+    // Compare efficiency at max tested pressure vs optimal pressure.
+    // A positive value means we gain efficiency (= less surface impedance/vibration)
+    // by lowering from max pressure to optimal.
+    // If a >= 0 the parabola opens upward → vertex is a trough, not a peak;
+    // the metric is meaningless in that case → hide badge.
     final maxPressure = dataPoints.map((p) => p.key).reduce(math.max);
     final effAtMax = a * maxPressure * maxPressure + b * maxPressure + cFinal;
     final effAtOpt = a * optimalP * optimalP + b * optimalP + cFinal;
-    final vibrationLoss = (effAtMax.abs() > 1e-10)
-        ? ((effAtOpt - effAtMax) / effAtMax.abs() * 100).clamp(-999.0, 999.0)
+    final rawVibrationLoss = (effAtMax.abs() > 1e-10)
+        ? (effAtOpt - effAtMax) / effAtMax.abs() * 100
         : 0.0;
+    AppLogger.log('[AnalysisPage] vibration: a=$a effAtOpt=${effAtOpt.toStringAsFixed(6)} effAtMax=${effAtMax.toStringAsFixed(6)} rawLoss=${rawVibrationLoss.toStringAsFixed(2)}%');
+    // Only show badge when curve opens downward AND gain is meaningfully positive
+    final vibrationLoss = (a < 0 && rawVibrationLoss > 0.001) ? rawVibrationLoss : -1.0;
 
     // ── Confidence classification ─────────────────────────────────────────────
     String? warning = extraWarning;
@@ -482,7 +493,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
       final silcaRatio = _silcaRatios[widget.bikeType] ?? 0.923;
       _optimalFrontPressure = optimalP * silcaRatio;
       _rSquared = rSquared.clamp(-999.0, 1.0); // allow negative R² to show in UI
-      _vibrationLossPercent = vibrationLoss.clamp(0, 999);
+      _vibrationLossPercent = vibrationLoss > 0 ? vibrationLoss.clamp(0.0, 999.0) : null;
       _confidenceLevel = confidence;
       _dataQualityWarning = warning;
     });
@@ -564,17 +575,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
                             ),
                             const SizedBox(width: 8),
                           ],
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: accentGemini.withAlpha((0.08 * 255).round()),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'R² = ${_rSquared.toStringAsFixed(3)}',
-                              style: const TextStyle(color: accentGemini, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ),
                         ],
                       ),
                     ],
@@ -853,7 +853,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 
   void _startNewTest() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const ProtocolSelectionPage()),
+      (route) => route.isFirst,
+    );
   }
 
   Widget _buildLoadingScreen() {

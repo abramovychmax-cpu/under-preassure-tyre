@@ -101,12 +101,19 @@ class ProtocolSelectionPage extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'This protocol requires a connected power meter.\n\nPlease go back to Sensor Setup and pair your power meter, or choose the Coast-Down protocol which works without one.',
+          'This protocol requires a connected power meter.\n\nPair your power meter in Sensor Setup, or choose the Coast-Down protocol which works without one.',
         ),
         actions: [
           TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            child: const Text('GO TO SENSOR SETUP', style: TextStyle(color: Color(0xFF47D1C1), fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: Color(0xFF47D1C1))),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF888888))),
           ),
         ],
       ),

@@ -192,12 +192,13 @@ class ConstantPowerClusteringService {
   static List<ConstantPowerSegment> _detectConstantPowerSegmentsFromJsonl(
     List<Map<String, dynamic>> records,
     int lapIdx,
-    double pressure,
-  ) {
+    double pressure, {
+    double cvThreshold = 0.15,
+  }) {
     if (records.isEmpty) return [];
 
     final segments = <ConstantPowerSegment>[];
-    const segmentThreshold = 0.10; // 10% CV = constant power
+    final segmentThreshold = cvThreshold; // CV threshold = constant power
     const minWindow = 10;          // minimum stable run length (≈10 s at 1 Hz)
 
     int i = 0;
@@ -291,6 +292,7 @@ class ConstantPowerClusteringService {
     List<Map<String, dynamic>> records,
     int lapIdx,
     double pressure,
+    double cvThreshold,
   ) {
     if (records.isEmpty) {
       AppLogger.log('[Clustering] _detectRawSegments: lap $lapIdx has 0 records — skipping');
@@ -304,7 +306,7 @@ class ConstantPowerClusteringService {
     }
 
     final segments = <_RawPowerSegment>[];
-    const segmentThreshold = 0.10;
+    final segmentThreshold = cvThreshold;
     const minWindow = 10;
 
     int i = 0;
@@ -506,6 +508,7 @@ class ConstantPowerClusteringService {
     String jsonlPath, {
     double cda = 0.320,
     double rho = 1.204,
+    double cvThreshold = 0.15,
   }) async {
     final Map<int, List<Map<String, dynamic>>> recordsByLap = {};
     final Map<int, Map<String, dynamic>> lapMetadata = {};
@@ -556,8 +559,8 @@ class ConstantPowerClusteringService {
       final records  = recordsByLap[lapIdx] ?? [];
       final metadata = lapMetadata[lapIdx]  ?? {};
       final pressure = (metadata['rearPressure'] as num?)?.toDouble() ?? 0.0;
-      final segs = _detectRawSegments(records, lapIdx, pressure);
-      AppLogger.log('[Clustering] lap $lapIdx: ${records.length} records → ${segs.length} raw segments (pressure=$pressure psi)');
+      final segs = _detectRawSegments(records, lapIdx, pressure, cvThreshold);
+      AppLogger.log('[Clustering] lap $lapIdx: ${records.length} records → ${segs.length} raw segments (pressure=$pressure psi, cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)');
       rawLaps.add(segs);
     }
 

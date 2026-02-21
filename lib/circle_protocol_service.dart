@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'app_logger.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -104,7 +105,7 @@ class CircleProtocolService {
           recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
         }
       } catch (e) {
-        print('ERROR: Failed to parse JSONL line: $e');
+        AppLogger.log('ERROR: Failed to parse JSONL line: $e');
       }
     }
 
@@ -130,7 +131,7 @@ class CircleProtocolService {
         ? double.infinity
         : lapDistancesM.values.reduce(math.min);
 
-    print('📏 Lap distances: '
+    AppLogger.log('📏 Lap distances: '
         '${lapDistancesM.values.map((d) => d.toStringAsFixed(0)).join(', ')} m  '
         '|  exit gate = ${exitGateM.toStringAsFixed(0)} m');
 
@@ -152,13 +153,13 @@ class CircleProtocolService {
     }
 
     // ── Validate laps: filter out low-quality ones ──
-    print('📊 Analyzing ${allLaps.length} laps:');
+    AppLogger.log('📊 Analyzing ${allLaps.length} laps:');
     final validLaps = <CircleLapData>[];
     for (final lap in allLaps) {
       if (lap.isValid()) {
         validLaps.add(lap);
       } else {
-        print('  ✗ Lap ${lap.lapIndex} @ ${lap.pressure.toStringAsFixed(1)}: '
+        AppLogger.log('  ✗ Lap ${lap.lapIndex} @ ${lap.pressure.toStringAsFixed(1)}: '
             'REJECTED (power_cv=${lap.powerCv.toStringAsFixed(2)}, '
             'quality=${lap.dataQuality.toStringAsFixed(2)})');
       }
@@ -169,9 +170,9 @@ class CircleProtocolService {
     }
 
     // ── Duration matching: now just a sanity log — gate trimming handles mismatches ──
-    print('🔄 Lap gate-trimmed distances:');
+    AppLogger.log('🔄 Lap gate-trimmed distances:');
     for (final lap in validLaps) {
-      print('  ✓ Lap ${lap.lapIndex}: ${(lap.distance * 1000).toStringAsFixed(0)} m '
+      AppLogger.log('  ✓ Lap ${lap.lapIndex}: ${(lap.distance * 1000).toStringAsFixed(0)} m '
             '| ${lap.duration.toStringAsFixed(0)} s '
             '| ${lap.avgPower.toStringAsFixed(0)} W');
     }
@@ -186,12 +187,12 @@ class CircleProtocolService {
       final minP = lapPowers.reduce(math.min);
       final spread = maxP > 0 ? (maxP - minP) / maxP : 0.0;
       if (spread > 0.10) {
-        print('⚠ Cross-lap power spread ${(spread * 100).toStringAsFixed(1)}% '
+        AppLogger.log('⚠ Cross-lap power spread ${(spread * 100).toStringAsFixed(1)}% '
             '(${minP.toStringAsFixed(0)}–${maxP.toStringAsFixed(0)} W). '
             'Aero correction applied (CdA=$cda, ρ=${rho.toStringAsFixed(3)}). '
             'Best results when power is consistent across laps.');
       } else {
-        print('✓ Cross-lap power spread ${(spread * 100).toStringAsFixed(1)}% — within 10% tolerance');
+        AppLogger.log('✓ Cross-lap power spread ${(spread * 100).toStringAsFixed(1)}% — within 10% tolerance');
       }
     }
 
@@ -311,7 +312,7 @@ class CircleProtocolService {
     );
 
     // Log lap quality
-    print('🔄 Lap $lapIdx @ ${pressure.toStringAsFixed(1)} PSI: '
+    AppLogger.log('🔄 Lap $lapIdx @ ${pressure.toStringAsFixed(1)} PSI: '
         'power_cv=${powerCv.toStringAsFixed(2)} '
         'speed_cv=${speedCv.toStringAsFixed(2)} '
         'quality=${dataQuality.toStringAsFixed(2)} '
@@ -327,20 +328,20 @@ class CircleProtocolService {
   ) {
     final points = <MapEntry<double, double>>[];
 
-    print('📊 Building regression dataset from ${laps.length} laps:');
+    AppLogger.log('📊 Building regression dataset from ${laps.length} laps:');
     for (final lap in laps) {
       if (lap.isValid()) {
         points.add(MapEntry(lap.pressure, lap.rrResidual));
-        print('  ✓ Lap ${lap.lapIndex} @ ${lap.pressure.toStringAsFixed(1)} PSI: '
+        AppLogger.log('  ✓ Lap ${lap.lapIndex} @ ${lap.pressure.toStringAsFixed(1)} PSI: '
             'rrResidual=${lap.rrResidual.toStringAsFixed(2)} '
             'efficiency=${lap.efficiency.toStringAsFixed(4)} '
             '(quality=${lap.dataQuality.toStringAsFixed(2)})');
       } else {
-        print('  ✗ Lap ${lap.lapIndex}: SKIPPED (quality=${lap.dataQuality.toStringAsFixed(2)})');
+        AppLogger.log('  ✗ Lap ${lap.lapIndex}: SKIPPED (quality=${lap.dataQuality.toStringAsFixed(2)})');
       }
     }
 
-    print('📈 Total regression points: ${points.length}');
+    AppLogger.log('📈 Total regression points: ${points.length}');
     return points;
   }
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:convert';
+import 'app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ─── Data Classes ──────────────────────────────────────────────────────────────
@@ -220,11 +221,11 @@ class CoastDownClusteringService {
       final raw = _extractRawDescent(records, runIdx, front, rear);
       if (raw != null) {
         rawDescents.add(raw);
-        print('✓ Stage 1 | Run $runIdx: '
+        AppLogger.log('✓ Stage 1 | Run $runIdx: '
             '${raw.coastingDistance.toStringAsFixed(0)} m wheel-dist, '
             '${(raw.end - raw.start)}s window');
       } else {
-        print('✗ Stage 1 | Run $runIdx: no valid coasting window');
+        AppLogger.log('✗ Stage 1 | Run $runIdx: no valid coasting window');
       }
     }
 
@@ -234,7 +235,7 @@ class CoastDownClusteringService {
 
     // ── Stage 2: GPS start-point clustering (±${_startGpsRadiusM}m) ──
     final gpsGroups = _clusterByStartGPS(rawDescents);
-    print('✓ Stage 2 | ${gpsGroups.length} GPS start cluster(s)');
+    AppLogger.log('✓ Stage 2 | ${gpsGroups.length} GPS start cluster(s)');
 
     if (gpsGroups.isEmpty) {
       throw Exception('Stage 2: No GPS start clusters formed — runs started too far apart');
@@ -246,11 +247,11 @@ class CoastDownClusteringService {
     if (bestGroup.length < 3) {
       throw Exception('Stage 2: Largest cluster has only ${bestGroup.length} runs (need 3+)');
     }
-    print('✓ Stage 2 | Best cluster: ${bestGroup.length} runs within ${_startGpsRadiusM}m start radius');
+    AppLogger.log('✓ Stage 2 | Best cluster: ${bestGroup.length} runs within ${_startGpsRadiusM}m start radius');
 
     // ── Stage 3: Trim to gate distance (minimum run length); recalculate vEnd + altDrop ──
     final segments = _trimToGateDistance(bestGroup);
-    print('✓ Stage 3 | Trimmed ${segments.length} runs to gate distance');
+    AppLogger.log('✓ Stage 3 | Trimmed ${segments.length} runs to gate distance');
 
     if (segments.length < 3) {
       throw Exception('Stage 3: Only ${segments.length} runs survived trimming (need 3+)');
@@ -260,13 +261,13 @@ class CoastDownClusteringService {
     try {
       await _learnAndStoreSignature(segments);
     } catch (e) {
-      print('⚠ Stage 4 | Signature storage failed: $e');
+      AppLogger.log('⚠ Stage 4 | Signature storage failed: $e');
     }
 
     // ── Stage 5: Quality rank (duration consistency within trimmed set) ──
     // All runs are now the same distance — just return all ≥3; rank by CRR spread
     segments.sort((a, b) => a.rearPressure.compareTo(b.rearPressure));
-    print('✓ Pipeline complete: ${segments.length}/${recordsByRun.length} runs → regression');
+    AppLogger.log('✓ Pipeline complete: ${segments.length}/${recordsByRun.length} runs → regression');
 
     return segments;
   }
@@ -459,7 +460,7 @@ class CoastDownClusteringService {
         .map((r) => r.distances[r.end] - r.distances[r.start])
         .toList()..sort();
     final ratio = allRunDists.last > 0 ? gateLength / allRunDists.last : 1.0;
-    print('  ↳ Gate: entry=${entryGate.toStringAsFixed(0)} m'
+    AppLogger.log('  ↳ Gate: entry=${entryGate.toStringAsFixed(0)} m'
         ' → exit=${exitGate.toStringAsFixed(0)} m'
         '  |  length=${gateLength.toStringAsFixed(0)} m'
         '  |  ratio=${ratio.toStringAsFixed(2)}'
@@ -507,7 +508,7 @@ class CoastDownClusteringService {
       final altDrop  = altEntry - altExit;
 
       if (altDrop < _minAltitudeDropM) {
-        print('  ✗ Run ${raw.runIdx}: altDrop=${altDrop.toStringAsFixed(1)} m'
+        AppLogger.log('  ✗ Run ${raw.runIdx}: altDrop=${altDrop.toStringAsFixed(1)} m'
             ' < $_minAltitudeDropM m after gate trim, skipping');
         continue;
       }
@@ -520,7 +521,7 @@ class CoastDownClusteringService {
       final crr        = _calculateCRR(altDrop, gateLength, vEntry, vExit);
       final efficiency = gateLength / math.max(maxSpd, 0.1);
 
-      print('  ✓ Run ${raw.runIdx}: '
+      AppLogger.log('  ✓ Run ${raw.runIdx}: '
           'gate [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m | '
           'altDrop=${altDrop.toStringAsFixed(1)} m | '
           'vEntry=${vEntry.toStringAsFixed(1)}→vExit=${vExit.toStringAsFixed(1)} m/s | '
@@ -615,9 +616,9 @@ class CoastDownClusteringService {
       }
 
       await prefs.setString(_signatureKey, jsonEncode(list));
-      print('✓ Stage 4 | Signature saved: $sig');
+      AppLogger.log('✓ Stage 4 | Signature saved: $sig');
     } catch (e) {
-      print('⚠ Stage 4 | Storage error: $e');
+      AppLogger.log('⚠ Stage 4 | Storage error: $e');
     }
   }
 
@@ -646,7 +647,7 @@ class CoastDownClusteringService {
         }
       }
     } catch (e) {
-      print('⚠ Failed to load route signature: $e');
+      AppLogger.log('⚠ Failed to load route signature: $e');
     }
     return null;
   }

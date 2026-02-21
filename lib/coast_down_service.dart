@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'app_logger.dart';
 import 'dart:convert';
 import 'clustering_service.dart';
 
@@ -27,10 +28,10 @@ class CoastDownService {
     final File sourceFile;
     if (sensorFile.existsSync()) {
       sourceFile = sensorFile;
-      print('📂 Loading sensor records: $sensorRecordsPath');
+      AppLogger.log('📂 Loading sensor records: $sensorRecordsPath');
     } else if (jsonlFile.existsSync()) {
       sourceFile = jsonlFile;
-      print('📂 Loading JSONL: $jsonlPath');
+      AppLogger.log('📂 Loading JSONL: $jsonlPath');
     } else {
       throw Exception('No JSONL data file found at $jsonlPath');
     }
@@ -86,7 +87,7 @@ class CoastDownService {
       }
     }
 
-    print('📊 Parsed ${recordsByRun.length} runs, '
+    AppLogger.log('📊 Parsed ${recordsByRun.length} runs, '
         '${runMetadata.length} metadata entries');
 
     // ── 4. Delegate to 6-stage clustering pipeline ──
