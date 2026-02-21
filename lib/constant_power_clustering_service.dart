@@ -520,7 +520,7 @@ class ConstantPowerClusteringService {
     // This is the companion file written by FitWriter._writeSensorRecords().
     // It contains every 1-Hz sample: lapIndex, timestamp, speed_kmh, power,
     // cadence, distance, lat, lon — everything needed for segment detection.
-    final sensorPath = '$jsonlPath'.replaceAll(RegExp(r'\.jsonl$'), '') + '.sensor_records.jsonl';
+    final sensorPath = '${jsonlPath.replaceAll(RegExp(r'\.jsonl$'), '')}.sensor_records.jsonl';
     final sensorFile = File(sensorPath);
     if (!sensorFile.existsSync()) {
       print('⚠ sensor_records file not found: $sensorPath');
