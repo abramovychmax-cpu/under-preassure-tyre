@@ -912,6 +912,33 @@ class ConstantPowerClusteringService {
     );
   }
 
+  /// Returns average vibration magnitude (g) per lap from sensor_records.jsonl.
+  /// Returns empty map if file doesn't exist or has no vibration samples.
+  static Future<Map<int, double>> computeVibrationPerLap(String sensorJsonlPath) async {
+    final file = File(sensorJsonlPath);
+    if (!file.existsSync()) {
+      AppLogger.log('[Clustering] computeVibrationPerLap: file not found: $sensorJsonlPath');
+      return {};
+    }
+    final lapSamples = <int, List<double>>{};
+    for (final line in await file.readAsLines()) {
+      if (line.trim().isEmpty) continue;
+      try {
+        final json = jsonDecode(line) as Map<String, dynamic>;
+        final lapIdx = json['lapIndex'] as int?;
+        final vib = (json['vibration'] as num?)?.toDouble();
+        if (lapIdx == null || vib == null || vib <= 0) continue;
+        lapSamples.putIfAbsent(lapIdx, () => []).add(vib);
+      } catch (_) {}
+    }
+    final result = <int, double>{
+      for (final e in lapSamples.entries)
+        e.key: e.value.reduce((a, b) => a + b) / e.value.length,
+    };
+    AppLogger.log('[Clustering] computeVibrationPerLap: ${result.map((k, v) => MapEntry(k, v.toStringAsFixed(4)))}');
+    return result;
+  }
+
   /// Build regression data points: collect all (pressure, efficiency) pairs
   /// Only includes complete, high-quality matches
   static List<MapEntry<double, double>> buildRegressionPoints(

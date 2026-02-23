@@ -5,6 +5,7 @@ import 'lap_efficiency_instructions.dart';
 import 'sim_instructions.dart';
 import 'ui/app_menu_button.dart';
 import 'sensor_service.dart';
+import 'sensor_setup_page.dart';
 import 'ui/common_widgets.dart';
 
 class ProtocolSelectionPage extends StatelessWidget {
@@ -107,7 +108,7 @@ class ProtocolSelectionPage extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              openPartialOverlay(context, const SensorSetupPage(isOverlay: true));
             },
             child: const Text('GO TO SENSOR SETUP', style: TextStyle(color: Color(0xFF47D1C1), fontWeight: FontWeight.bold)),
           ),

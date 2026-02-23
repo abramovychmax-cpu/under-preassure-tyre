@@ -52,7 +52,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
   String _pressureUnit = 'PSI';
   double _rSquared = 0.0;
   double? _vibrationLossPercent;
-  
+
+  // Accelerometer vibration data (per-lap averages from sensor_records.jsonl)
+  Map<int, double> _vibPerLap = {};
+  Map<int, double> _pressPerLap = {};
+
   // Data quality validation
   double? _powerConsistencyPercent;  // CV of power across laps (circle/constant-power)
   String? _dataQualityWarning;       // Warning message if data quality is poor
@@ -113,25 +117,35 @@ class _AnalysisPageState extends State<AnalysisPage> {
       AppLogger.log('[AnalysisPage] fitPath: ${widget.fitFilePath}');
       AppLogger.log('[AnalysisPage] jsonlPath: $jsonlPath | exists: ${jsonlFile.existsSync()}');
 
-      // Prefer pressureUnit stored in the JSONL (written at recording time),
-      // so the display is correct even if the user later changes the settings.
+      // Read all JSONL lap lines: pressureUnit + per-lap pressure map
       if (jsonlFile.existsSync()) {
         try {
-          final firstLine = jsonlFile.readAsLinesSync().firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
+          final lines = jsonlFile.readAsLinesSync();
+          final pressPerLap = <int, double>{};
+          for (final line in lines) {
+            if (line.trim().isEmpty) continue;
+            final j = jsonDecode(line) as Map<String, dynamic>;
+            final lapIdx = j['lapIndex'] as int?;
+            final rear = (j['rearPressure'] as num?)?.toDouble();
+            if (lapIdx != null && rear != null) pressPerLap[lapIdx] = rear;
+          }
+          setState(() => _pressPerLap = pressPerLap);
+          AppLogger.log('[AnalysisPage] pressPerLap: $pressPerLap');
+          // pressureUnit from first lap line
+          final firstLine = lines.firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
           if (firstLine.isNotEmpty) {
             final j = jsonDecode(firstLine) as Map<String, dynamic>;
             if (j.containsKey('pressureUnit')) {
               _pressureUnit = j['pressureUnit'] as String;
               AppLogger.log('[AnalysisPage] pressureUnit from JSONL: $_pressureUnit');
             } else {
-              // Legacy files without pressureUnit: infer from value magnitude
               final rearP = (j['rearPressure'] as num?)?.toDouble() ?? 0.0;
               _pressureUnit = rearP > 20.0 ? 'PSI' : 'Bar';
               AppLogger.log('[AnalysisPage] pressureUnit inferred from value ($rearP): $_pressureUnit');
             }
           }
         } catch (e) {
-          AppLogger.log('[AnalysisPage] WARN: could not read pressureUnit from JSONL: $e');
+          AppLogger.log('[AnalysisPage] WARN: could not read JSONL: $e');
         }
       }
 
@@ -150,6 +164,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       if (widget.protocol == 'constant_power' || widget.protocol == 'sim') {
         _updateFeedback('🔍 Detecting constant-power segments...');
+        // Read real accelerometer vibration per lap from sensor records
+        final vibPerLap = await ConstantPowerClusteringService.computeVibrationPerLap(sensorPath);
+        setState(() => _vibPerLap = vibPerLap);
+        AppLogger.log('[AnalysisPage] vibPerLap (${vibPerLap.length} laps): ${ vibPerLap.map((k, v) => MapEntry(k, v.toStringAsFixed(4)))}');
         AppLogger.log('[AnalysisPage] Starting constant_power analysis (cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)...');
         final matchedSegments =
             await ConstantPowerClusteringService.analyzeConstantPower(
@@ -237,6 +255,27 @@ class _AnalysisPageState extends State<AnalysisPage> {
         extraWarning: trimmed.length < _minQuadraticPoints ? 'Only ${trimmed.length} data points; using observed best result (low confidence).' : null);
 
     AppLogger.log('[AnalysisPage] regression done | optimalRear=$_optimalRearPressure | optimalFront=$_optimalFrontPressure | R²=$_rSquared | confidence=$_confidenceLevel');
+
+    // ── Real vibration reduction from accelerometer ───────────────────────────
+    // Override the curve-based estimate with actual G data from sensor_records.
+    if (_vibPerLap.isNotEmpty && _pressPerLap.isNotEmpty && _optimalRearPressure != null) {
+      final maxPressLap = _pressPerLap.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+      final optimalP = _optimalRearPressure!;
+      final optLap = _pressPerLap.entries.reduce((a, b) =>
+          (a.value - optimalP).abs() < (b.value - optimalP).abs() ? a : b).key;
+      final vibAtMax = _vibPerLap[maxPressLap];
+      final vibAtOpt = _vibPerLap[optLap];
+      AppLogger.log('[AnalysisPage] vibration: '
+          'maxPressLap=$maxPressLap(${_pressPerLap[maxPressLap]?.toStringAsFixed(2)}) vibAtMax=${vibAtMax?.toStringAsFixed(4)} | '
+          'optLap=$optLap(${_pressPerLap[optLap]?.toStringAsFixed(2)}) vibAtOpt=${vibAtOpt?.toStringAsFixed(4)}');
+      if (vibAtMax != null && vibAtOpt != null && vibAtMax > 0 && maxPressLap != optLap) {
+        final realReduction = (vibAtMax - vibAtOpt) / vibAtMax * 100;
+        AppLogger.log('[AnalysisPage] real vibration reduction: ${realReduction.toStringAsFixed(2)}%');
+        setState(() {
+          _vibrationLossPercent = realReduction > 0.01 ? realReduction.clamp(0.0, 999.0) : null;
+        });
+      }
+    }
 
     setState(() {
       _isLoading = false;
