@@ -684,6 +684,11 @@ class SensorService {
   }
 
   void _parsePower(List<int> data, String deviceId) {
+    // In sim mode, ignore all real BLE power data.
+    // Ghost bonded devices on iOS can send 0 W notifications that override the
+    // simulated value and corrupt _lastPublishedPower for subsequent laps.
+    if (_simMode) return;
+
     // Handling Cadence from Power Meter Characteristic (0x2A63)
     // Format according to GATT spec for Cycling Power Measurement
     // Flags: 16 bits (Uint16)

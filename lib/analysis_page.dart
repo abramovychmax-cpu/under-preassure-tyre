@@ -168,16 +168,27 @@ class _AnalysisPageState extends State<AnalysisPage> {
         final vibPerLap = await ConstantPowerClusteringService.computeVibrationPerLap(sensorPath);
         setState(() => _vibPerLap = vibPerLap);
         AppLogger.log('[AnalysisPage] vibPerLap (${vibPerLap.length} laps): ${ vibPerLap.map((k, v) => MapEntry(k, v.toStringAsFixed(4)))}');
-        AppLogger.log('[AnalysisPage] Starting constant_power analysis (cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)...');
-        final matchedSegments =
-            await ConstantPowerClusteringService.analyzeConstantPower(
-          fitBytes,
-          jsonlPath,
-          cda: _cdaForBikeType(widget.bikeType),
-          rho: _standardAirDensity(),
-          cvThreshold: cvThreshold,
-        );
-        AppLogger.log('[AnalysisPage] analyzeConstantPower returned ${matchedSegments.length} matched segments');
+
+        List<MatchedSegment> matchedSegments;
+        if (widget.protocol == 'sim') {
+          AppLogger.log('[AnalysisPage] Starting sim analysis (avg speed per lap)...');
+          matchedSegments =
+              await ConstantPowerClusteringService.analyzeSimProtocol(
+            fitBytes,
+            jsonlPath,
+          );
+        } else {
+          AppLogger.log('[AnalysisPage] Starting constant_power analysis (cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)...');
+          matchedSegments =
+              await ConstantPowerClusteringService.analyzeConstantPower(
+            fitBytes,
+            jsonlPath,
+            cda: _cdaForBikeType(widget.bikeType),
+            rho: _standardAirDensity(),
+            cvThreshold: cvThreshold,
+          );
+        }
+        AppLogger.log('[AnalysisPage] analysis returned ${matchedSegments.length} matched segments');
         await _analyzeConstantPowerProtocol(matchedSegments);
       } else if (widget.protocol == 'lap_efficiency') {
         _updateFeedback('🔄 Analyzing lap efficiency data...');

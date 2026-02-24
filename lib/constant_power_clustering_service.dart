@@ -496,6 +496,129 @@ class ConstantPowerClusteringService {
   // Gate-trimmed analysis pipeline (preferred entry point)
   // ────────────────────────────────────────────────────────────────────────────
 
+  /// Simplified analysis for the Simulation protocol.
+  ///
+  /// In sim mode there is no real road, no GPS zone matching required, and power
+  /// data may be unreliable (ghost BLE notifications on iOS can zero out
+  /// _lastPublishedPower between laps). This method simply:
+  ///   1. Reads pressure metadata (one entry per lap) from *.fit.jsonl
+  ///   2. Reads per-second speed from *.fit.sensor_records.jsonl
+  ///   3. Computes average speed per lap (filtering out near-zero samples)
+  ///   4. Returns a single [MatchedSegment] whose efficiencies are avg speeds
+  ///      — directly usable by the quadratic regression (higher speed = better
+  ///      tyre efficiency at that pressure).
+  static Future<List<MatchedSegment>> analyzeSimProtocol(
+    List<int> fitBytes,
+    String jsonlPath,
+  ) async {
+    final Map<int, List<Map<String, dynamic>>> recordsByLap = {};
+    final Map<int, Map<String, dynamic>> lapMetadata = {};
+
+    // ── Pressure metadata ──────────────────────────────────────────────────
+    final jsonlFile = File(jsonlPath);
+    if (jsonlFile.existsSync()) {
+      for (final line in await jsonlFile.readAsLines()) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final json = jsonDecode(line) as Map<String, dynamic>;
+          final lapIdx = json['lapIndex'] as int?;
+          if (lapIdx == null) continue;
+          if (json.containsKey('frontPressure')) lapMetadata[lapIdx] = json;
+        } catch (e) {
+          AppLogger.log('ERROR [SimAnalysis] pressure JSONL: $e');
+        }
+      }
+    }
+
+    // ── Sensor records ─────────────────────────────────────────────────────
+    final sensorPath =
+        '${jsonlPath.replaceAll(RegExp(r'\.jsonl$'), '')}.sensor_records.jsonl';
+    final sensorFile = File(sensorPath);
+    if (!sensorFile.existsSync()) {
+      AppLogger.log('⚠ [SimAnalysis] sensor_records file not found: $sensorPath');
+    } else {
+      for (final line in await sensorFile.readAsLines()) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final json = jsonDecode(line) as Map<String, dynamic>;
+          final lapIdx = json['lapIndex'] as int?;
+          if (lapIdx == null) continue;
+          recordsByLap.putIfAbsent(lapIdx, () => []).add(json);
+        } catch (e) {
+          AppLogger.log('ERROR [SimAnalysis] sensor record: $e');
+        }
+      }
+    }
+
+    AppLogger.log('[SimAnalysis] ${lapMetadata.length} laps metadata | '
+        '${recordsByLap.values.fold(0, (s, l) => s + l.length)} sensor records');
+
+    final pressures    = <double>[];
+    final efficiencies = <double>[];
+    final repByLap     = <int, ConstantPowerSegment>{};
+
+    for (int lapIdx = 0; lapIdx < recordsByLap.length; lapIdx++) {
+      final records  = recordsByLap[lapIdx] ?? [];
+      final meta     = lapMetadata[lapIdx]  ?? {};
+      final pressure = (meta['rearPressure'] as num?)?.toDouble() ?? 0.0;
+      if (pressure <= 0) {
+        AppLogger.log('[SimAnalysis] lap $lapIdx: no pressure metadata — skipping');
+        continue;
+      }
+
+      // Only count records where the rider is actually moving (>3 km/h)
+      final speeds = records
+          .map((r) => (r['speed_kmh'] as num?)?.toDouble() ?? 0.0)
+          .where((s) => s > 3.0)
+          .toList();
+
+      if (speeds.length < 5) {
+        AppLogger.log('[SimAnalysis] lap $lapIdx: only ${speeds.length} moving'
+            ' records — skipping');
+        continue;
+      }
+
+      final avgSpeed = speeds.fold(0.0, (a, b) => a + b) / speeds.length;
+      AppLogger.log('[SimAnalysis] lap $lapIdx: rear=$pressure psi |'
+          ' avgSpeed=${avgSpeed.toStringAsFixed(2)} km/h |'
+          ' movingRecords=${speeds.length}');
+
+      pressures.add(pressure);
+      efficiencies.add(avgSpeed);
+      repByLap[lapIdx] = ConstantPowerSegment(
+        segmentIndex: lapIdx,
+        lapIndex:     lapIdx,
+        pressure:     pressure,
+        avgLat:       0.0,
+        avgLon:       0.0,
+        avgPower:     0.0,
+        cvPower:      0.0,
+        avgSpeed:     avgSpeed,
+        distance:     (avgSpeed / 3.6) * records.length.toDouble(),
+        duration:     records.length.toDouble(),
+        efficiency:   avgSpeed,
+        numRecords:   speeds.length,
+        startTime:    DateTime.now(),
+        endTime:      DateTime.now(),
+      );
+    }
+
+    if (pressures.length < 2) {
+      AppLogger.log('[SimAnalysis] ⚠ Not enough valid laps (${pressures.length}) for regression');
+      return [];
+    }
+
+    AppLogger.log('[SimAnalysis] ✓ ${pressures.length} laps → single MatchedSegment for regression');
+    return [
+      MatchedSegment(
+        segmentId:     0,
+        segmentsByLap: repByLap,
+        pressures:     pressures,
+        efficiencies:  efficiencies,
+      ),
+    ];
+  }
+
   /// Full constant-power analysis with Strava-style gate trimming.
   ///
   /// 1. Parse JSONL → raw per-sample segments per lap
