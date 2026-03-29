@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_logger.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:path_provider/path_provider.dart';
@@ -171,23 +172,18 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
         List<MatchedSegment> matchedSegments;
         if (widget.protocol == 'sim') {
-          AppLogger.log('[AnalysisPage] Starting sim analysis (avg speed per lap)...');
-          matchedSegments =
-              await ConstantPowerClusteringService.analyzeSimProtocol(
-            fitBytes,
-            jsonlPath,
-          );
+          AppLogger.log('[AnalysisPage] Starting sim analysis via constant_power pipeline (cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)...');
         } else {
           AppLogger.log('[AnalysisPage] Starting constant_power analysis (cvThreshold=${(cvThreshold * 100).toStringAsFixed(0)}%)...');
-          matchedSegments =
-              await ConstantPowerClusteringService.analyzeConstantPower(
-            fitBytes,
-            jsonlPath,
-            cda: _cdaForBikeType(widget.bikeType),
-            rho: _standardAirDensity(),
-            cvThreshold: cvThreshold,
-          );
         }
+        matchedSegments =
+            await ConstantPowerClusteringService.analyzeConstantPower(
+          fitBytes,
+          jsonlPath,
+          cda: _cdaForBikeType(widget.bikeType),
+          rho: _standardAirDensity(),
+          cvThreshold: cvThreshold,
+        );
         AppLogger.log('[AnalysisPage] analysis returned ${matchedSegments.length} matched segments');
         await _analyzeConstantPowerProtocol(matchedSegments);
       } else if (widget.protocol == 'lap_efficiency') {
@@ -791,7 +787,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
               Expanded(
                 child: _buildActionButton(
                   label: 'SAVE DATA',
-                  icon: Icons.ios_share,
+                  icon: Icons.bookmark_outline_rounded,
                   color: const Color(0xFF444444),
                   onPressed: _saveTest,
                   isFilled: false,
@@ -808,6 +804,17 @@ class _AnalysisPageState extends State<AnalysisPage> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: _buildActionButton(
+              label: 'SHARE FIT FILE',
+              icon: Icons.ios_share_rounded,
+              color: const Color(0xFF47D1C1),
+              onPressed: _shareFitFile,
+              isFilled: false,
+            ),
           ),
           const SizedBox(height: 32),
         ],
@@ -847,6 +854,29 @@ class _AnalysisPageState extends State<AnalysisPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _shareFitFile() async {
+    final fitFile = File(widget.fitFilePath);
+    if (!await fitFile.exists()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('FIT file not found')),
+      );
+      return;
+    }
+    try {
+      await Share.shareXFiles(
+        [XFile(widget.fitFilePath)],
+        text: 'Perfect Pressure — FIT session file',
+      );
+    } catch (e) {
+      AppLogger.log('[AnalysisPage] share error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not share file: $e')),
+      );
+    }
   }
 
   Future<void> _saveTest() async {

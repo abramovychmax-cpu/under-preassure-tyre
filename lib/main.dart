@@ -70,6 +70,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         brightness: Brightness.light,
         useMaterial3: true,
       ),
+      builder: (context, child) {
+        // Constrain layout to phone-width on tablets/iPad — max 600px centered
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: child!,
+          ),
+        );
+      },
       home: widget.returningUser ? const SensorSetupPage() : const WelcomePage(),
     );
   }

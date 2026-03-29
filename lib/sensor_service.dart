@@ -96,6 +96,13 @@ class SensorService {
   final Set<String> _connectingIds = {}; 
   bool _sequentialConnectInProgress = false;
   final Map<String, int> _requestedMtu = {};
+
+  // One connectionState subscription per device — cancelled before each reconnect
+  // to prevent duplicate disconnect handlers accumulating across reconnects.
+  final Map<String, StreamSubscription> _connectionStateSubscriptions = {};
+  // Characteristic notification subscriptions per device — cancelled and
+  // re-created on every reconnect so the new characteristic object is always live.
+  final Map<String, List<StreamSubscription>> _notificationSubscriptions = {};
   
   double currentSpeedValue = 0.0;
   double currentDistanceValue = 0.0;
@@ -353,7 +360,11 @@ class SensorService {
         await Future.delayed(const Duration(milliseconds: 500)); 
       }
 
-      device.connectionState.listen((state) {
+      // Cancel the previous connectionState listener for this device before
+      // adding a new one. Without this, every reconnect stacks another listener
+      // and each disconnect fires _handleDisconnection N times (N = reconnect count).
+      await _connectionStateSubscriptions[deviceId]?.cancel();
+      _connectionStateSubscriptions[deviceId] = device.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected) {
           _handleDisconnection(deviceId);
         }
@@ -379,8 +390,34 @@ class SensorService {
       }
 
       await Future.delayed(const Duration(milliseconds: 800));
-      List<BluetoothService> services = await device.discoverServices();
-      
+
+      // Cancel any stale characteristic notification subscriptions from the
+      // previous connection before discovering services. Old subscriptions
+      // reference the previous BluetoothCharacteristic object and will never
+      // receive data from the freshly re-connected device.
+      for (final sub in (_notificationSubscriptions[deviceId] ?? [])) {
+        await sub.cancel();
+      }
+      _notificationSubscriptions[deviceId] = [];
+
+      // Retry discoverServices up to 3 times. On iOS, the GATT stack sometimes
+      // reports fbp-code: 6 (device disconnected) for ~1 s after connect()
+      // resolves, causing the first discoverServices call to throw.
+      List<BluetoothService> services = [];
+      for (int attempt = 0; attempt < 3; attempt++) {
+        try {
+          services = await device.discoverServices();
+          break;
+        } catch (e) {
+          AppLogger.log('discoverServices attempt ${attempt + 1} failed for $deviceId: $e');
+          if (attempt < 2) {
+            await Future.delayed(const Duration(milliseconds: 1500));
+          } else {
+            rethrow;
+          }
+        }
+      }
+
       _connectedDevices[deviceId] = device;
       AppLogger.log('REGISTERED CONNECTED DEVICE: $deviceId');
       // update the connected names broadcast so UI can show friendly names
@@ -391,14 +428,16 @@ class SensorService {
         if (s.uuid == Guid("1816")) {
           for (var c in s.characteristics) {
             if (c.uuid == Guid("2A5B")) {
-              await _enableNotification(c, (data) => _parseCSC(data, deviceId));
+              final sub = await _enableNotification(c, (data) => _parseCSC(data, deviceId));
+              if (sub != null) _notificationSubscriptions[deviceId]!.add(sub);
             }
           }
         }
         if (s.uuid == Guid("1818")) {
           for (var c in s.characteristics) {
             if (c.uuid == Guid("2A63")) {
-              await _enableNotification(c, (data) => _parsePower(data, deviceId));
+              final sub = await _enableNotification(c, (data) => _parsePower(data, deviceId));
+              if (sub != null) _notificationSubscriptions[deviceId]!.add(sub);
             }
           }
         }
@@ -415,23 +454,43 @@ class SensorService {
     }
   }
 
-  Future<void> _enableNotification(BluetoothCharacteristic c, Function(List<int>) parser) async {
+  /// Enables notifications on [c] and returns the [StreamSubscription] so the
+  /// caller can cancel it on the next reconnect. Returns null only if both the
+  /// setNotifyValue path and the descriptor fallback path throw.
+  Future<StreamSubscription?> _enableNotification(
+    BluetoothCharacteristic c,
+    Function(List<int>) parser,
+  ) async {
     try {
       await c.setNotifyValue(true);
-      c.lastValueStream.listen((v) => parser(v));
+      return c.lastValueStream.listen((v) => parser(v));
     } catch (e) {
-      for (BluetoothDescriptor d in c.descriptors) {
-        if (d.uuid == Guid("2902")) {
-          await d.write([0x01, 0x00]);
+      try {
+        for (BluetoothDescriptor d in c.descriptors) {
+          if (d.uuid == Guid("2902")) {
+            await d.write([0x01, 0x00]);
+          }
         }
-      }
-      c.lastValueStream.listen((v) => parser(v));
+      } catch (_) {}
+      return c.lastValueStream.listen((v) => parser(v));
     }
   }
 
   void _handleDisconnection(String id) {
+    // Idempotency guard — duplicate listeners (before fix) or rapid disconnect
+    // events can call this multiple times for the same physical disconnect.
+    if (!_connectedDevices.containsKey(id) && !_connectingIds.contains(id)) return;
+
     _connectedDevices.remove(id);
     _connectingIds.remove(id);
+
+    // Cancel characteristic notification subscriptions to free resources and
+    // avoid leaking dead listeners into the next connection cycle.
+    for (final sub in (_notificationSubscriptions[id] ?? [])) {
+      sub.cancel();
+    }
+    _notificationSubscriptions.remove(id);
+
     if (id == _savedSpeedId) {
       _usingBt = false;
       _lastWheelRevs = null;
@@ -446,6 +505,12 @@ class SensorService {
 
   // call this when the service is being destroyed (not currently used)
   void dispose() {
+    for (final sub in _connectionStateSubscriptions.values) { sub.cancel(); }
+    _connectionStateSubscriptions.clear();
+    for (final subs in _notificationSubscriptions.values) {
+      for (final sub in subs) { sub.cancel(); }
+    }
+    _notificationSubscriptions.clear();
     _speedController.close();
     _distanceController.close();
     _powerController.close();
@@ -467,15 +532,19 @@ class SensorService {
   bool _simMode = false;
   bool get isSimMode => _simMode;
   Timer? _simTimer;
-  double _simPosition = 0.0;
-  bool _simForward = true;
+  // Oval circuit: angle in radians, increases continuously each tick
+  double _simAngle = 0.0;
   double _simPhase = 0.0;
   double _simBaseSpeed = 25.0;
   final Random _simRandom = Random();
+  // Oval centre (Bois de Boulogne velodrome area, Paris)
   static const double _simGateLat = 48.8566;
   static const double _simGateLon = 2.3522;
-  static const double _simRouteMeters = 200.0;
+  // Oval semi-axes in metres — perimeter ≈ 500 m
+  static const double _simOvalA = 100.0; // N-S half-axis
+  static const double _simOvalB =  60.0; // E-W half-axis
   static const double _simMetersPerDegreeLat = 111000.0;
+  static const double _simMetersPerDegreeLon = 73000.0; // at 48.9°N
 
   void enableSimMode() => _simMode = true;
   void disableSimMode() { _simMode = false; _simTimer?.cancel(); _simTimer = null; }
@@ -490,18 +559,19 @@ class SensorService {
   void _startSimTimer() {
     _simTimer?.cancel();
     _simPhase = 0.0;
-    _simPosition = 0.0;
-    _simForward = true;
+    // Start angle at 0 (top of oval = gate position) each new lap so that
+    // matching GPS segments line up across laps.
+    _simAngle = 0.0;
     AppLogger.log('[SensorService] _startSimTimer started | baseSpeed=$_simBaseSpeed km/h | gateLat=$_simGateLat gateLon=$_simGateLon');
 
-    // immediately seed the simulated coordinates so that the very first
-    // recording timer (which may fire before the 500ms tick) has valid
-    // lat/lon.  Without this, stale values from a previous real-GPS session
-    // (e.g. Warsaw) can leak into the FIT file and cause the track to be
-    // rejected by Strava.
-    _currentLat = _simGateLat;
+    // Seed starting position at the oval gate so the first 1-Hz record
+    // always has valid GPS coordinates.
+    _currentLat = _simGateLat + _simOvalA / _simMetersPerDegreeLat;
     _currentLon = _simGateLon;
     _currentAltitude = 0.0;
+
+    // Average radius for angular-velocity calculation (geometric mean of axes)
+    const double avgRadius = 77.5; // sqrt(100 * 60)
 
     _simTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       _simPhase += 0.5;
@@ -509,16 +579,14 @@ class SensorService {
       final double speedKmh = (_simBaseSpeed + noise).clamp(10.0, 60.0);
       final double speedMs = speedKmh / 3.6;
 
-      if (_simForward) {
-        _simPosition += speedMs * 0.5;
-        if (_simPosition >= _simRouteMeters) { _simPosition = _simRouteMeters; _simForward = false; }
-      } else {
-        _simPosition -= speedMs * 0.5;
-        if (_simPosition <= 0) { _simPosition = 0; _simForward = true; }
-      }
+      // Advance angle proportional to speed (constant angular velocity approximation)
+      _simAngle += speedMs * 0.5 / avgRadius; // radians per 500 ms tick
 
-      _currentLat = _simGateLat + (_simPosition / _simMetersPerDegreeLat);
-      _currentLon = _simGateLon;
+      // Oval parametric equation — top of oval (angle=π/2) is the gate
+      _currentLat = _simGateLat +
+          (_simOvalA * sin(_simAngle)) / _simMetersPerDegreeLat;
+      _currentLon = _simGateLon +
+          (_simOvalB * cos(_simAngle)) / _simMetersPerDegreeLon;
 
       final double distKm = speedMs * 0.5 / 1000.0;
       _currentRunDistance += distKm;
@@ -728,9 +796,16 @@ class SensorService {
     // --- CADENCE EXTRACTION LOGIC ---
     // Check Bit 5 (0x20): Crank Revolution Data Present
     bool hasCrankData = (flags & 0x20) != 0;
-    
-    // Only parse cadence if this device is the desigated cadence source
-    if (hasCrankData && deviceId == _savedCadenceId) {
+
+    // Extract cadence when:
+    //   a) device is explicitly saved as the cadence source, OR
+    //   b) device is the power meter AND no separate cadence sensor is saved
+    //      (most power meters broadcast crank data in 0x2A63 for free)
+    final bool shouldParseCadence = hasCrankData &&
+        (deviceId == _savedCadenceId ||
+            (deviceId == _savedPowerId && _savedCadenceId == null));
+
+    if (shouldParseCadence) {
          int offset = 4; // Start after Flags(2) + Power(2)
          
          // If Bit 0 (Pedal Power Balance) is present -> +1 byte (Uint8)

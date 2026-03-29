@@ -153,6 +153,41 @@ lib/
 
 ---
 
+## 🏪 App Store Submission Checklist
+
+### Before building the release IPA
+
+1. **Register `PrivacyInfo.xcprivacy` in Xcode** *(required — hard rejection without this since May 2024)*
+   - Open `ios/Runner.xcodeproj` in Xcode
+   - In the file navigator, right-click the **Runner** group → **Add Files to "Runner"**
+   - Select `ios/Runner/PrivacyInfo.xcprivacy`
+   - Ensure **"Add to target: Runner"** is checked → click **Add**
+   - Clean build folder (`⇧⌘K`) then rebuild
+
+2. **Set your team & signing** in Xcode → Runner target → Signing & Capabilities → select your Apple Developer team.
+
+3. **Bundle ID** is set to `app.perfectpressure` — register it in [App Store Connect](https://appstoreconnect.apple.com) → Identifiers before first archive.
+
+4. **App Store Connect metadata** required before submission:
+   - At least one screenshot for **6.7"** and **6.1"** iPhone sizes
+   - App **description**, subtitle, keywords
+   - Category: **Sports** (or Health & Fitness)
+   - **Privacy Policy URL** (mandatory — app uses Location)
+   - Age rating questionnaire
+
+### Release build commands
+
+```bash
+# iOS (requires macOS + Xcode)
+flutter build ipa --release
+
+# Android
+flutter build apk --release
+flutter build appbundle --release   # preferred for Play Store
+```
+
+---
+
 ## ⚠️ Safety & Testing Guidelines
 
 - **Traffic** — Use routes with zero or minimal traffic.

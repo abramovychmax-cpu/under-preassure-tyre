@@ -59,7 +59,7 @@ class _ConstantPowerInstructionsState extends State<ConstantPowerInstructions> {
                     _bulletPoint('Only repeatable segments with similar power (±10%) are used in analysis.'),
                     const SizedBox(height: 24),
                     _sectionHeader('Phone'),
-                    _bulletPoint('Mount your phone on the handlebar. Keeping it in a pocket changes the bike weight distribution and may affect results.'),
+                    _bulletPoint('Mount your phone on the handlebar for the best vibration reading.'),
                     const SizedBox(height: 20),
                   ],
                 ),

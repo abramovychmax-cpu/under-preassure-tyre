@@ -184,11 +184,31 @@ class ConstantPowerClusteringService {
     return math.sqrt(variance) / mean;
   }
 
+  /// Apply a causal 10-second rolling average to a list of 1-Hz power samples.
+  ///
+  /// Each output[i] = mean of input[max(0, i-9)..i] (up to 10 samples).
+  /// This mirrors how Garmin/Strava smooth instantaneous power before reporting
+  /// "steady effort" — a 80–160 W real-world effort at 100 W target averages
+  /// to ~100 W ± 5 W after this pass, making CV ≈ 5% which cleanly passes the
+  /// 15% threshold without loosening quality gates.
+  static List<double> _smooth10s(List<double> powers) {
+    const window = 10;
+    final smoothed = List<double>.filled(powers.length, 0.0);
+    for (int i = 0; i < powers.length; i++) {
+      final start = math.max(0, i - window + 1);
+      final slice = powers.sublist(start, i + 1);
+      smoothed[i] = slice.fold(0.0, (a, b) => a + b) / slice.length;
+    }
+    return smoothed;
+  }
+
   /// Detect constant-power segments within a lap from JSONL records.
   ///
   /// Uses a **growing window**: starts at minWindow samples and extends
   /// forward as long as the power CV stays below [segmentThreshold].
   /// This avoids fragmenting long stable efforts into many 10-second pieces.
+  /// CV is computed on 10-second rolling-averaged power so that normal
+  /// pedalling stroke variation (±30–60 W) does not break valid segments.
   static List<ConstantPowerSegment> _detectConstantPowerSegmentsFromJsonl(
     List<Map<String, dynamic>> records,
     int lapIdx,
@@ -198,17 +218,24 @@ class ConstantPowerClusteringService {
     if (records.isEmpty) return [];
 
     final segments = <ConstantPowerSegment>[];
-    final segmentThreshold = cvThreshold; // CV threshold = constant power
+    final segmentThreshold = cvThreshold;
     const minWindow = 10;          // minimum stable run length (≈10 s at 1 Hz)
+
+    // Pre-smooth the entire lap's power series with a 10-second rolling average.
+    // This keeps the 15% CV threshold meaningful while tolerating real-world
+    // pedalling stroke variation (80–160 W at a 100 W target → ~5% CV after smoothing).
+    final rawPowers = records
+        .map((r) => (r['power'] as num?)?.toDouble() ?? 0.0)
+        .toList();
+    final smoothPowers = _smooth10s(rawPowers);
 
     int i = 0;
     int segmentId = 0;
 
     while (i + minWindow <= records.length) {
-      // ── Seed: check the minimum window first ──────────────────────────────
-      List<double> powers = records
+      // ── Seed: check the minimum window first (on smoothed power) ─────────
+      List<double> powers = smoothPowers
           .sublist(i, i + minWindow)
-          .map((r) => (r['power'] as num?)?.toDouble() ?? 0.0)
           .where((p) => p > 0)
           .toList();
 
@@ -220,7 +247,7 @@ class ConstantPowerClusteringService {
       // ── Grow: extend while the growing window stays stable ────────────────
       int end = i + minWindow; // exclusive end index
       while (end < records.length) {
-        final p = (records[end]['power'] as num?)?.toDouble() ?? 0.0;
+        final p = smoothPowers[end];
         if (p <= 0) break; // zero/missing power breaks the run
         final extended = [...powers, p];
         if (_cv(extended) >= segmentThreshold) break;
@@ -309,13 +336,23 @@ class ConstantPowerClusteringService {
     final segmentThreshold = cvThreshold;
     const minWindow = 10;
 
+    // Pre-smooth the entire lap's power series with a 10-second rolling average.
+    // CV is then computed on the smoothed series so normal pedalling stroke
+    // variation (±30–60 W at a 100 W target) does not prevent valid segments
+    // from being detected. The raw (unsmoothed) powers are still stored in
+    // _RawPowerSegment for the aero-corrected efficiency calculation.
+    final rawPowers = records
+        .map((r) => (r['power'] as num?)?.toDouble() ?? 0.0)
+        .toList();
+    final smoothPowers = _smooth10s(rawPowers);
+
     int i = 0;
     int segmentId = 0;
 
     while (i + minWindow <= records.length) {
-      List<double> powers = records
+      // Seed and grow on smoothed power; store raw power in the segment.
+      List<double> powers = smoothPowers
           .sublist(i, i + minWindow)
-          .map((r) => (r['power'] as num?)?.toDouble() ?? 0.0)
           .where((p) => p > 0)
           .toList();
 
@@ -326,7 +363,7 @@ class ConstantPowerClusteringService {
 
       int end = i + minWindow;
       while (end < records.length) {
-        final p = (records[end]['power'] as num?)?.toDouble() ?? 0.0;
+        final p = smoothPowers[end];
         if (p <= 0) break;
         final extended = [...powers, p];
         if (_cv(extended) >= segmentThreshold) break;
