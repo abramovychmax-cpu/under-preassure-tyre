@@ -286,7 +286,7 @@ class ConstantPowerClusteringService {
       final duration  = window.length.toDouble(); // seconds at 1 Hz
       // Fix: avgSpeed is km/h → convert to m/s before multiplying by seconds
       final distance  = (avgSpeed / 3.6) * duration;
-      final efficiency = avgPower > 0 ? avgSpeed / avgPower : 0.0;
+      final efficiency = avgPower > 0 ? avgPower / avgSpeed : 0.0;
 
       segments.add(ConstantPowerSegment(
         segmentIndex: segmentId,

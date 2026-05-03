@@ -391,7 +391,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
     // Two-point fallback: pick best observed point; mark low confidence
     if (dataPoints.length < _minQuadraticPoints && allowTwoPoint) {
-      final best = dataPoints.reduce((a, b) => a.value >= b.value ? a : b);
+      final best = dataPoints.reduce((a, b) => a.value <= b.value ? a : b);
       setState(() {
         _coeffA = null;
         _coeffB = null;
@@ -472,9 +472,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
     double optimalP = (a == 0) ? double.nan : -b / (2 * a);
     AppLogger.log('[AnalysisPage] vertex optimalP=$optimalP | opens ${a > 0 ? "UP (min rolling resistance ✓)" : "DOWN"}');
 
-    if (optimalP.isNaN || optimalP.isInfinite || optimalP <= 0) {
+    if (optimalP.isNaN || optimalP.isInfinite || optimalP <= 0 || a < 0) {
       // Degenerate — fall back to best observed point
-      final best = dataPoints.reduce((x, y) => x.value >= y.value ? x : y);
+      final best = dataPoints.reduce((x, y) => x.value <= y.value ? x : y);
       setState(() {
         _coeffA = null; _coeffB = null; _coeffC = null;
         _optimalRearPressure = best.key;
@@ -501,8 +501,8 @@ class _AnalysisPageState extends State<AnalysisPage> {
     // Compare efficiency at max tested pressure vs optimal pressure.
     // A positive value means we gain efficiency (= less surface impedance/vibration)
     // by lowering from max pressure to optimal.
-    // If a >= 0 the parabola opens upward → vertex is a trough, not a peak;
-    // the metric is meaningless in that case → hide badge.
+      // We expect A > 0 (U shape). If A < 0, it means the metric is meaningless.
+      // We expect A > 0 (U shape). If A < 0, it means the metric is meaningless.
     final maxPressure = dataPoints.map((p) => p.key).reduce(math.max);
     final effAtMax = a * maxPressure * maxPressure + b * maxPressure + cFinal;
     final effAtOpt = a * optimalP * optimalP + b * optimalP + cFinal;
@@ -511,7 +511,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         : 0.0;
     AppLogger.log('[AnalysisPage] vibration: a=$a effAtOpt=${effAtOpt.toStringAsFixed(6)} effAtMax=${effAtMax.toStringAsFixed(6)} rawLoss=${rawVibrationLoss.toStringAsFixed(2)}%');
     // Only show badge when curve opens downward AND gain is meaningfully positive
-    final vibrationLoss = (a < 0 && rawVibrationLoss > 0.001) ? rawVibrationLoss : -1.0;
+      final vibrationLoss = (a > 0 && rawVibrationLoss > 0.001) ? rawVibrationLoss : -1.0;
 
     // ── Confidence classification ─────────────────────────────────────────────
     String? warning = extraWarning;

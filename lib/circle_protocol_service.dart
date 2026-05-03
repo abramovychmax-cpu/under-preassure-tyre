@@ -285,7 +285,7 @@ class CircleProtocolService {
     final dataQuality = (records.length.toDouble() / 60.0).clamp(0.5, 1.0) * powerFactor * speedFactor;
 
     // Efficiency: avg_speed / avg_power (km/h per watt)
-    final efficiency = avgPower > 0 ? avgSpeed / avgPower : 0.0;
+    final efficiency = avgPower > 0 ? avgPower / avgSpeed : 0.0;
 
     // Duration and distance
     final duration = records.length.toDouble(); // Approximate in seconds

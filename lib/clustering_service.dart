@@ -534,7 +534,7 @@ class CoastDownClusteringService {
       final duration = (exitIdx - entryIdx).toDouble() + exitFrac - entryFrac;
 
       final crr        = _calculateCRR(altDrop, gateLength, vEntry, vExit);
-      final efficiency = gateLength / math.max(maxSpd, 0.1);
+      final efficiency = avgSpd; // Use accurate Avg Speed from Speed Sensor
 
       AppLogger.log('  ✓ Run ${raw.runIdx}: '
           'gate [${entryGate.toStringAsFixed(0)}, ${exitGate.toStringAsFixed(0)}] m | '
