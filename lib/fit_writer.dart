@@ -222,8 +222,8 @@ class FitWriter {
     // fit_tool expects Unix milliseconds — no clamping needed here.
     final int timestamp = _dateTimeToFitEpoch(recordTime);
 
-    final lat = (record['lat'] as num?)?.toDouble() ?? 0.0;
-    final lon = (record['lon'] as num?)?.toDouble() ?? 0.0;
+    final double? lat = record.containsKey('lat') ? (record['lat'] as num).toDouble() : null;
+    final double? lon = record.containsKey('lon') ? (record['lon'] as num).toDouble() : null;
     final speedKmh = (record['speed_kmh'] as num?)?.toDouble() ?? 0.0;
     final speed = speedKmh / 3.6; // Convert km/h to m/s
     final power = (record['power'] as num?)?.toInt() ?? 0;
@@ -253,20 +253,24 @@ class FitWriter {
       'cadence': cadence,
       'distance': distance,
       'altitude': altitude,
-      'lat': lat,
-      'lon': lon,
+      'lat': lat ?? 0.0,
+      'lon': lon ?? 0.0,
     });
 
-    // Create Record message
+    // Create Record message — only set GPS fields when we have valid coordinates.
+    // lat/lon == null means GPS was unavailable; leaving the fields unset
+    // (instead of writing 0.0 which maps to Gulf of Guinea) keeps the FIT trace clean.
     final recordMsg = RecordMessage()
       ..timestamp = timestamp
-      ..positionLat = lat
-      ..positionLong = lon
       ..altitude = altitude
       ..speed = speed // m/s
       ..distance = distance // meters
       ..cadence = cadence // rpm
       ..power = power; // watts
+    if (lat != null && lon != null) {
+      recordMsg.positionLat = lat;
+      recordMsg.positionLong = lon;
+    }
 
     _records.add(recordMsg);
     if (_recordCount % 30 == 0) {

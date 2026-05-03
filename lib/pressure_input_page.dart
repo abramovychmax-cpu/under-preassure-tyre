@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'recording_page.dart';
@@ -26,7 +27,13 @@ class _PressureInputPageState extends State<PressureInputPage> {
   String _pressureUnit = 'PSI';
   String _bikeType = 'Road';
   double _calculatedFrontPressure = 60.0;
-  final List<Map<String, double>> _previousPressures = []; // Store previous run pressures
+  final List<Map<String, double>> _previousPressures = [];
+
+  // Sensor connection state
+  bool _speedConnected = false;
+  bool _powerConnected = false;
+  bool _gpsSpeed = false;
+  StreamSubscription? _connectedSlotsSub;
   
   // Silca pressure ratios (front as % of rear) based on bike type
   final Map<String, double> _silcaRatios = {
@@ -54,6 +61,20 @@ class _PressureInputPageState extends State<PressureInputPage> {
     _loadSettings();
     _rearController.addListener(_updateFrontPressure);
     settingsChanged.addListener(_onSettingsChanged);
+
+    // Track sensor connection status
+    final svc = SensorService();
+    _speedConnected = svc.currentConnectedSlots.contains('speed');
+    _powerConnected = svc.currentConnectedSlots.contains('power');
+    _gpsSpeed = svc.useGpsAsSpeed;
+    _connectedSlotsSub = svc.connectedSlotsStream.listen((slots) {
+      if (!mounted) return;
+      setState(() {
+        _speedConnected = slots.contains('speed');
+        _powerConnected = slots.contains('power');
+        _gpsSpeed = SensorService().useGpsAsSpeed;
+      });
+    });
   }
 
   void _onSettingsChanged() => _loadSettings();
@@ -110,6 +131,7 @@ class _PressureInputPageState extends State<PressureInputPage> {
     settingsChanged.removeListener(_onSettingsChanged);
     _rearController.removeListener(_updateFrontPressure);
     _rearController.dispose();
+    _connectedSlotsSub?.cancel();
     super.dispose();
   }
 
@@ -143,6 +165,52 @@ class _PressureInputPageState extends State<PressureInputPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 10),
+
+                      // Sensor connection warning banner — protocol-aware
+                      // coast_down            → speed sensor (or GPS fallback)
+                      // constant_power / lap_efficiency → power meter
+                      // sim                   → no sensor needed, no banner
+                      Builder(builder: (context) {
+                        final bool needsPower = widget.protocol == 'constant_power' ||
+                            widget.protocol == 'lap_efficiency';
+                        final bool isSim = widget.protocol == 'sim';
+                        final bool showBanner = isSim
+                            ? false
+                            : needsPower
+                                ? !_powerConnected
+                                : (!_speedConnected && !_gpsSpeed);
+                        final String bannerText = needsPower
+                            ? 'Power meter not connected. This protocol requires live watt data. Check Sensor Setup.'
+                            : 'Speed sensor not connected. Enable GPS Speed in Sensor Setup or spin the wheel to wake the sensor.';
+                        if (!showBanner) return const SizedBox.shrink();
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF3CD),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFFC107), width: 1.2),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                needsPower ? Icons.bolt_outlined : Icons.bluetooth_disabled,
+                                color: const Color(0xFF856404),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  bannerText,
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF856404)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [

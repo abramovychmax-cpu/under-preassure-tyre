@@ -177,7 +177,7 @@ class CoastDownClusteringService {
   // ── Pipeline constants ──
   /// GPS radius used to confirm all runs started at the same physical point.
   /// Start-point only — end-point no longer used (trimming makes it irrelevant).
-  static const double _startGpsRadiusM = 50.0;
+  static const double _startGpsRadiusM = 100.0;
   static const double _minAltitudeDropM = 5.0;
   static const double _maxAltitudeErrorRate = 0.20; // 20% erratic points allowed
   static const double _signatureMatchRadiusM = 1000.0;
@@ -286,7 +286,7 @@ class CoastDownClusteringService {
     double frontPressure,
     double rearPressure,
   ) {
-    if (records.length < 5) return null;
+    if (records.length < 3) return null;
 
     final altitudes  = <double>[];
     final speeds     = <double>[]; // m/s
@@ -302,6 +302,21 @@ class CoastDownClusteringService {
       lats.add((r['lat']            as num?)?.toDouble() ?? 0.0);
       lons.add((r['lon']            as num?)?.toDouble() ?? 0.0);
       powers.add((r['power']        as num?)?.toDouble() ?? 0.0);
+    }
+
+    // ── If wheel-sensor distances are all zero (cadence-only CSC sensor or GPS mode),
+    //    rebuild a cumulative distance array from haversine GPS deltas. ──
+    final bool distancesAreZero = distances.every((d) => d == 0.0);
+    if (distancesAreZero && lats.length >= 2) {
+      double cumulative = 0.0;
+      for (int i = 0; i < distances.length; i++) {
+        if (i > 0 && (lats[i] != 0.0 || lons[i] != 0.0) &&
+            (lats[i - 1] != 0.0 || lons[i - 1] != 0.0)) {
+          cumulative += _haversine(lats[i - 1], lons[i - 1], lats[i], lons[i]);
+        }
+        distances[i] = cumulative;
+      }
+      AppLogger.log('  ↳ Run $runIdx: distances rebuilt from GPS haversine (wheel sensor had no data)');
     }
 
     // ── Find coasting START ──

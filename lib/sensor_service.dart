@@ -76,8 +76,11 @@ class SensorService {
   /// When true, GPS is used as the primary speed & distance source.
   bool _useGpsAsSpeed = false;
   bool get useGpsAsSpeed => _useGpsAsSpeed;
-  // GPS-integrated distance accumulator (km) used when _useGpsAsSpeed is true
+  // GPS-integrated distance accumulator (km) — always runs as a shadow.
+  // Used as primary when wheel sensor is not advancing (lost connection / no wheel flags).
   double _gpsDistance = 0.0;
+  // Wheel distance at the previous 1Hz tick — used to detect sensor stalls.
+  double _prevTickWheelDistance = 0.0;
 
   void setUseGpsAsSpeed(bool value) {
     _useGpsAsSpeed = value;
@@ -223,6 +226,7 @@ class SensorService {
     }
     _currentRunDistance = 0.0;
     _gpsDistance = 0.0;
+    _prevTickWheelDistance = 0.0;
     _distanceController.add(0.0);
     // Don't reset _lastWheelRevs/_lastWheelTime - keep them for speed calculation continuity
     AppLogger.log('[SensorService] resetDistance | lapStartRevs=$_lapStartRevs');
@@ -340,7 +344,7 @@ class SensorService {
         if (_connectedDevices.containsKey(id) || _connectingIds.contains(id)) continue;
 
         await _connectToDevice(device);
-        await Future.delayed(const Duration(milliseconds: 1000));
+        await Future.delayed(const Duration(milliseconds: 300));
       }
     } finally {
       _sequentialConnectInProgress = false;
@@ -357,7 +361,7 @@ class SensorService {
       // 1. CRITICAL: Stop scanning before connecting to prevent Status 133
       if (FlutterBluePlus.isScanningNow) {
         await FlutterBluePlus.stopScan();
-        await Future.delayed(const Duration(milliseconds: 500)); 
+        await Future.delayed(const Duration(milliseconds: 200)); 
       }
 
       // Cancel the previous connectionState listener for this device before
@@ -378,18 +382,11 @@ class SensorService {
       
       AppLogger.log("CONNECTED SUCCESSFULLY: $deviceId");
 
-      // 3. Post-connection Breath (Sequential GATT operations)
-      await Future.delayed(const Duration(milliseconds: 1000));
-      if (_requestedMtu[deviceId] != 223) {
-        try {
-          await device.requestMtu(223);
-          _requestedMtu[deviceId] = 223;
-        } catch (_) {
-          // ignore mtu errors
-        }
-      }
-
-      await Future.delayed(const Duration(milliseconds: 800));
+      // 3. Post-connection: minimal delay then GATT discovery.
+      // Garmin/cycling sensors have short GATT supervision windows (~2-4s).
+      // MTU negotiation is deferred until AFTER discoverServices to avoid
+      // burning time before the peripheral drops the link.
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Cancel any stale characteristic notification subscriptions from the
       // previous connection before discovering services. Old subscriptions
@@ -400,9 +397,8 @@ class SensorService {
       }
       _notificationSubscriptions[deviceId] = [];
 
-      // Retry discoverServices up to 3 times. On iOS, the GATT stack sometimes
-      // reports fbp-code: 6 (device disconnected) for ~1 s after connect()
-      // resolves, causing the first discoverServices call to throw.
+      // discoverServices immediately — minimise time before peripheral drops link.
+      // Retry up to 3 times with a short backoff if the iOS GATT stack isn't ready.
       List<BluetoothService> services = [];
       for (int attempt = 0; attempt < 3; attempt++) {
         try {
@@ -411,10 +407,21 @@ class SensorService {
         } catch (e) {
           AppLogger.log('discoverServices attempt ${attempt + 1} failed for $deviceId: $e');
           if (attempt < 2) {
-            await Future.delayed(const Duration(milliseconds: 1500));
+            await Future.delayed(const Duration(milliseconds: 500));
           } else {
             rethrow;
           }
+        }
+      }
+
+      // MTU negotiation AFTER services discovered — peripheral is now fully
+      // engaged in GATT exchange so it won't drop the link during negotiation.
+      if (_requestedMtu[deviceId] != 223) {
+        try {
+          await device.requestMtu(223);
+          _requestedMtu[deviceId] = 223;
+        } catch (_) {
+          // ignore mtu errors — not critical for cycling sensors
         }
       }
 
@@ -632,13 +639,31 @@ class SensorService {
         return;
       }
 
-      // Accumulate GPS-based distance when BT speed sensor is not in use
-      if (_useGpsAsSpeed && currentSpeedValue > 0.1) {
-        // speed is in km/h; integrate over 1 second -> km
-        _gpsDistance += currentSpeedValue / 3600.0;
-        currentDistanceValue = _gpsDistance;
-        _distanceController.add(currentDistanceValue);
+      // Distance source selection — two sources, GPS and wheel sensor, run in parallel.
+      // GPS always accumulates as a shadow so it can fill gaps instantly when the
+      // wheel sensor drops (lost BLE connection) or was never present.
+      //
+      //  _useGpsAsSpeed ON  → GPS is the chosen source; wheel data ignored for distance.
+      //  Wheel advanced     → Wheel is live this tick; use it and resync GPS shadow to it.
+      //  Wheel stalled      → Sensor dropped or never had wheel flags; GPS fills the gap.
+      if (currentSpeedValue > 0.1) {
+        _gpsDistance += currentSpeedValue / 3600.0; // km/h over 1 s → km
       }
+
+      final bool wheelAdvancedThisTick = _currentRunDistance > _prevTickWheelDistance;
+      _prevTickWheelDistance = _currentRunDistance;
+
+      if (_useGpsAsSpeed) {
+        currentDistanceValue = _gpsDistance;
+      } else if (wheelAdvancedThisTick) {
+        // Wheel sensor is live — use its precise measurement and keep GPS shadow in sync.
+        _gpsDistance = _currentRunDistance;
+        currentDistanceValue = _currentRunDistance;
+      } else {
+        // Wheel sensor stalled or not connected — GPS seamlessly fills the gap.
+        currentDistanceValue = _gpsDistance;
+      }
+      _distanceController.add(currentDistanceValue);
 
       final now = DateTime.now().toUtc();
       

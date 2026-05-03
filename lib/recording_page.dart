@@ -221,9 +221,21 @@ class _RecordingPageState extends State<RecordingPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
                   onPressed: () {
-                    // Pause recording loop to save battery while in "Wait State"
-                    SensorService().pauseRecordingSession();
-                    
+                    // Warn if the run was very short (< 20 seconds)
+                    if (_elapsed.inSeconds < 20) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Run was very short (< 20 s). Coast the full descent before finishing.'),
+                          backgroundColor: Color(0xFFE6A817),
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                      return;
+                    }
+                    // Keep the recording timer running between laps for ALL protocols
+                    // so that Strava receives one continuous GPS track with lap markers,
+                    // not disconnected fragments. The lap boundary is stamped by
+                    // writeLap() when the next run starts.
                     // Pop back to input page
                     Navigator.of(context).pop(true);
                   },
